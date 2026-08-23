@@ -1,0 +1,13 @@
+{
+  "expo": {
+    "name": "QuickBite Restaurant",
+    "slug": "quickbite-restaurant",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "scheme": "quickbite-restaurant",
+    "ios": { "bundleIdentifier": "com.quickbite.restaurant" },
+    "android": { "package": "com.quickbite.restaurant" },
+    "web": { "bundler": "metro" }
+  }
+}

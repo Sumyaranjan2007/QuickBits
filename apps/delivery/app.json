@@ -1,0 +1,13 @@
+{
+  "expo": {
+    "name": "QuickBite Delivery",
+    "slug": "quickbite-delivery",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "scheme": "quickbite-delivery",
+    "ios": { "bundleIdentifier": "com.quickbite.delivery" },
+    "android": { "package": "com.quickbite.delivery" },
+    "web": { "bundler": "metro" }
+  }
+}

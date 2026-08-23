@@ -1,0 +1,24 @@
+{
+  "name": "@quickbite/admin",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3001",
+    "build": "next build",
+    "vercel-build": "cd ../.. && pnpm --filter @quickbite/types --filter @quickbite/config --filter @quickbite/validation run build && cd apps/admin && next build",
+    "start": "next start -p 3001"
+  },
+  "dependencies": {
+    "next": "^14.2.0",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0",
+    "@quickbite/types": "workspace:*",
+    "@quickbite/config": "workspace:*",
+    "@quickbite/api-client": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "typescript": "^5.5.0"
+  }
+}

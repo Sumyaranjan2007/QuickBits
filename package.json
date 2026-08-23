@@ -1,0 +1,39 @@
+{
+  "name": "quickbite",
+  "version": "1.0.0",
+  "private": true,
+  "description": "QuickBite - Multi-sided food delivery platform",
+  "scripts": {
+    "start": "pnpm --filter @quickbite/admin run start",
+    "start:web": "pnpm --filter @quickbite/admin run start",
+    "start:api": "pnpm --filter @quickbite/api run start:prod",
+    "dev:api": "pnpm --filter @quickbite/api run start:dev",
+    "dev:admin": "pnpm --filter @quickbite/admin run dev",
+    "dev:customer": "pnpm --filter @quickbite/customer run start",
+    "dev:restaurant": "pnpm --filter @quickbite/restaurant run start",
+    "dev:delivery": "pnpm --filter @quickbite/delivery run start",
+    "build": "pnpm --filter @quickbite/types --filter @quickbite/config --filter @quickbite/validation run build && pnpm --filter @quickbite/admin run build",
+    "build:all": "pnpm -r run build",
+    "build:packages": "pnpm --filter @quickbite/types --filter @quickbite/validation --filter @quickbite/config run build",
+    "build:api": "pnpm --filter @quickbite/api run build",
+    "typecheck": "pnpm -r run typecheck",
+    "lint": "pnpm -r run lint",
+    "test": "pnpm -r run test",
+    "test:api": "pnpm --filter @quickbite/api run test",
+    "db:seed": "pnpm --filter @quickbite/api run seed",
+    "clean": "pnpm -r exec rm -rf dist node_modules .next .expo",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\""
+  },
+  "dependencies": {
+    "next": "^14.2.0",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "typescript": "^5.5.0"
+  },
+  "packageManager": "pnpm@9.15.0"
+}

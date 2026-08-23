@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "noEmit": false,
+    "paths": {}
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", "dist", "test", "**/*spec.ts", "src/database/seed/run-seed.ts"]
+}
