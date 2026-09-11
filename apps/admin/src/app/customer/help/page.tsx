@@ -65,11 +65,11 @@ export default function CustomerHelpPage() {
             Find quick answers to common questions or chat with our live support assistant.
           </p>
         </div>
-        <div style={{ fontSize: 72 }}>🎧</div>
+        <div className="promo-banner-emoji" style={{ fontSize: 72 }}>🎧</div>
       </div>
 
       {/* ─── Quick Issue Topic Cards ─── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 36 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))', gap: 14, marginBottom: 36 }}>
         {[
           { icon: '📦', title: 'Order Status', prompt: 'Where is my active order?' },
           { icon: '💳', title: 'Refund Status', prompt: 'Check refund status for my last order' },

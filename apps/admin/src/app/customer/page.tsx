@@ -111,7 +111,7 @@ export default function CustomerHomePage() {
           </div>
         </div>
 
-        <div style={{ fontSize: 96, position: 'relative', zIndex: 1, filter: 'drop-shadow(0 10px 20px rgba(0,0,0,0.15))' }}>
+        <div className="promo-banner-emoji">
           🍕
         </div>
       </div>
@@ -189,7 +189,7 @@ export default function CustomerHomePage() {
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
+          <div className="popular-dishes-grid">
             {popularDishes.map(dish => (
               <div
                 key={dish.id}

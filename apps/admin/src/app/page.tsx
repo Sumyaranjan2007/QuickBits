@@ -88,41 +88,21 @@ export default function HomePage() {
   };
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      background: 'linear-gradient(180deg, #0C2340 0%, #1A1A2E 100%)',
-      color: '#fff',
-      padding: '40px 20px',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center'
-    }}>
+    <div className="portal-home-container">
       {/* ─── Top Session & Logout Navigation Bar ─── */}
-      <div style={{
-        width: '100%',
-        maxWidth: 1200,
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: '12px 20px',
-        background: 'rgba(255, 255, 255, 0.05)',
-        borderRadius: 16,
-        border: '1px solid rgba(255, 255, 255, 0.1)',
-        marginBottom: 32,
-        backdropFilter: 'blur(10px)'
-      }}>
+      <div className="portal-top-bar">
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <span style={{ fontSize: 24 }}>🍔</span>
           <span style={{ fontWeight: 900, fontSize: 18, letterSpacing: -0.5 }}>QuickBite Central</span>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           {user ? (
             <>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, background: 'rgba(255,255,255,0.08)', padding: '6px 14px', borderRadius: 20 }}>
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#55EFC4' }} />
-                <span>Logged in as: <strong>{user.email || user.name || 'User'}</strong></span>
-                <span style={{ fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 10, background: '#6C5CE7', color: '#fff' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, background: 'rgba(255,255,255,0.08)', padding: '6px 14px', borderRadius: 20, maxWidth: '100%' }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#55EFC4', flexShrink: 0 }} />
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Logged in as: <strong>{user.email || user.name || 'User'}</strong></span>
+                <span style={{ fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 10, background: '#6C5CE7', color: '#fff', flexShrink: 0 }}>
                   {user.role || 'ACTIVE'}
                 </span>
               </div>
@@ -155,47 +135,29 @@ export default function HomePage() {
       </div>
 
       {/* ─── Top Brand Header ─── */}
-      <div style={{ textAlign: 'center', maxWidth: 800, marginBottom: 40 }}>
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, background: 'rgba(255,255,255,0.08)', padding: '8px 20px', borderRadius: 30, marginBottom: 16, border: '1px solid rgba(255,255,255,0.12)' }}>
-          <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#55EFC4', boxShadow: '0 0 10px #55EFC4' }} />
-          <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: 0.5, color: '#E8F4FD' }}>
+      <div style={{ textAlign: 'center', maxWidth: 800, marginBottom: 36, width: '100%' }}>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, background: 'rgba(255,255,255,0.08)', padding: '8px 16px', borderRadius: 30, marginBottom: 16, border: '1px solid rgba(255,255,255,0.12)', maxWidth: '100%' }}>
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#55EFC4', boxShadow: '0 0 10px #55EFC4', flexShrink: 0 }} />
+          <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: 0.5, color: '#E8F4FD', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             Multi-Sided Food Delivery Platform Ecosystem
           </span>
         </div>
 
-        <h1 style={{ fontSize: 44, fontWeight: 900, letterSpacing: -1, margin: '8px 0', background: 'linear-gradient(135deg, #fff 0%, #74B9FF 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+        <h1 style={{ fontSize: 'clamp(26px, 6vw, 44px)', fontWeight: 900, letterSpacing: -1, margin: '8px 0', background: 'linear-gradient(135deg, #fff 0%, #74B9FF 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
           Welcome to QuickBite
         </h1>
 
-        <p style={{ fontSize: 16, color: 'rgba(255,255,255,0.7)', lineHeight: 1.6, maxWidth: 640, margin: '0 auto' }}>
+        <p style={{ fontSize: 15, color: 'rgba(255,255,255,0.7)', lineHeight: 1.6, maxWidth: 640, margin: '0 auto' }}>
           Select any of the 4 independent portals below to experience the complete end-to-end food ordering, merchant preparation, driver delivery, and admin operations.
         </p>
       </div>
 
       {/* ─── 4 Portal Roles Grid ─── */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-        gap: 24,
-        maxWidth: 1200,
-        width: '100%',
-        marginBottom: 40
-      }}>
+      <div className="portal-grid">
         {ROLES.map((r) => (
           <div
             key={r.role}
-            style={{
-              background: 'rgba(255, 255, 255, 0.04)',
-              backdropFilter: 'blur(12px)',
-              borderRadius: 24,
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              padding: '28px',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-              transition: 'transform 0.2s ease, border-color 0.2s ease',
-              boxShadow: '0 10px 30px rgba(0,0,0,0.2)'
-            }}
+            className="portal-role-card"
           >
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
@@ -288,19 +250,7 @@ export default function HomePage() {
       </div>
 
       {/* ─── Bottom Status Info Footer ─── */}
-      <div style={{
-        maxWidth: 1200,
-        width: '100%',
-        padding: '20px 28px',
-        background: 'rgba(255,255,255,0.03)',
-        borderRadius: 18,
-        border: '1px solid rgba(255,255,255,0.08)',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        flexWrap: 'wrap',
-        gap: 16
-      }}>
+      <div className="portal-status-bar">
         <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
           <div>
             <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', fontWeight: 700 }}>WEB APP STATUS</div>

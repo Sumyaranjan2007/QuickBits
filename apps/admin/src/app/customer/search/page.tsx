@@ -122,8 +122,8 @@ export default function CustomerSearchPage() {
       </div>
 
       {/* ─── Tabs & Filters ─── */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)', paddingBottom: 12, marginBottom: 24 }}>
-        <div style={{ display: 'flex', gap: 8 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, borderBottom: '1px solid var(--border)', paddingBottom: 12, marginBottom: 24 }}>
+        <div style={{ display: 'flex', gap: 8, overflowX: 'auto', scrollbarWidth: 'none', maxWidth: '100%' }}>
           <button
             className={`btn btn-sm ${activeTab === 'all' ? 'btn-primary' : 'btn-outline'}`}
             style={{ borderRadius: 20 }}
@@ -169,7 +169,7 @@ export default function CustomerSearchPage() {
               <h3 style={{ fontSize: 18, fontWeight: 800, marginBottom: 14 }}>
                 🍔 Food Items ({matchingDishes.length})
               </h3>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))', gap: 16 }}>
                 {matchingDishes.map(dish => (
                   <div key={dish.id} className="dish-card" style={{ borderRadius: 16, border: '1px solid var(--border)' }}>
                     <div className="dish-info">

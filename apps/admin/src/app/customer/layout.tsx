@@ -13,6 +13,14 @@ const SAVED_LOCATIONS = [
   { name: 'HSR Layout Sector 4', tag: 'Other', desc: '27th Main Road, HSR Layout, 560102' },
 ];
 
+const MOBILE_NAV_ITEMS = [
+  { key: 'home', href: '/customer', icon: '🏠', label: 'Home' },
+  { key: 'search', href: '/customer/search', icon: '🔍', label: 'Search' },
+  { key: 'offers', href: '/customer/offers', icon: '🏷️', label: 'Offers' },
+  { key: 'orders', href: '/customer/orders', icon: '📦', label: 'Orders' },
+  { key: 'profile', href: '/customer/profile', icon: '👤', label: 'Profile' },
+];
+
 function CustomerNavbar() {
   const { user, logout } = useAuth();
   const pathname = usePathname();
@@ -28,6 +36,18 @@ function CustomerNavbar() {
     { id: '1', title: '🎉 50% OFF First Order!', body: 'Use coupon code WELCOME50 at checkout.', time: '10m ago', isRead: false },
     { id: '2', title: '🍔 Gourmet Smash Burgers', body: 'Burger & Co is now open with free delivery.', time: '1h ago', isRead: false },
   ]);
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => {
+      setIsProfileMenuOpen(false);
+      setIsNotificationOpen(false);
+    };
+    if (isProfileMenuOpen || isNotificationOpen) {
+      document.addEventListener('click', handleClickOutside);
+    }
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [isProfileMenuOpen, isNotificationOpen]);
 
   // Handle GPS detection
   const handleDetectLocation = () => {
@@ -50,14 +70,19 @@ function CustomerNavbar() {
     setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
   };
 
+  const isNavActive = (href: string) => {
+    if (href === '/customer') return pathname === '/customer';
+    return pathname.startsWith(href);
+  };
+
   return (
     <>
       <header className="top-navbar" style={{ height: 72, background: 'rgba(255,255,255,0.95)', borderBottom: '1px solid #F0E6E0', position: 'sticky', top: 0, zIndex: 60 }}>
         {/* Brand & Location */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-          <Link href="/customer" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 20, minWidth: 0, flex: '0 1 auto' }}>
+          <Link href="/customer" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none', flexShrink: 0 }}>
             <span style={{ fontSize: 32 }}>🍔</span>
-            <div style={{ lineHeight: 1 }}>
+            <div style={{ lineHeight: 1 }} className="hide-mobile">
               <span style={{ fontSize: 24, fontWeight: 900, color: '#FF6B35', letterSpacing: '-0.5px' }}>QuickBite</span>
               <span style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#8B7355', letterSpacing: 1, textTransform: 'uppercase' }}>Superfast Food</span>
             </div>
@@ -70,7 +95,7 @@ function CustomerNavbar() {
             style={{ display: 'flex', alignItems: 'center', gap: 8 }}
           >
             <span>📍</span>
-            <div style={{ textAlign: 'left', lineHeight: 1.2 }}>
+            <div style={{ textAlign: 'left', lineHeight: 1.2, minWidth: 0 }}>
               <span className="location-tag">{selectedLocation.tag}</span>
               <div className="location-text">{selectedLocation.name}</div>
             </div>
@@ -78,7 +103,7 @@ function CustomerNavbar() {
           </button>
         </div>
 
-        {/* Navigation Links */}
+        {/* Navigation Links — hidden on mobile via CSS */}
         <div className="top-navbar-links" style={{ display: 'flex', gap: 4 }}>
           <Link href="/customer" className={`top-navbar-link ${pathname === '/customer' ? 'active' : ''}`}>
             🏠 Home
@@ -98,13 +123,13 @@ function CustomerNavbar() {
         </div>
 
         {/* Right Actions: Notifications, Cart, Profile */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
           {/* Notifications Dropdown */}
           <div style={{ position: 'relative' }}>
             <button
               className="btn btn-outline btn-icon"
-              style={{ position: 'relative', width: 42, height: 42, borderRadius: '50%', background: '#FFF5F0', border: '1.5px solid #FFD5C2' }}
-              onClick={() => setIsNotificationOpen(!isNotificationOpen)}
+              style={{ position: 'relative', width: 42, height: 42, borderRadius: '50%', background: '#FFF5F0', border: '1.5px solid #FFD5C2', minHeight: 42 }}
+              onClick={(e) => { e.stopPropagation(); setIsNotificationOpen(!isNotificationOpen); setIsProfileMenuOpen(false); }}
             >
               🔔
               {unreadCount > 0 && (
@@ -115,7 +140,7 @@ function CustomerNavbar() {
             </button>
 
             {isNotificationOpen && (
-              <div style={{ position: 'absolute', top: 52, right: 0, width: 320, background: '#fff', borderRadius: 16, boxShadow: '0 10px 30px rgba(0,0,0,0.15)', border: '1px solid #F0E6E0', zIndex: 100, overflow: 'hidden' }}>
+              <div onClick={(e) => e.stopPropagation()} style={{ position: 'absolute', top: 52, right: 0, width: 'min(320px, calc(100vw - 24px))', background: '#fff', borderRadius: 16, boxShadow: '0 10px 30px rgba(0,0,0,0.15)', border: '1px solid #F0E6E0', zIndex: 100, overflow: 'hidden' }}>
                 <div style={{ padding: '14px 18px', borderBottom: '1px solid #F0E6E0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontWeight: 800, fontSize: 14 }}>Notifications</span>
                   <button onClick={markAllNotificationsRead} style={{ background: 'none', border: 'none', color: '#FF6B35', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>Mark all read</button>
@@ -140,7 +165,7 @@ function CustomerNavbar() {
             onClick={() => setIsCartDrawerOpen(true)}
           >
             <span>🛒</span>
-            <span>Cart</span>
+            <span className="hide-mobile">Cart</span>
             {itemCount > 0 && (
               <span style={{ background: '#fff', color: '#FF6B35', fontSize: 11, fontWeight: 800, padding: '2px 8px', borderRadius: 12 }}>
                 {itemCount}
@@ -148,12 +173,12 @@ function CustomerNavbar() {
             )}
           </button>
 
-          {/* User Profile Menu */}
-          <div style={{ position: 'relative' }}>
+          {/* User Profile Menu — hidden on mobile (accessible via bottom nav) */}
+          <div style={{ position: 'relative' }} className="hide-mobile">
             <button
               className="btn btn-outline"
               style={{ borderRadius: 24, padding: '8px 14px', gap: 8, background: '#fff' }}
-              onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+              onClick={(e) => { e.stopPropagation(); setIsProfileMenuOpen(!isProfileMenuOpen); setIsNotificationOpen(false); }}
             >
               <div style={{ width: 26, height: 26, borderRadius: '50%', background: '#FF6B35', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800 }}>
                 {(user?.profile?.firstName || user?.email || 'U')[0].toUpperCase()}
@@ -165,7 +190,7 @@ function CustomerNavbar() {
             </button>
 
             {isProfileMenuOpen && (
-              <div style={{ position: 'absolute', top: 50, right: 0, width: 240, background: '#fff', borderRadius: 16, boxShadow: '0 10px 30px rgba(0,0,0,0.15)', border: '1px solid #F0E6E0', zIndex: 100, overflow: 'hidden', padding: '8px 0' }}>
+              <div onClick={(e) => e.stopPropagation()} style={{ position: 'absolute', top: 50, right: 0, width: 240, background: '#fff', borderRadius: 16, boxShadow: '0 10px 30px rgba(0,0,0,0.15)', border: '1px solid #F0E6E0', zIndex: 100, overflow: 'hidden', padding: '8px 0' }}>
                 <div style={{ padding: '12px 18px', borderBottom: '1px solid #F0E6E0' }}>
                   <div style={{ fontWeight: 800, fontSize: 14 }}>{user?.profile?.firstName} {user?.profile?.lastName}</div>
                   <div style={{ fontSize: 11, color: '#8B7355' }}>{user?.email}</div>
@@ -195,6 +220,22 @@ function CustomerNavbar() {
           </div>
         </div>
       </header>
+
+      {/* ─── Mobile Bottom Navigation Bar ─── */}
+      <nav className="mobile-bottom-nav">
+        <div className="mobile-bottom-nav-inner">
+          {MOBILE_NAV_ITEMS.map(item => (
+            <Link
+              key={item.key}
+              href={item.href}
+              className={`mobile-nav-item ${isNavActive(item.href) ? 'active' : ''}`}
+            >
+              <span className="mobile-nav-icon">{item.icon}</span>
+              <span>{item.label}</span>
+            </Link>
+          ))}
+        </div>
+      </nav>
 
       {/* Location Modal */}
       {isLocationModalOpen && (
@@ -235,14 +276,14 @@ function CustomerNavbar() {
                   }}
                 >
                   <span style={{ fontSize: 24 }}>{loc.tag === 'Home' ? '🏠' : loc.tag === 'Work' ? '💼' : '📍'}</span>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                       <span style={{ fontWeight: 800, fontSize: 14 }}>{loc.name}</span>
                       <span className="badge badge-neutral" style={{ fontSize: 10 }}>{loc.tag}</span>
                     </div>
-                    <div style={{ fontSize: 12, color: 'var(--text-sec)', marginTop: 2 }}>{loc.desc}</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-sec)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{loc.desc}</div>
                   </div>
-                  {selectedLocation.name === loc.name && <span style={{ color: 'var(--primary)', fontWeight: 900 }}>✓</span>}
+                  {selectedLocation.name === loc.name && <span style={{ color: 'var(--primary)', fontWeight: 900, flexShrink: 0 }}>✓</span>}
                 </div>
               ))}
             </div>
@@ -273,16 +314,16 @@ function CustomerNavbar() {
                 {/* Items List */}
                 <div style={{ maxHeight: 260, overflowY: 'auto', marginBottom: 16, borderBottom: '1px solid var(--border)' }}>
                   {items.map(it => (
-                    <div key={it.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid #FAF7F5' }}>
-                      <div style={{ flex: 1, paddingRight: 10 }}>
+                    <div key={it.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid #FAF7F5', gap: 8 }}>
+                      <div style={{ flex: 1, paddingRight: 8, minWidth: 0 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <span className={`food-badge ${it.foodType === 'VEG' ? 'veg' : 'nonveg'}`} style={{ fontSize: 9 }}>
+                          <span className={`food-badge ${it.foodType === 'VEG' ? 'veg' : 'nonveg'}`} style={{ fontSize: 9, flexShrink: 0 }}>
                             {it.foodType === 'VEG' ? '●' : '▲'}
                           </span>
-                          <span style={{ fontWeight: 700, fontSize: 14 }}>{it.name}</span>
+                          <span style={{ fontWeight: 700, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.name}</span>
                         </div>
                         {it.addons && it.addons.length > 0 && (
-                          <div style={{ fontSize: 11, color: 'var(--text-sec)', marginTop: 2 }}>
+                          <div style={{ fontSize: 11, color: 'var(--text-sec)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             + {it.addons.map(a => `${a.name} (₹${a.price})`).join(', ')}
                           </div>
                         )}
@@ -292,7 +333,7 @@ function CustomerNavbar() {
                       </div>
 
                       {/* Quantity Controller */}
-                      <div className="dish-counter">
+                      <div className="dish-counter" style={{ flexShrink: 0 }}>
                         <button className="dish-counter-btn" onClick={() => updateQuantity(it.id, -1)}>−</button>
                         <span>{it.quantity}</span>
                         <button className="dish-counter-btn" onClick={() => updateQuantity(it.id, 1)}>+</button>
@@ -374,3 +415,4 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
     </CartProvider>
   );
 }
+

@@ -142,13 +142,13 @@ export default function CustomerCheckoutPage() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 420px', gap: 28, alignItems: 'start' }}>
+      <div className="checkout-layout-grid">
         {/* ─── Left Column: Delivery & Payment Details ─── */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
           {/* 1. Order Type (Delivery / Pickup) */}
           <div style={{ background: '#fff', borderRadius: 16, border: '1px solid var(--border)', padding: 20 }}>
             <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 12 }}>1. Order Type</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div className="order-type-grid">
               <button
                 className={`btn ${orderType === 'DELIVERY' ? 'btn-primary' : 'btn-outline'}`}
                 style={{ padding: '12px', justifyContent: 'center', borderRadius: 12 }}
@@ -241,7 +241,7 @@ export default function CustomerCheckoutPage() {
           {/* 4. Payment Method */}
           <div style={{ background: '#fff', borderRadius: 16, border: '1px solid var(--border)', padding: 20 }}>
             <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 14 }}>4. Payment Method</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div className="payment-method-grid">
               {[
                 { id: 'UPI', label: 'Instant UPI', desc: 'Google Pay, PhonePe, Paytm', icon: '📱' },
                 { id: 'CARD', label: 'Credit / Debit Card', desc: 'Visa, Mastercard, RuPay', icon: '💳' },
@@ -270,7 +270,7 @@ export default function CustomerCheckoutPage() {
         </div>
 
         {/* ─── Right Column: Order Summary & Bill ─── */}
-        <div style={{ background: '#fff', borderRadius: 16, border: '1px solid var(--border)', padding: 24, boxShadow: 'var(--shadow-sm)', position: 'sticky', top: 96 }}>
+        <div className="checkout-summary-card">
           <h3 style={{ fontSize: 18, fontWeight: 900, marginBottom: 16 }}>Order Summary</h3>
 
           {/* Items List */}

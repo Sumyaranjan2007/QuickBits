@@ -48,7 +48,7 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* ─── Top 6 KPI Metric Cards ─── */}
-      <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 18, marginBottom: 28 }}>
+      <div className="admin-stats-grid" style={{ marginBottom: 28 }}>
         <div className="stat-card">
           <div className="stat-icon">💰</div>
           <div className="stat-value">₹{totalGMV.toLocaleString()}</div>
@@ -93,7 +93,7 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* ─── Visual Stream Breakdown ─── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 24, marginBottom: 28 }}>
+      <div className="admin-visual-grid" style={{ marginBottom: 28 }}>
         {/* Marketplace Revenue Streams */}
         <div style={{ background: '#fff', borderRadius: 16, border: '1px solid var(--border)', padding: 24, boxShadow: 'var(--shadow-sm)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>

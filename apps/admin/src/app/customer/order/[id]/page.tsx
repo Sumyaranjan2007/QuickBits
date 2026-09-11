@@ -141,7 +141,7 @@ export default function CustomerOrderTrackingPage() {
       </div>
 
       {/* ─── Delivery Partner & OTP Card ─── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
+      <div className="stats-grid" style={{ marginBottom: 24 }}>
         {/* Delivery Partner */}
         <div style={{ background: '#fff', borderRadius: 16, border: '1px solid var(--border)', padding: 20, display: 'flex', alignItems: 'center', gap: 14 }}>
           <div style={{ width: 52, height: 52, borderRadius: '50%', background: '#0984E3', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, fontWeight: 800 }}>
@@ -176,7 +176,7 @@ export default function CustomerOrderTrackingPage() {
       </div>
 
       {/* ─── Actions Strip ─── */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff', borderRadius: 16, border: '1px solid var(--border)', padding: '16px 20px', marginBottom: 32 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, background: '#fff', borderRadius: 16, border: '1px solid var(--border)', padding: '16px 20px', marginBottom: 32 }}>
         <Link href="/customer/orders" className="btn btn-outline" style={{ borderRadius: 10 }}>
           ← View All Orders
         </Link>

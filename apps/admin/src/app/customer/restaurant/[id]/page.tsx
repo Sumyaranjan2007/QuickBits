@@ -108,9 +108,9 @@ export default function RestaurantDetailPage() {
           <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.85) 100%)' }} />
 
           <div style={{ position: 'absolute', bottom: 20, left: 24, right: 24, color: '#fff' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 12 }}>
               <div>
-                <h1 style={{ fontSize: 32, fontWeight: 900, letterSpacing: -0.5, lineHeight: 1.2 }}>{restaurant.name}</h1>
+                <h1 style={{ fontSize: 'clamp(20px, 5vw, 32px)', fontWeight: 900, letterSpacing: -0.5, lineHeight: 1.2 }}>{restaurant.name}</h1>
                 <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: 14, marginTop: 4 }}>
                   {restaurant.cuisineType || 'Burgers, Fast Food'} • {restaurant.address}
                 </p>
@@ -158,7 +158,7 @@ export default function RestaurantDetailPage() {
       </div>
 
       {/* ─── 2. Search & Veg Toggle ─── */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, marginBottom: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 24 }}>
         {/* Menu Search Input */}
         <div style={{ position: 'relative', flex: 1, maxWidth: 440 }}>
           <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', fontSize: 16 }}>🔍</span>

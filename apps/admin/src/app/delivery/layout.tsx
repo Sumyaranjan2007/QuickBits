@@ -46,6 +46,7 @@ export default function DeliveryLayout({ children }: { children: React.ReactNode
   const { user, logout } = useAuth();
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [isOnline, setIsOnline] = useState(false);
   const [profile, setProfile] = useState<any>(null);
   const [loadingStatus, setLoadingStatus] = useState(false);
@@ -78,8 +79,50 @@ export default function DeliveryLayout({ children }: { children: React.ReactNode
 
   return (
     <div className="app-layout" data-theme="delivery">
+      {/* ─── Mobile Top Header ─── */}
+      <div className="mobile-top-bar">
+        <button
+          className="mobile-hamburger"
+          onClick={() => setMobileOpen(true)}
+          aria-label="Open Navigation Menu"
+        >
+          ☰
+        </button>
+        <div className="mobile-brand">
+          <span className="mobile-brand-icon">🛵</span>
+          <span>Delivery Fleet</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button
+            onClick={handleToggleOnline}
+            disabled={loadingStatus}
+            style={{
+              background: isOnline ? '#00B894' : '#636E72',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 14,
+              padding: '4px 10px',
+              fontSize: 11,
+              fontWeight: 800,
+              cursor: 'pointer',
+            }}
+          >
+            {loadingStatus ? '...' : isOnline ? 'Online' : 'Offline'}
+          </button>
+          <Link href="/" className="btn btn-sm btn-outline" style={{ borderRadius: 8, fontSize: 11, padding: '4px 8px' }}>
+            🏠
+          </Link>
+        </div>
+      </div>
+
+      {/* ─── Mobile Sidebar Overlay ─── */}
+      <div
+        className={`sidebar-overlay ${mobileOpen ? 'visible' : ''}`}
+        onClick={() => setMobileOpen(false)}
+      />
+
       {/* ─── Sidebar ─── */}
-      <aside className={`sidebar ${collapsed ? 'collapsed' : ''}`} style={{
+      <aside className={`sidebar ${collapsed ? 'collapsed' : ''} ${mobileOpen ? 'sidebar-open' : ''}`} style={{
         background: '#0C2340',
         color: '#fff',
         transition: 'width 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -115,21 +158,32 @@ export default function DeliveryLayout({ children }: { children: React.ReactNode
               </div>
             )}
           </div>
-          <button
-            onClick={() => setCollapsed(!collapsed)}
-            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            style={{
-              background: 'rgba(255,255,255,0.06)',
-              border: 'none',
-              borderRadius: 6,
-              color: 'rgba(255,255,255,0.7)',
-              cursor: 'pointer',
-              padding: '6px 8px',
-              fontSize: 12,
-            }}
-          >
-            {collapsed ? '▶' : '◀'}
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <button
+              onClick={() => setCollapsed(!collapsed)}
+              title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              className="hide-mobile"
+              style={{
+                background: 'rgba(255,255,255,0.06)',
+                border: 'none',
+                borderRadius: 6,
+                color: 'rgba(255,255,255,0.7)',
+                cursor: 'pointer',
+                padding: '6px 8px',
+                fontSize: 12,
+              }}
+            >
+              {collapsed ? '▶' : '◀'}
+            </button>
+            <button
+              className="show-mobile"
+              onClick={() => setMobileOpen(false)}
+              style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.7)', fontSize: 22, cursor: 'pointer', padding: 2 }}
+              aria-label="Close menu"
+            >
+              ✕
+            </button>
+          </div>
         </div>
 
         {/* Quick Duty Status Switch */}
@@ -203,6 +257,7 @@ export default function DeliveryLayout({ children }: { children: React.ReactNode
                   <Link
                     key={item.href}
                     href={item.href}
+                    onClick={() => setMobileOpen(false)}
                     title={collapsed ? item.label : undefined}
                     style={{
                       display: 'flex',
@@ -359,6 +414,31 @@ export default function DeliveryLayout({ children }: { children: React.ReactNode
       <main className="main-content" style={{ background: '#F4F8FC', minHeight: '100vh', padding: '24px' }}>
         {children}
       </main>
+
+      {/* ─── Mobile Bottom Navigation Bar ─── */}
+      <nav className="mobile-bottom-nav">
+        <div className="mobile-bottom-nav-inner">
+          {[
+            { key: 'home', label: 'Home', icon: '🛵', href: '/delivery' },
+            { key: 'active', label: 'Active', icon: '⚡', href: '/delivery/active' },
+            { key: 'earnings', label: 'Earnings', icon: '💰', href: '/delivery/earnings' },
+            { key: 'history', label: 'History', icon: '📦', href: '/delivery/orders' },
+            { key: 'profile', label: 'Profile', icon: '👤', href: '/delivery/profile' },
+          ].map(item => {
+            const isActive = item.href === '/delivery' ? pathname === '/delivery' : pathname.startsWith(item.href);
+            return (
+              <Link
+                key={item.key}
+                href={item.href}
+                className={`mobile-nav-item ${isActive ? 'active' : ''}`}
+              >
+                <span className="mobile-nav-icon">{item.icon}</span>
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
+        </div>
+      </nav>
     </div>
   );
 }

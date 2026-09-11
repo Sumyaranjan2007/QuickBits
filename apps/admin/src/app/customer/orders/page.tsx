@@ -105,7 +105,7 @@ export default function CustomerOrdersPage() {
       </div>
 
       {/* ─── Filter Tabs ─── */}
-      <div style={{ display: 'flex', gap: 10, borderBottom: '1px solid var(--border)', paddingBottom: 14, marginBottom: 24 }}>
+      <div style={{ display: 'flex', gap: 10, borderBottom: '1px solid var(--border)', paddingBottom: 14, marginBottom: 24, overflowX: 'auto', scrollbarWidth: 'none' }}>
         <button
           className={`filter-pill ${activeTab === 'all' ? 'active' : ''}`}
           onClick={() => setActiveTab('all')}
@@ -151,7 +151,7 @@ export default function CustomerOrdersPage() {
                 }}
               >
                 {/* Header */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid var(--border)', paddingBottom: 16, marginBottom: 16 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 10, borderBottom: '1px solid var(--border)', paddingBottom: 16, marginBottom: 16 }}>
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <span style={{ fontSize: 18, fontWeight: 900, color: 'var(--text)' }}>

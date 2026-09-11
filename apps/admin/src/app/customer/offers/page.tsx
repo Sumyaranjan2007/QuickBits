@@ -63,7 +63,7 @@ export default function CustomerOffersPage() {
             Explore exclusive restaurant discounts, bank offers, and promo vouchers crafted for you.
           </p>
         </div>
-        <div style={{ fontSize: 80 }}>🎁</div>
+        <div className="promo-banner-emoji" style={{ fontSize: 80 }}>🎁</div>
       </div>
 
       <div className="page-header">
@@ -76,7 +76,7 @@ export default function CustomerOffersPage() {
       {loading ? (
         <div className="loading"><div className="spinner" /></div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 20, marginBottom: 40 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))', gap: 16, marginBottom: 40 }}>
           {coupons.map(c => (
             <div
               key={c.id}

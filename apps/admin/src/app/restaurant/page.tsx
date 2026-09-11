@@ -105,7 +105,7 @@ export default function RestaurantDashboard() {
       ))}
 
       {/* ─── KPI Cards ─── */}
-      <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 14, marginBottom: 24 }}>
+      <div className="restaurant-stats-grid" style={{ marginBottom: 24 }}>
         <div className="stat-card">
           <div className="stat-icon">📦</div>
           <div className="stat-value">{todayOrders.length}</div>
@@ -157,7 +157,7 @@ export default function RestaurantDashboard() {
       </div>
 
       {/* ─── Revenue Chart ─── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 24 }}>
+      <div className="restaurant-charts-grid" style={{ marginBottom: 24 }}>
         <div style={{ background: '#fff', borderRadius: 20, padding: 24, border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)' }}>
           <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 20 }}>📈 Revenue — Last 7 Days</div>
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10, height: 120 }}>
@@ -246,7 +246,7 @@ export default function RestaurantDashboard() {
       </div>
 
       {/* ─── Quick Actions ─── */}
-      <div style={{ display: 'flex', gap: 12, marginTop: 20 }}>
+      <div className="restaurant-actions-strip" style={{ marginTop: 20 }}>
         <Link href="/restaurant/orders" style={{ textDecoration: 'none', flex: 1 }}>
           <button className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '14px', fontSize: 15, borderRadius: 12 }}>
             📦 Manage Live Orders

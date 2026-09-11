@@ -48,13 +48,47 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const { user, logout } = useAuth();
   const pathname = usePathname();
   const [isLiveActive, setIsLiveActive] = useState(true);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
     <div className="app-layout" data-theme="admin">
+      {/* ─── Mobile Top Header ─── */}
+      <div className="mobile-top-bar">
+        <button
+          className="mobile-hamburger"
+          onClick={() => setMobileOpen(true)}
+          aria-label="Open Navigation Menu"
+        >
+          ☰
+        </button>
+        <div className="mobile-brand">
+          <span className="mobile-brand-icon">👑</span>
+          <span>QuickBite Admin</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Link href="/" className="btn btn-sm btn-outline" style={{ borderRadius: 8, fontSize: 11, padding: '4px 8px' }}>
+            🏠 Hub
+          </Link>
+          <button
+            onClick={logout}
+            className="btn btn-sm"
+            style={{ borderRadius: 8, fontSize: 11, padding: '4px 8px', background: '#FFEAA7', color: '#D63031', border: 'none' }}
+          >
+            🚪
+          </button>
+        </div>
+      </div>
+
+      {/* ─── Mobile Sidebar Overlay ─── */}
+      <div
+        className={`sidebar-overlay ${mobileOpen ? 'visible' : ''}`}
+        onClick={() => setMobileOpen(false)}
+      />
+
       {/* ─── Enterprise Sidebar ─── */}
-      <aside className="sidebar" style={{ width: 270, background: '#1A1A2E', overflowY: 'auto' }}>
+      <aside className={`sidebar ${mobileOpen ? 'sidebar-open' : ''}`} style={{ width: 270, background: '#1A1A2E', overflowY: 'auto' }}>
         {/* Brand */}
-        <div className="sidebar-brand" style={{ padding: '20px 24px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+        <div className="sidebar-brand" style={{ padding: '20px 24px', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <span style={{ fontSize: 30 }}>🍔</span>
             <div>
@@ -64,6 +98,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               </div>
             </div>
           </div>
+          <button
+            className="show-mobile"
+            onClick={() => setMobileOpen(false)}
+            style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.7)', fontSize: 22, cursor: 'pointer', padding: 4 }}
+            aria-label="Close menu"
+          >
+            ✕
+          </button>
         </div>
 
         {/* Navigation Groups */}
@@ -80,6 +122,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     <Link
                       key={item.href}
                       href={item.href}
+                      onClick={() => setMobileOpen(false)}
                       className={`sidebar-link ${isActive ? 'active' : ''}`}
                       style={{
                         padding: '10px 14px', borderRadius: 8, fontSize: 13, fontWeight: 600,
@@ -130,8 +173,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       {/* ─── Main Content Canvas ─── */}
       <main className="main-content" style={{ marginLeft: 270, padding: '28px 36px', minHeight: '100vh', background: 'var(--bg)' }}>
-        {/* Top Operational Bar */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, background: '#fff', padding: '12px 24px', borderRadius: 14, border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)' }}>
+        {/* Top Operational Bar (Desktop) */}
+        <div className="hide-mobile" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, background: '#fff', padding: '12px 24px', borderRadius: 14, border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--text-sec)', textTransform: 'uppercase', letterSpacing: 0.8 }}>
               ⚡ Platform Network Status:
@@ -171,6 +214,31 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         {children}
       </main>
+
+      {/* ─── Mobile Bottom Navigation Bar ─── */}
+      <nav className="mobile-bottom-nav">
+        <div className="mobile-bottom-nav-inner">
+          {[
+            { key: 'dashboard', label: 'Dashboard', icon: '📊', href: '/admin' },
+            { key: 'operations', label: 'Operations', icon: '⚡', href: '/admin/operations' },
+            { key: 'orders', label: 'Orders', icon: '📦', href: '/admin/orders' },
+            { key: 'analytics', label: 'Analytics', icon: '💰', href: '/admin/finance' },
+            { key: 'profile', label: 'Profile', icon: '⚙️', href: '/admin/settings' },
+          ].map(item => {
+            const isActive = item.href === '/admin' ? pathname === '/admin' : pathname.startsWith(item.href);
+            return (
+              <Link
+                key={item.key}
+                href={item.href}
+                className={`mobile-nav-item ${isActive ? 'active' : ''}`}
+              >
+                <span className="mobile-nav-icon">{item.icon}</span>
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
+        </div>
+      </nav>
     </div>
   );
 }

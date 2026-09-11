@@ -61,6 +61,7 @@ export default function RestaurantLayout({ children }: { children: React.ReactNo
   const { user, logout } = useAuth();
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(true);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [restaurantStatus, setRestaurantStatus] = useState<'OPEN' | 'PAUSED' | 'CLOSED'>('OPEN');
 
   const statusColors: Record<string, string> = {
@@ -71,22 +72,71 @@ export default function RestaurantLayout({ children }: { children: React.ReactNo
 
   return (
     <div className="app-layout" data-theme="restaurant">
-      <aside className="sidebar" style={{ width: isOpen ? 240 : 64, transition: 'width 0.25s', overflow: 'hidden' }}>
+      {/* ─── Mobile Top Header ─── */}
+      <div className="mobile-top-bar">
+        <button
+          className="mobile-hamburger"
+          onClick={() => setMobileOpen(true)}
+          aria-label="Open Navigation Menu"
+        >
+          ☰
+        </button>
+        <div className="mobile-brand">
+          <span className="mobile-brand-icon">🍽️</span>
+          <span>Restaurant Panel</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span
+            style={{
+              fontSize: 10,
+              fontWeight: 800,
+              padding: '3px 8px',
+              borderRadius: 12,
+              background: statusColors[restaurantStatus],
+              color: '#fff',
+            }}
+          >
+            {restaurantStatus}
+          </span>
+          <Link href="/" className="btn btn-sm btn-outline" style={{ borderRadius: 8, fontSize: 11, padding: '4px 8px' }}>
+            🏠
+          </Link>
+        </div>
+      </div>
+
+      {/* ─── Mobile Sidebar Overlay ─── */}
+      <div
+        className={`sidebar-overlay ${mobileOpen ? 'visible' : ''}`}
+        onClick={() => setMobileOpen(false)}
+      />
+
+      <aside className={`sidebar ${mobileOpen ? 'sidebar-open' : ''}`} style={{ width: isOpen ? 240 : 64, transition: 'width 0.25s', overflow: 'hidden' }}>
         {/* Brand */}
-        <div className="sidebar-brand" style={{ justifyContent: isOpen ? 'space-between' : 'center' }}>
+        <div className="sidebar-brand" style={{ justifyContent: isOpen ? 'space-between' : 'center', padding: '16px 20px', display: 'flex', alignItems: 'center' }}>
           {isOpen && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span className="sidebar-brand-icon">🍽️</span>
               <span style={{ fontSize: 16, fontWeight: 900 }}>QuickBite</span>
             </div>
           )}
-          <button
-            onClick={() => setIsOpen(o => !o)}
-            style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', fontSize: 18, lineHeight: 1 }}
-            title="Toggle sidebar"
-          >
-            {isOpen ? '◀' : '▶'}
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <button
+              onClick={() => setIsOpen(o => !o)}
+              className="hide-mobile"
+              style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', fontSize: 18, lineHeight: 1 }}
+              title="Toggle sidebar"
+            >
+              {isOpen ? '◀' : '▶'}
+            </button>
+            <button
+              className="show-mobile"
+              onClick={() => setMobileOpen(false)}
+              style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.7)', fontSize: 22, cursor: 'pointer', padding: 2 }}
+              aria-label="Close menu"
+            >
+              ✕
+            </button>
+          </div>
         </div>
 
         {/* Restaurant Status Toggle */}
@@ -130,6 +180,7 @@ export default function RestaurantLayout({ children }: { children: React.ReactNo
                   <Link
                     key={n.href}
                     href={n.href}
+                    onClick={() => setMobileOpen(false)}
                     className={`sidebar-link ${active ? 'active' : ''}`}
                     title={!isOpen ? n.label : undefined}
                     style={{ justifyContent: isOpen ? 'flex-start' : 'center', gap: isOpen ? 10 : 0 }}
@@ -180,6 +231,31 @@ export default function RestaurantLayout({ children }: { children: React.ReactNo
       <main className="main-content" style={{ background: 'var(--bg)' }}>
         {children}
       </main>
+
+      {/* ─── Mobile Bottom Navigation Bar ─── */}
+      <nav className="mobile-bottom-nav">
+        <div className="mobile-bottom-nav-inner">
+          {[
+            { key: 'dashboard', label: 'Dashboard', icon: '📊', href: '/restaurant' },
+            { key: 'orders', label: 'Orders', icon: '📦', href: '/restaurant/orders' },
+            { key: 'kitchen', label: 'Kitchen', icon: '👨‍🍳', href: '/restaurant/kitchen' },
+            { key: 'menu', label: 'Menu', icon: '📋', href: '/restaurant/menu' },
+            { key: 'profile', label: 'Profile', icon: '👤', href: '/restaurant/profile' },
+          ].map(item => {
+            const isActive = item.href === '/restaurant' ? pathname === '/restaurant' : pathname.startsWith(item.href);
+            return (
+              <Link
+                key={item.key}
+                href={item.href}
+                className={`mobile-nav-item ${isActive ? 'active' : ''}`}
+              >
+                <span className="mobile-nav-icon">{item.icon}</span>
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
+        </div>
+      </nav>
     </div>
   );
 }

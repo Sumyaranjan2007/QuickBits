@@ -347,7 +347,7 @@ export default function DeliveryDashboard() {
       )}
 
       {/* ─── Today's Live Performance KPIs ─── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginBottom: 24 }}>
+      <div className="delivery-stats-grid" style={{ marginBottom: 24 }}>
         {[
           { label: "Today's Earnings", value: '₹942', icon: '💰', change: '+24% vs yesterday', isPositive: true },
           { label: 'Orders Completed', value: '14', icon: '📦', change: 'Target: 18 for ₹200 bonus', isPositive: true },
@@ -377,7 +377,7 @@ export default function DeliveryDashboard() {
       </div>
 
       {/* ─── Two-Column Section: Incentives + Peak Hours ─── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 20, marginBottom: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: 20, marginBottom: 24 }}>
         {/* Daily Incentive Tracker */}
         <div style={{ background: '#fff', borderRadius: 18, padding: '20px', border: '1px solid #E4EDF5' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>

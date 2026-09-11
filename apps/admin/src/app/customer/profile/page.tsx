@@ -85,7 +85,7 @@ export default function CustomerProfilePage() {
       {activeTab === 'profile' && (
         <div style={{ background: '#fff', borderRadius: 20, border: '1px solid var(--border)', padding: 28 }}>
           <h3 style={{ fontSize: 18, fontWeight: 900, marginBottom: 20 }}>Personal Details</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', gap: 20 }}>
             <div>
               <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-sec)', display: 'block', marginBottom: 6 }}>First Name</label>
               <input className="input" defaultValue={user?.profile?.firstName || 'Rahul'} />
@@ -112,7 +112,7 @@ export default function CustomerProfilePage() {
       {/* ─── 2. Saved Addresses ─── */}
       {activeTab === 'addresses' && (
         <div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 28 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: 16, marginBottom: 28 }}>
             {addresses.map(a => (
               <div key={a.id} style={{ background: '#fff', borderRadius: 16, border: '1.5px solid var(--border)', padding: 20, position: 'relative' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
@@ -166,7 +166,7 @@ export default function CustomerProfilePage() {
           {/* Add Money Card */}
           <div style={{ background: '#fff', borderRadius: 20, border: '1px solid var(--border)', padding: 24, marginBottom: 28 }}>
             <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 12 }}>Add Funds to Wallet</h3>
-            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
               <input
                 type="number"
                 className="input"
