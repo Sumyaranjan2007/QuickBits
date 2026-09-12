@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { ordersApi, reviewsApi } from '@quickbite/api-client';
@@ -10,6 +10,14 @@ const STAGES = [
   { key: 'READY', title: 'Driver Assigned', desc: 'Amit Verma reached restaurant', icon: '🛵' },
   { key: 'OUT_FOR_DELIVERY', title: 'On the Way', desc: 'Driver is en route to you', icon: '🚀' },
   { key: 'DELIVERED', title: 'Delivered', desc: 'Enjoy your delicious meal!', icon: '🎉' },
+];
+
+const QUICK_REPLIES = [
+  'Where are you right now? 📍',
+  'Please do not ring the doorbell 🤫',
+  'Leave at the security / main gate 🚪',
+  'Call me when you reach 📞',
+  'I am waiting outside 🏠',
 ];
 
 export default function CustomerOrderTrackingPage() {
@@ -26,6 +34,37 @@ export default function CustomerOrderTrackingPage() {
   const [reviewComment, setReviewComment] = useState('');
   const [isReviewed, setIsReviewed] = useState(false);
   const [order, setOrder] = useState<any>(null);
+
+  // Live Driver Chat States
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [chatInput, setChatInput] = useState('');
+  const [isDriverTyping, setIsDriverTyping] = useState(false);
+  const [chatMessages, setChatMessages] = useState<Array<{ id: string; sender: 'driver' | 'user'; text: string; time: string }>>([
+    {
+      id: 'm-1',
+      sender: 'driver',
+      text: 'Namaste! 🙏 I am Amit Verma, your delivery partner. I have picked up your order and I am heading towards your location.',
+      time: 'Just now',
+    },
+    {
+      id: 'm-2',
+      sender: 'driver',
+      text: 'Your food is packed safely in an insulated bag. Let me know if you have any delivery instructions!',
+      time: 'Just now',
+    },
+  ]);
+
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    if (isChatOpen) {
+      scrollToBottom();
+    }
+  }, [isChatOpen, chatMessages, isDriverTyping]);
 
   useEffect(() => {
     let matchedOrder: any = null;
@@ -124,6 +163,49 @@ export default function CustomerOrderTrackingPage() {
         setTimeout(() => setIsReviewModalOpen(true), 1200);
       }
     }
+  };
+
+  const handleSendMessage = (textToSend?: string) => {
+    const text = (textToSend !== undefined ? textToSend : chatInput).trim();
+    if (!text) return;
+
+    const userMsg = {
+      id: `msg-${Date.now()}`,
+      sender: 'user' as const,
+      text,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    };
+
+    setChatMessages((prev) => [...prev, userMsg]);
+    setChatInput('');
+    setIsDriverTyping(true);
+
+    setTimeout(() => {
+      let driverReplyText = "Got it! Thanks for letting me know, I'm on my way 👍";
+      const lower = text.toLowerCase();
+      if (lower.includes('where') || lower.includes('location') || lower.includes('reach') || lower.includes('eta') || lower.includes('long') || lower.includes('time')) {
+        driverReplyText = `I am around 1.2 km away on Outer Ring Road, navigating normal traffic. Will reach in ~${etaMinutes} mins! 🛵`;
+      } else if (lower.includes('ring') || lower.includes('bell') || lower.includes('doorbell') || lower.includes('noise')) {
+        driverReplyText = 'Understood! I will NOT ring the bell. I will place the order gently and notify you.';
+      } else if (lower.includes('gate') || lower.includes('door') || lower.includes('security') || lower.includes('outside') || lower.includes('leave')) {
+        driverReplyText = 'Sure thing! I will hand it over to the security guard / leave it right by your door.';
+      } else if (lower.includes('call') || lower.includes('phone')) {
+        driverReplyText = 'Yes, I will give you a quick call right when I pull up to your building!';
+      } else if (lower.includes('hot') || lower.includes('spill') || lower.includes('careful')) {
+        driverReplyText = 'Don’t worry at all! Your food is safely placed in a thermal insulated box.';
+      }
+
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          id: `msg-${Date.now() + 1}`,
+          sender: 'driver',
+          text: driverReplyText,
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        },
+      ]);
+      setIsDriverTyping(false);
+    }, 1200);
   };
 
   const handleSubmitReview = async () => {
@@ -510,16 +592,21 @@ export default function CustomerOrderTrackingPage() {
             </a>
             <button
               type="button"
-              onClick={() => alert('Opening live chat with driver Amit...')}
+              id="open-driver-chat-btn"
+              onClick={() => setIsChatOpen(true)}
               style={{
-                background: '#F3F4F6',
-                color: '#374151',
-                border: '1px solid #E5E7EB',
+                background: '#4A0A10',
+                color: '#FFFFFF',
+                border: '1px solid #4A0A10',
                 borderRadius: 10,
-                padding: '6px 10px',
+                padding: '6px 12px',
                 fontSize: 12,
                 fontWeight: 800,
                 cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4,
+                boxShadow: '0 2px 6px rgba(74, 10, 16, 0.2)',
               }}
             >
               💬 Chat
@@ -577,6 +664,321 @@ export default function CustomerOrderTrackingPage() {
           </div>
         </div>
       </div>
+
+      {/* ─── Live Driver Chat Modal / Bottom Drawer ─── */}
+      {isChatOpen && (
+        <div
+          className="modal-backdrop"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.6)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10000,
+            padding: '12px',
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsChatOpen(false);
+          }}
+        >
+          <div
+            style={{
+              background: '#FFFFFF',
+              borderRadius: 24,
+              width: '100%',
+              maxWidth: 420,
+              height: '85vh',
+              maxHeight: 620,
+              display: 'flex',
+              flexDirection: 'column',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.25)',
+              overflow: 'hidden',
+              animation: 'slideUp 0.25s ease-out',
+            }}
+          >
+            {/* Chat Top Header */}
+            <div
+              style={{
+                background: '#4A0A10',
+                color: '#FFFFFF',
+                padding: '14px 16px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ position: 'relative' }}>
+                  <div
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: '50%',
+                      background: '#FFF7ED',
+                      color: '#4A0A10',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: 18,
+                      fontWeight: 900,
+                    }}
+                  >
+                    🛵
+                  </div>
+                  <span
+                    style={{
+                      position: 'absolute',
+                      bottom: 0,
+                      right: 0,
+                      width: 10,
+                      height: 10,
+                      borderRadius: '50%',
+                      background: '#10B981',
+                      border: '2px solid #4A0A10',
+                    }}
+                  />
+                </div>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 900, color: '#FFFFFF', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {order?.driver?.name || 'Amit Verma'}
+                    <span style={{ fontSize: 10, background: 'rgba(255,255,255,0.2)', padding: '2px 6px', borderRadius: 10 }}>
+                      Rider
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 11, color: '#FCD34D' }}>
+                    ★ {order?.driver?.rating || '4.9'} • Online & En Route
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <a
+                  href="tel:+919876543210"
+                  style={{
+                    background: '#0E9F6E',
+                    color: '#FFFFFF',
+                    borderRadius: 10,
+                    padding: '6px 10px',
+                    fontSize: 12,
+                    fontWeight: 800,
+                    textDecoration: 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4,
+                  }}
+                >
+                  📞 Call
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setIsChatOpen(false)}
+                  style={{
+                    background: 'rgba(255,255,255,0.15)',
+                    border: 'none',
+                    borderRadius: '50%',
+                    width: 32,
+                    height: 32,
+                    color: '#FFFFFF',
+                    fontSize: 16,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                  title="Close chat"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            {/* Ride Status Notice Banner */}
+            <div
+              style={{
+                background: '#FFFBEB',
+                borderBottom: '1px solid #FEF3C7',
+                padding: '6px 12px',
+                fontSize: 11,
+                color: '#92400E',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <span>📍 ETA: ~{etaMinutes} mins • {order?.driver?.vehicle || 'Hero Electric'}</span>
+              <span style={{ fontWeight: 800, color: '#D97706' }}>OTP: 4821</span>
+            </div>
+
+            {/* Messages Feed Area */}
+            <div
+              style={{
+                flex: 1,
+                padding: '14px',
+                overflowY: 'auto',
+                background: '#F9FAFB',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 10,
+              }}
+            >
+              {chatMessages.map((msg) => {
+                const isUser = msg.sender === 'user';
+                return (
+                  <div
+                    key={msg.id}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: isUser ? 'flex-end' : 'flex-start',
+                      maxWidth: '85%',
+                      alignSelf: isUser ? 'flex-end' : 'flex-start',
+                    }}
+                  >
+                    <div
+                      style={{
+                        background: isUser ? '#4A0A10' : '#FFFFFF',
+                        color: isUser ? '#FFFFFF' : '#1F2937',
+                        borderRadius: isUser ? '16px 16px 2px 16px' : '16px 16px 16px 2px',
+                        padding: '10px 14px',
+                        fontSize: 13,
+                        lineHeight: 1.4,
+                        boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
+                        border: isUser ? 'none' : '1px solid #E5E7EB',
+                      }}
+                    >
+                      {msg.text}
+                    </div>
+                    <span style={{ fontSize: 9.5, color: '#9CA3AF', marginTop: 3, padding: '0 4px' }}>
+                      {msg.time} {isUser && '✓✓'}
+                    </span>
+                  </div>
+                );
+              })}
+
+              {/* Live Driver Typing Indicator */}
+              {isDriverTyping && (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    alignSelf: 'flex-start',
+                    background: '#FFFFFF',
+                    border: '1px solid #E5E7EB',
+                    borderRadius: '16px 16px 16px 2px',
+                    padding: '8px 12px',
+                    fontSize: 12,
+                    color: '#6B7280',
+                  }}
+                >
+                  <span style={{ display: 'inline-flex', gap: 3 }}>
+                    <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#4A0A10', animation: 'bounce 1s infinite 0.1s' }} />
+                    <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#4A0A10', animation: 'bounce 1s infinite 0.2s' }} />
+                    <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#4A0A10', animation: 'bounce 1s infinite 0.3s' }} />
+                  </span>
+                  <span>Amit is typing...</span>
+                </div>
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Quick Suggestions Chips */}
+            <div
+              style={{
+                background: '#FFFFFF',
+                borderTop: '1px solid #E5E7EB',
+                padding: '8px 12px 4px',
+                display: 'flex',
+                gap: 6,
+                overflowX: 'auto',
+                whiteSpace: 'nowrap',
+                scrollbarWidth: 'none',
+              }}
+            >
+              {QUICK_REPLIES.map((chip, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => handleSendMessage(chip)}
+                  style={{
+                    background: '#F3F4F6',
+                    border: '1px solid #E5E7EB',
+                    borderRadius: 16,
+                    padding: '5px 10px',
+                    fontSize: 11,
+                    color: '#374151',
+                    cursor: 'pointer',
+                    flexShrink: 0,
+                    fontWeight: 600,
+                  }}
+                >
+                  {chip}
+                </button>
+              ))}
+            </div>
+
+            {/* Chat Input Bar */}
+            <div
+              style={{
+                background: '#FFFFFF',
+                padding: '10px 12px',
+                borderTop: '1px solid #F3F4F6',
+                display: 'flex',
+                gap: 8,
+                alignItems: 'center',
+              }}
+            >
+              <input
+                type="text"
+                placeholder="Type instructions for Amit..."
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleSendMessage();
+                  }
+                }}
+                style={{
+                  flex: 1,
+                  background: '#F9FAFB',
+                  border: '1.5px solid #E5E7EB',
+                  borderRadius: 14,
+                  padding: '9px 14px',
+                  fontSize: 13,
+                  outline: 'none',
+                  color: '#111827',
+                }}
+              />
+              <button
+                type="button"
+                id="send-chat-msg-btn"
+                onClick={() => handleSendMessage()}
+                disabled={!chatInput.trim()}
+                style={{
+                  background: chatInput.trim() ? '#4A0A10' : '#E5E7EB',
+                  color: chatInput.trim() ? '#FFFFFF' : '#9CA3AF',
+                  border: 'none',
+                  borderRadius: 14,
+                  padding: '9px 16px',
+                  fontSize: 13,
+                  fontWeight: 800,
+                  cursor: chatInput.trim() ? 'pointer' : 'default',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  transition: 'background 0.2s',
+                }}
+              >
+                Send 🚀
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ─── Review Modal ─── */}
       {isReviewModalOpen && !isReviewed && (

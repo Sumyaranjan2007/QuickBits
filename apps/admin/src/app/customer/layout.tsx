@@ -147,7 +147,7 @@ function CustomerMobileHeader({
   );
 }
 
-export function CustomerLayoutContent({ children }: { children: React.ReactNode }) {
+function CustomerLayoutContent({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
