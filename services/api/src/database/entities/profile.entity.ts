@@ -6,7 +6,7 @@ import {
   UpdateDateColumn,
   OneToOne,
   JoinColumn } from 'typeorm';
-import { UserEntity } from './user.entity';
+import type { UserEntity } from './user.entity';
 
 @Entity('profiles')
 export class ProfileEntity {
@@ -25,7 +25,7 @@ export class ProfileEntity {
   @Column({ type: 'text', length: 500, nullable: true, name: 'avatar_url' })
   avatarUrl: string | null;
 
-  @OneToOne(() => UserEntity, (user) => user.profile)
+  @OneToOne('UserEntity', (user: any) => user.profile)
   @JoinColumn({ name: 'user_id' })
   user: UserEntity;
 

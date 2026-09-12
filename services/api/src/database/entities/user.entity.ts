@@ -7,7 +7,7 @@ import {
   OneToOne,
   Index } from 'typeorm';
 import { UserRole } from '@quickbite/types';
-import { ProfileEntity } from './profile.entity';
+import type { ProfileEntity } from './profile.entity';
 
 @Entity('users')
 export class UserEntity {
@@ -41,7 +41,7 @@ export class UserEntity {
   @Column({ type: 'text', length: 500, nullable: true, name: 'refresh_token' })
   refreshToken: string | null;
 
-  @OneToOne(() => ProfileEntity, (profile) => profile.user, { eager: true })
+  @OneToOne('ProfileEntity', (profile: any) => profile.user, { eager: true })
   profile: ProfileEntity;
 
   @CreateDateColumn({ name: 'created_at' })
