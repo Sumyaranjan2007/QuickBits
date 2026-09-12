@@ -1,54 +1,57 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 
-interface RefundRecord {
+interface RefundTicket {
   id: string;
   orderId: string;
+  restaurantName: string;
   amount: number;
   reason: string;
   destination: 'WALLET' | 'BANK';
-  status: 'PROCESSED' | 'REVIEW' | 'REFUNDED';
+  status: 'PENDING_AGENT_REVIEW' | 'CHATTING' | 'APPROVED' | 'REJECTED' | 'REFUNDED';
   date: string;
-  txId: string;
+  txId?: string;
+  agentName?: string;
+  agentApproved?: boolean;
 }
 
 const FAQS = [
   {
-    category: 'Refunds & Returns',
-    q: 'How quickly will I receive my refund?',
-    a: 'Instant QuickBite Wallet refunds are credited in under 10 seconds with a 5% bonus! Bank/UPI/Card refunds are typically credited within 2 to 4 business hours depending on your bank.',
+    category: 'Refund Process',
+    q: 'How does the refund approval process work?',
+    a: 'To prevent fraudulent claims and ensure restaurant accountability, all refund requests are reviewed by our Live Support Agent in chat. Once you share the details, the agent verifies with the restaurant and approves the refund immediately.',
   },
   {
-    category: 'Refunds & Returns',
-    q: 'What if an item is missing or spilled?',
-    a: 'Simply select your order in the "Request Refund" tab above, choose "Missing Items" or "Spilled / Quality Issue", and submit. Our automated claim system will process your refund immediately.',
+    category: 'Refund Process',
+    q: 'Why do I need to chat with an agent for refund?',
+    a: 'Chatting with our support executive ensures your specific issue (spillage, wrong item, or delay) is verified directly against restaurant kitchen dispatch logs and delivery partner telemetry for instant approval.',
   },
   {
-    category: 'Order & Delivery',
-    q: 'Can I cancel my order if it is running late?',
-    a: 'If your order is delayed by more than 30 minutes past the estimated ETA, you are eligible for a 100% full refund and an apology discount coupon.',
+    category: 'Payouts',
+    q: 'How fast is the approved refund transferred?',
+    a: 'Once approved by our support agent, QuickBite Wallet refunds are credited in under 10 seconds with a 5% bonus! Bank/UPI transfers are processed in 2 to 4 business hours.',
   },
   {
-    category: 'Payments',
-    q: 'Money was deducted from my bank but the order failed?',
-    a: 'Don’t worry! Banking gateway failures are automatically auto-reversed by our payment engine. If not credited within 2 hours, tap "Claim Failed Payment Refund" above.',
+    category: 'Order Delays',
+    q: 'What if my order is delayed beyond ETA?',
+    a: 'If your delivery partner is delayed by more than 30 minutes, connect with our support chat. Our agent will verify the rider GPS and authorize a full refund + apology voucher.',
   },
   {
-    category: 'Gold Membership',
-    q: 'How does QuickBite Gold delivery guarantee work?',
-    a: 'Gold members get priority delivery. If your Gold order is late by even 10 minutes, you automatically get ₹100 QuickBite Cash credited to your wallet.',
+    category: 'Food Quality',
+    q: 'What proof is required for damaged food?',
+    a: 'Simply tell the agent in chat whether the seal was broken, food spilled, or items were missing. Our agent checks the kitchen packaging checklist for immediate approval.',
   },
 ];
 
 const ISSUE_TYPES = [
-  { id: 'missing_items', label: 'Missing item(s) in order', icon: '🔍', defaultPct: 50 },
-  { id: 'damaged_spill', label: 'Food spilled / bad packaging', icon: '🥣', defaultPct: 100 },
-  { id: 'quality_taste', label: 'Food quality or taste issue', icon: '🍲', defaultPct: 80 },
-  { id: 'late_delivery', label: 'Severe delivery delay (>30 min)', icon: '⏰', defaultPct: 100 },
-  { id: 'wrong_order', label: 'Wrong food item delivered', icon: '❌', defaultPct: 100 },
-  { id: 'payment_failed', label: 'Charged but order failed', icon: '💳', defaultPct: 100 },
+  { id: 'damaged_spill', label: 'Food spilled / bad packaging 🥣', defaultPct: 100 },
+  { id: 'missing_items', label: 'Missing item(s) in order 🔍', defaultPct: 60 },
+  { id: 'quality_taste', label: 'Food quality or taste issue 🍲', defaultPct: 80 },
+  { id: 'late_delivery', label: 'Severe delivery delay (>30 min) ⏰', defaultPct: 100 },
+  { id: 'wrong_order', label: 'Wrong food item delivered ❌', defaultPct: 100 },
+  { id: 'payment_failed', label: 'Charged but order failed 💳', defaultPct: 100 },
 ];
 
 export default function CustomerHelpPage() {
@@ -56,7 +59,7 @@ export default function CustomerHelpPage() {
   const searchParams = useSearchParams();
   const initialOrderId = searchParams.get('orderId') || '';
 
-  const [activeTab, setActiveTab] = useState<'refunds' | 'chat' | 'faqs' | 'contact'>('refunds');
+  const [activeTab, setActiveTab] = useState<'refunds' | 'chat' | 'history' | 'faqs' | 'contact'>('refunds');
 
   // Orders available for refund
   const [ordersList, setOrdersList] = useState<any[]>([]);
@@ -64,24 +67,28 @@ export default function CustomerHelpPage() {
   const [selectedIssue, setSelectedIssue] = useState('damaged_spill');
   const [refundDest, setRefundDest] = useState<'WALLET' | 'BANK'>('WALLET');
   const [issueDetails, setIssueDetails] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [refundSuccessData, setRefundSuccessData] = useState<RefundRecord | null>(null);
-  
-  // Refund history stored in localStorage
-  const [refundHistory, setRefundHistory] = useState<RefundRecord[]>([]);
+  const [isSubmittingTicket, setIsSubmittingTicket] = useState(false);
 
-  // Live Chat state
-  const [chatMessages, setChatMessages] = useState<Array<{ id: string; sender: 'bot' | 'user'; text: string; time: string }>>([
-    {
-      id: '1',
-      sender: 'bot',
-      text: 'Namaste! 🙏 Welcome to QuickBite 24x7 Customer Care. How can we assist you with your orders, deliveries, or refunds today?',
-      time: 'Just now',
-    },
-  ]);
+  // Active Ticket being reviewed
+  const [activeTicket, setActiveTicket] = useState<RefundTicket | null>(null);
+  const [refundHistory, setRefundHistory] = useState<RefundTicket[]>([]);
+
+  // Live Agent Chat states
+  const [chatMessages, setChatMessages] = useState<Array<{ id: string; sender: 'agent' | 'user' | 'system'; text: string; time: string }>>([]);
   const [chatInput, setChatInput] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
+  const [isAgentTyping, setIsAgentTyping] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(0);
+  const [claimedSuccess, setClaimedSuccess] = useState<boolean>(false);
+
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [chatMessages, isAgentTyping]);
 
   // Load orders & existing refunds on mount
   useEffect(() => {
@@ -93,7 +100,6 @@ export default function CustomerHelpPage() {
           parsedOrders = JSON.parse(storedOrders);
         }
         
-        // Add defaults if empty
         if (parsedOrders.length === 0) {
           parsedOrders = [
             {
@@ -102,7 +108,7 @@ export default function CustomerHelpPage() {
               status: 'OUT_FOR_DELIVERY',
               restaurant: { name: 'Sharief Bhai Biryani' },
               createdAt: new Date().toISOString(),
-              items: [{ name: 'Hyderabadi Biryani', price: 299 }, { name: 'Peri Peri Fries', price: 139 }],
+              items: [{ name: 'Hyderabadi Dum Biryani', price: 299 }, { name: 'Peri Peri Fries', price: 139 }],
             },
             {
               id: 'QB-741290',
@@ -129,19 +135,27 @@ export default function CustomerHelpPage() {
 
         const storedRefunds = localStorage.getItem('qb_customer_refunds');
         if (storedRefunds) {
-          setRefundHistory(JSON.parse(storedRefunds));
+          const list: RefundTicket[] = JSON.parse(storedRefunds);
+          setRefundHistory(list);
+          if (list.length > 0 && !activeTicket) {
+            setActiveTicket(list[0]);
+          }
         } else {
-          const sampleRefund: RefundRecord = {
-            id: 'RF-89210',
+          const sampleTicket: RefundTicket = {
+            id: 'TK-89214',
             orderId: 'QB-310842',
+            restaurantName: 'Tuscany Woodfire Pizzeria',
             amount: 449,
-            reason: 'Severe delivery delay (>30 min)',
+            reason: 'Severe delivery delay (>30 min) ⏰',
             destination: 'WALLET',
             status: 'REFUNDED',
+            agentName: 'Pooja Sharma (Senior Support Lead)',
+            agentApproved: true,
             date: '3 days ago',
             txId: 'TXN_REF_9812490',
           };
-          setRefundHistory([sampleRefund]);
+          setRefundHistory([sampleTicket]);
+          setActiveTicket(sampleTicket);
         }
       } catch (e) {
         console.error(e);
@@ -151,46 +165,92 @@ export default function CustomerHelpPage() {
 
   const selectedOrder = ordersList.find((o) => o.id === selectedOrderId) || ordersList[0];
   const issueObj = ISSUE_TYPES.find((i) => i.id === selectedIssue) || ISSUE_TYPES[0];
-  const refundAmount = selectedOrder ? Math.round((selectedOrder.total || 400) * (issueObj.defaultPct / 100)) : 250;
+  const calculatedRefundAmount = selectedOrder ? Math.round((selectedOrder.total || 450) * (issueObj.defaultPct / 100)) : 300;
 
-  // Handle Refund Submission
-  const handleClaimRefund = (e: React.FormEvent) => {
+  // 1. Submit Ticket for Agent Review -> Opens Chat
+  const handleCreateRefundTicket = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedOrder) return;
-    setIsSubmitting(true);
+    setIsSubmittingTicket(true);
 
     setTimeout(() => {
-      const newRefund: RefundRecord = {
-        id: `RF-${Math.floor(10000 + Math.random() * 90000)}`,
+      const newTicket: RefundTicket = {
+        id: `TK-${Math.floor(10000 + Math.random() * 90000)}`,
         orderId: selectedOrder.id,
-        amount: refundAmount,
+        restaurantName: selectedOrder.restaurant?.name || 'Restaurant',
+        amount: calculatedRefundAmount,
         reason: issueObj.label,
         destination: refundDest,
-        status: refundDest === 'WALLET' ? 'REFUNDED' : 'PROCESSED',
+        status: 'PENDING_AGENT_REVIEW',
+        agentName: 'Pooja Sharma (Senior Support Lead)',
+        agentApproved: false,
         date: 'Just now',
-        txId: `TXN_${Date.now().toString().slice(-8)}`,
       };
 
-      const updatedRefunds = [newRefund, ...refundHistory];
-      setRefundHistory(updatedRefunds);
-      setRefundSuccessData(newRefund);
-      setIsSubmitting(false);
+      const updated = [newTicket, ...refundHistory.filter((t) => t.id !== newTicket.id)];
+      setRefundHistory(updated);
+      setActiveTicket(newTicket);
+      setIsSubmittingTicket(false);
+      setClaimedSuccess(false);
 
       if (typeof window !== 'undefined') {
-        localStorage.setItem('qb_customer_refunds', JSON.stringify(updatedRefunds));
-
-        // If refunded to wallet, credit the customer wallet immediately!
-        if (refundDest === 'WALLET') {
-          const currentBal = Number(localStorage.getItem('qb_customer_wallet') || '500');
-          const bonusAmt = Math.round(refundAmount * 1.05); // 5% instant bonus
-          const newBal = currentBal + bonusAmt;
-          localStorage.setItem('qb_customer_wallet', String(newBal));
-        }
+        localStorage.setItem('qb_customer_refunds', JSON.stringify(updated));
       }
-    }, 1200);
+
+      // Initialize Chat with Agent
+      setChatMessages([
+        {
+          id: 'sys-1',
+          sender: 'system',
+          text: `📋 Refund Ticket #${newTicket.id} registered for Order #${newTicket.orderId} (₹${newTicket.amount}). Connecting with support agent...`,
+          time: 'Just now',
+        },
+        {
+          id: 'agent-1',
+          sender: 'agent',
+          text: `Hello! I am Pooja Sharma from QuickBite Senior Support. I see you requested a refund for Order #${newTicket.orderId} from ${newTicket.restaurantName} regarding "${newTicket.reason}".`,
+          time: 'Just now',
+        },
+        {
+          id: 'agent-2',
+          sender: 'agent',
+          text: `I am reviewing your order dispatch details with the restaurant right now. Could you confirm if the package was damaged upon delivery, or what exactly went wrong?`,
+          time: 'Just now',
+        },
+      ]);
+
+      setActiveTab('chat');
+    }, 700);
   };
 
-  // Chatbot message handler
+  // 2. Open Existing Ticket in Chat
+  const handleOpenTicketChat = (ticket: RefundTicket) => {
+    setActiveTicket(ticket);
+    setClaimedSuccess(ticket.status === 'REFUNDED');
+
+    setChatMessages([
+      {
+        id: 'sys-1',
+        sender: 'system',
+        text: `📋 Loaded Ticket #${ticket.id} for Order #${ticket.orderId} • Status: ${ticket.status}`,
+        time: ticket.date,
+      },
+      {
+        id: 'agent-1',
+        sender: 'agent',
+        text: `Hello! I am ${ticket.agentName || 'Pooja Sharma'} regarding Ticket #${ticket.id}. ${
+          ticket.agentApproved
+            ? `Your refund of ₹${ticket.amount} was approved by support!`
+            : `I am currently reviewing this refund request for Order #${ticket.orderId}.`
+        }`,
+        time: ticket.date,
+      },
+    ]);
+
+    setActiveTab('chat');
+  };
+
+  // 3. Customer sends message in Chat
   const handleSendMessage = (textToSend?: string) => {
     const text = (textToSend || chatInput).trim();
     if (!text) return;
@@ -204,35 +264,122 @@ export default function CustomerHelpPage() {
 
     setChatMessages((prev) => [...prev, userMsg]);
     setChatInput('');
-    setIsTyping(true);
+    setIsAgentTyping(true);
 
     setTimeout(() => {
-      let botReply = 'Thank you for reaching out! Our executive is reviewing your request. Support Ticket #TK-90214 has been logged.';
-      const lower = text.toLowerCase();
+      const ticket = activeTicket;
+      const orderName = ticket?.restaurantName || 'the restaurant';
+      const amt = ticket?.amount || 299;
 
-      if (lower.includes('refund') || lower.includes('money') || lower.includes('return') || lower.includes('cancel')) {
-        botReply = `💳 For instant refunds, please use the "⚡ Claim Refund" tab above. Wallet refunds are processed in under 10 seconds with zero deductions!`;
-      } else if (lower.includes('track') || lower.includes('where') || lower.includes('driver') || lower.includes('order')) {
-        botReply = `🛵 You can track your rider in real-time with live GPS map on the "Orders" page or by tapping "Track Live Order".`;
-      } else if (lower.includes('spill') || lower.includes('cold') || lower.includes('bad') || lower.includes('missing')) {
-        botReply = `We are very sorry for the inconvenience! 🙏 We have recorded your quality complaint. You are eligible for a 100% instant compensation refund under our Food Quality Guarantee.`;
-      } else if (lower.includes('agent') || lower.includes('human') || lower.includes('call') || lower.includes('phone')) {
-        botReply = `📞 You can connect with our 24x7 priority care helpline at 1800-419-BITE (Toll Free) or tap "📞 Call Support" in the Contact tab!`;
-      } else if (lower.includes('gold') || lower.includes('coupon') || lower.includes('discount')) {
-        botReply = `👑 QuickBite Gold members enjoy free delivery on all orders above ₹199 and 10-minute on-time guarantee credits!`;
+      let agentResponse = `Thank you for the explanation. I am cross-checking the delivery dispatch logs and food preparation camera footage with ${orderName}.`;
+      let shouldApprove = false;
+
+      const lower = text.toLowerCase();
+      if (
+        lower.includes('spill') ||
+        lower.includes('leak') ||
+        lower.includes('damaged') ||
+        lower.includes('cold') ||
+        lower.includes('missing') ||
+        lower.includes('wrong') ||
+        lower.includes('late') ||
+        lower.includes('delay') ||
+        lower.includes('yes') ||
+        lower.includes('photo') ||
+        lower.includes('proof') ||
+        lower.includes('deducted') ||
+        lower.includes('please approve')
+      ) {
+        agentResponse = `I have verified your complaint with ${orderName} and confirmed the issue. Under QuickBite Customer Protection Guarantee, I have **OFFICIALLY APPROVED** your refund of ₹${amt}! 🎉 Please click the claim button below to receive the money into your ${
+          ticket?.destination === 'WALLET' ? 'QuickBite Wallet' : 'Bank Account'
+        }.`;
+        shouldApprove = true;
       }
 
       setChatMessages((prev) => [
         ...prev,
         {
-          id: `msg-${Date.now() + 1}`,
-          sender: 'bot',
-          text: botReply,
+          id: `agent-reply-${Date.now()}`,
+          sender: 'agent',
+          text: agentResponse,
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         },
       ]);
-      setIsTyping(false);
-    }, 1000);
+      setIsAgentTyping(false);
+
+      if (shouldApprove && ticket) {
+        const approvedTicket: RefundTicket = {
+          ...ticket,
+          agentApproved: true,
+          status: 'APPROVED',
+        };
+        setActiveTicket(approvedTicket);
+        setRefundHistory((prev) =>
+          prev.map((t) => (t.id === ticket.id ? approvedTicket : t))
+        );
+        if (typeof window !== 'undefined') {
+          try {
+            const stored = localStorage.getItem('qb_customer_refunds');
+            if (stored) {
+              const parsed = JSON.parse(stored);
+              const updated = parsed.map((t: any) =>
+                t.id === ticket.id ? approvedTicket : t
+              );
+              localStorage.setItem('qb_customer_refunds', JSON.stringify(updated));
+            }
+          } catch {}
+        }
+      }
+    }, 1200);
+  };
+
+  // 4. Claim the Agent-Approved Refund
+  const handleClaimApprovedRefund = () => {
+    if (!activeTicket || !activeTicket.agentApproved) return;
+
+    const amt = activeTicket.amount;
+    const finalTicket: RefundTicket = {
+      ...activeTicket,
+      status: 'REFUNDED',
+      txId: `TXN_REF_${Date.now().toString().slice(-8)}`,
+    };
+
+    setActiveTicket(finalTicket);
+    setClaimedSuccess(true);
+    setRefundHistory((prev) =>
+      prev.map((t) => (t.id === activeTicket.id ? finalTicket : t))
+    );
+
+    if (typeof window !== 'undefined') {
+      // Credit wallet if destination is wallet
+      if (finalTicket.destination === 'WALLET') {
+        const currentBal = Number(localStorage.getItem('qb_customer_wallet') || '500');
+        const bonusAmt = Math.round(amt * 1.05); // 5% bonus for wallet
+        const newBal = currentBal + bonusAmt;
+        localStorage.setItem('qb_customer_wallet', String(newBal));
+      }
+
+      const stored = localStorage.getItem('qb_customer_refunds');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        const updated = parsed.map((t: any) =>
+          t.id === activeTicket.id ? finalTicket : t
+        );
+        localStorage.setItem('qb_customer_refunds', JSON.stringify(updated));
+      }
+    }
+
+    setChatMessages((prev) => [
+      ...prev,
+      {
+        id: `sys-done-${Date.now()}`,
+        sender: 'system',
+        text: `✅ ₹${amt} successfully credited to your ${
+          finalTicket.destination === 'WALLET' ? 'QuickBite Wallet (+5% bonus added)' : 'Bank Account'
+        }! Transaction ID: ${finalTicket.txId}.`,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      },
+    ]);
   };
 
   return (
@@ -241,7 +388,7 @@ export default function CustomerHelpPage() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
         <button
           type="button"
-          onClick={() => router.back()}
+          onClick={() => router.push('/customer')}
           style={{
             background: '#FFFFFF',
             border: '1px solid #EADBCE',
@@ -256,12 +403,12 @@ export default function CustomerHelpPage() {
             gap: 4,
           }}
         >
-          ← Back
+          ← Home
         </button>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#0E9F6E', display: 'inline-block', boxShadow: '0 0 0 3px rgba(14, 159, 110, 0.2)' }} />
-          <span style={{ fontSize: 12, fontWeight: 800, color: '#0E9F6E' }}>24x7 LIVE SUPPORT</span>
+          <span style={{ fontSize: 12, fontWeight: 800, color: '#0E9F6E' }}>AGENT LIVE SUPPORT</span>
         </div>
       </div>
 
@@ -291,35 +438,33 @@ export default function CustomerHelpPage() {
                 letterSpacing: 0.5,
               }}
             >
-              🎧 QUICKBITE RESOLUTION CENTER
+              🛡️ AGENT REVIEW & REFUND CENTER
             </span>
             <h1 style={{ fontSize: 19, fontWeight: 900, margin: '8px 0 4px 0', color: '#FFFFFF' }}>
-              How can we help you?
+              Help & Refund Resolution
             </h1>
-            <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.85)', margin: 0, lineHeight: 1.3 }}>
-              Claim instant refunds, resolve order issues, or chat live with our support team.
+            <p style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.9)', margin: 0, lineHeight: 1.35 }}>
+              Chat directly with our support specialist. After reviewing and approving your case, funds are released instantly.
             </p>
           </div>
-          <div style={{ fontSize: 42, flexShrink: 0 }}>🛡️</div>
+          <div style={{ fontSize: 40, flexShrink: 0 }}>🎧</div>
         </div>
       </div>
 
       {/* ─── Navigation Tabs ─── */}
       <div style={{ display: 'flex', gap: 6, overflowX: 'auto', scrollbarWidth: 'none', borderBottom: '1px solid #EADBCE', paddingBottom: 10, marginBottom: 16 }}>
         {[
-          { id: 'refunds', label: '⚡ Claim Refund & Issues' },
-          { id: 'chat', label: '💬 Live Assistant' },
-          { id: 'faqs', label: '❓ FAQs & Policies' },
-          { id: 'contact', label: '📞 Direct Contact' },
+          { id: 'refunds', label: '📝 Request Refund' },
+          { id: 'chat', label: `💬 Agent Chat ${activeTicket && !activeTicket.agentApproved ? '🔴' : ''}` },
+          { id: 'history', label: `📋 Tickets (${refundHistory.length})` },
+          { id: 'faqs', label: '❓ Refund Policy' },
+          { id: 'contact', label: '📞 Direct Helpline' },
         ].map((tab) => (
           <button
             key={tab.id}
             type="button"
             className={`filter-pill ${activeTab === tab.id ? 'active' : ''}`}
-            onClick={() => {
-              setActiveTab(tab.id as any);
-              setRefundSuccessData(null);
-            }}
+            onClick={() => setActiveTab(tab.id as any)}
             style={{
               fontSize: 12,
               padding: '6px 12px',
@@ -337,282 +482,9 @@ export default function CustomerHelpPage() {
         ))}
       </div>
 
-      {/* ─── TAB 1: REFUNDS & ORDER ISSUES ─── */}
+      {/* ─── TAB 1: SUBMIT REFUND REQUEST FOR AGENT REVIEW ─── */}
       {activeTab === 'refunds' && (
-        <div>
-          {/* Refund Success Card */}
-          {refundSuccessData ? (
-            <div
-              style={{
-                background: '#FFFFFF',
-                borderRadius: 20,
-                border: '2px solid #0E9F6E',
-                padding: 18,
-                marginBottom: 16,
-                textAlign: 'center',
-                boxShadow: '0 8px 24px rgba(14, 159, 110, 0.15)',
-                animation: 'scaleUp 0.3s ease',
-              }}
-            >
-              <div style={{ fontSize: 44, marginBottom: 6 }}>🎉</div>
-              <h3 style={{ fontSize: 18, fontWeight: 900, color: '#0E9F6E', margin: '0 0 4px 0' }}>
-                Refund Approved & Processed!
-              </h3>
-              <p style={{ fontSize: 12, color: '#4B5563', margin: '0 0 14px 0' }}>
-                Reference ID: <strong>{refundSuccessData.id}</strong> (Order #{refundSuccessData.orderId})
-              </p>
-
-              <div
-                style={{
-                  background: '#ECFDF5',
-                  borderRadius: 14,
-                  padding: '12px 14px',
-                  marginBottom: 14,
-                  border: '1px solid #A7F3D0',
-                  textAlign: 'left',
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
-                  <span style={{ color: '#065F46' }}>Refund Amount:</span>
-                  <span style={{ fontWeight: 900, color: '#047857', fontSize: 15 }}>₹{refundSuccessData.amount}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
-                  <span style={{ color: '#065F46' }}>Credited Destination:</span>
-                  <span style={{ fontWeight: 700, color: '#047857' }}>
-                    {refundSuccessData.destination === 'WALLET' ? '👛 QuickBite Wallet (Instant + 5% Bonus)' : '🏦 Original Payment (UPI/Bank)'}
-                  </span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#047857' }}>
-                  <span>Status:</span>
-                  <span style={{ fontWeight: 800 }}>⚡ COMPLETED • 100% Transferred</span>
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button
-                  type="button"
-                  onClick={() => router.push('/customer/profile')}
-                  style={{
-                    flex: 1,
-                    background: '#4A0A10',
-                    color: '#FFFFFF',
-                    border: 'none',
-                    borderRadius: 12,
-                    padding: '10px 0',
-                    fontSize: 12.5,
-                    fontWeight: 800,
-                    cursor: 'pointer',
-                  }}
-                >
-                  View Wallet Balance 👛
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRefundSuccessData(null)}
-                  style={{
-                    flex: 1,
-                    background: '#F3F4F6',
-                    color: '#374151',
-                    border: 'none',
-                    borderRadius: 12,
-                    padding: '10px 0',
-                    fontSize: 12.5,
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                  }}
-                >
-                  Submit Another Request
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div
-              style={{
-                background: '#FFFFFF',
-                borderRadius: 20,
-                border: '1px solid #EADBCE',
-                padding: 16,
-                marginBottom: 16,
-                boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
-              }}
-            >
-              <div style={{ fontSize: 15, fontWeight: 900, color: '#4A0A10', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span>⚡</span> Request Instant Refund / Resolution
-              </div>
-
-              <form onSubmit={handleClaimRefund} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                {/* 1. Select Order */}
-                <div>
-                  <label style={{ fontSize: 11.5, fontWeight: 800, color: '#374151', display: 'block', marginBottom: 6 }}>
-                    1. SELECT YOUR ORDER
-                  </label>
-                  <select
-                    value={selectedOrderId}
-                    onChange={(e) => setSelectedOrderId(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '10px 12px',
-                      borderRadius: 12,
-                      border: '1.5px solid #EADBCE',
-                      fontSize: 13,
-                      fontWeight: 600,
-                      outline: 'none',
-                      background: '#FFFDFB',
-                    }}
-                    required
-                  >
-                    {ordersList.map((o) => (
-                      <option key={o.id} value={o.id}>
-                        Order #{o.id} • {o.restaurant?.name || 'Restaurant'} (₹{o.total})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* 2. Select Issue Type */}
-                <div>
-                  <label style={{ fontSize: 11.5, fontWeight: 800, color: '#374151', display: 'block', marginBottom: 6 }}>
-                    2. WHAT WENT WRONG?
-                  </label>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 8 }}>
-                    {ISSUE_TYPES.map((it) => {
-                      const isSelected = selectedIssue === it.id;
-                      return (
-                        <div
-                          key={it.id}
-                          onClick={() => setSelectedIssue(it.id)}
-                          style={{
-                            border: `1.5px solid ${isSelected ? '#4A0A10' : '#E5E7EB'}`,
-                            background: isSelected ? '#FFF7ED' : '#FAFAFA',
-                            borderRadius: 12,
-                            padding: '10px 8px',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            textAlign: 'center',
-                            transition: 'all 0.2s ease',
-                          }}
-                        >
-                          <span style={{ fontSize: 20, marginBottom: 4 }}>{it.icon}</span>
-                          <span style={{ fontSize: 11, fontWeight: isSelected ? 800 : 600, color: isSelected ? '#4A0A10' : '#374151' }}>
-                            {it.label}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* 3. Additional notes */}
-                <div>
-                  <label style={{ fontSize: 11.5, fontWeight: 800, color: '#374151', display: 'block', marginBottom: 6 }}>
-                    3. DETAILS (OPTIONAL)
-                  </label>
-                  <textarea
-                    placeholder="Briefly describe what happened (e.g. Biryani container was leaking)..."
-                    value={issueDetails}
-                    onChange={(e) => setIssueDetails(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '10px 12px',
-                      borderRadius: 12,
-                      border: '1.5px solid #E5E7EB',
-                      fontSize: 12,
-                      outline: 'none',
-                      minHeight: 50,
-                      resize: 'none',
-                    }}
-                  />
-                </div>
-
-                {/* 4. Choose Refund Mode */}
-                <div>
-                  <label style={{ fontSize: 11.5, fontWeight: 800, color: '#374151', display: 'block', marginBottom: 6 }}>
-                    4. CHOOSE REFUND DESTINATION
-                  </label>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                    <div
-                      onClick={() => setRefundDest('WALLET')}
-                      style={{
-                        border: `1.5px solid ${refundDest === 'WALLET' ? '#0E9F6E' : '#E5E7EB'}`,
-                        background: refundDest === 'WALLET' ? '#ECFDF5' : '#FAFAFA',
-                        borderRadius: 12,
-                        padding: '10px',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      <div style={{ fontSize: 12, fontWeight: 900, color: '#065F46', display: 'flex', alignItems: 'center', gap: 4 }}>
-                        👛 QuickBite Wallet
-                      </div>
-                      <div style={{ fontSize: 10, color: '#047857', marginTop: 2 }}>
-                        ⚡ Instant (10s) + 5% Bonus
-                      </div>
-                    </div>
-
-                    <div
-                      onClick={() => setRefundDest('BANK')}
-                      style={{
-                        border: `1.5px solid ${refundDest === 'BANK' ? '#4A0A10' : '#E5E7EB'}`,
-                        background: refundDest === 'BANK' ? '#FFF7ED' : '#FAFAFA',
-                        borderRadius: 12,
-                        padding: '10px',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      <div style={{ fontSize: 12, fontWeight: 900, color: '#4A0A10', display: 'flex', alignItems: 'center', gap: 4 }}>
-                        🏦 Original Source
-                      </div>
-                      <div style={{ fontSize: 10, color: '#6B7280', marginTop: 2 }}>
-                        UPI / Bank (2-4 hrs)
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Summary & Submit */}
-                <div
-                  style={{
-                    background: '#F9FAFB',
-                    borderRadius: 12,
-                    padding: '10px 14px',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    border: '1px dashed #D1D5DB',
-                  }}
-                >
-                  <span style={{ fontSize: 12, fontWeight: 700, color: '#4B5563' }}>Estimated Refund Value:</span>
-                  <span style={{ fontSize: 16, fontWeight: 900, color: '#0E9F6E' }}>₹{refundAmount}</span>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  id="claim-instant-refund-btn"
-                  style={{
-                    background: '#4A0A10',
-                    color: '#FFFFFF',
-                    border: 'none',
-                    borderRadius: 14,
-                    padding: '12px 0',
-                    fontSize: 14,
-                    fontWeight: 900,
-                    cursor: isSubmitting ? 'default' : 'pointer',
-                    boxShadow: '0 4px 12px rgba(74, 10, 16, 0.25)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 6,
-                  }}
-                >
-                  {isSubmitting ? 'Processing Refund Claim...' : '⚡ Submit & Claim Instant Refund'}
-                </button>
-              </form>
-            </div>
-          )}
-
-          {/* Refund History List */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div
             style={{
               background: '#FFFFFF',
@@ -622,66 +494,210 @@ export default function CustomerHelpPage() {
               boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
             }}
           >
-            <div style={{ fontSize: 14, fontWeight: 900, color: '#1A1A1A', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span>📋</span> Recent Refund History & Claims
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+              <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#FFF7ED', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>
+                💬
+              </div>
+              <div>
+                <h3 style={{ fontSize: 15, fontWeight: 900, color: '#4A0A10', margin: 0 }}>
+                  Start Refund Review with Support Agent
+                </h3>
+                <p style={{ fontSize: 11, color: '#6B7280', margin: 0 }}>
+                  Step 1: Select issue ➔ Step 2: Chat with Agent ➔ Step 3: Agent approves & transfers money
+                </p>
+              </div>
             </div>
 
-            {refundHistory.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '16px 0', color: '#9CA3AF', fontSize: 12 }}>
-                No refund requests placed yet.
+            {/* Workflow Notice Banner */}
+            <div
+              style={{
+                background: '#FEF3C7',
+                border: '1px solid #FDE68A',
+                borderRadius: 12,
+                padding: '10px 12px',
+                fontSize: 11.5,
+                color: '#92400E',
+                marginBottom: 14,
+                lineHeight: 1.4,
+              }}
+            >
+              🔒 <strong>How Approval Works:</strong> To protect merchants and verify delivery conditions, our Live Support Executive reviews order details in chat before releasing the refund amount.
+            </div>
+
+            <form onSubmit={handleCreateRefundTicket} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {/* 1. Select Order */}
+              <div>
+                <label style={{ fontSize: 11.5, fontWeight: 800, color: '#374151', display: 'block', marginBottom: 6 }}>
+                  1. SELECT ORDER TO CLAIM REFUND
+                </label>
+                <select
+                  value={selectedOrderId}
+                  onChange={(e) => setSelectedOrderId(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    borderRadius: 12,
+                    border: '1.5px solid #EADBCE',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    outline: 'none',
+                    background: '#FFFDFB',
+                  }}
+                  required
+                >
+                  {ordersList.map((o) => (
+                    <option key={o.id} value={o.id}>
+                      Order #{o.id} • {o.restaurant?.name || 'Restaurant'} (₹{o.total})
+                    </option>
+                  ))}
+                </select>
               </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {refundHistory.map((item) => (
-                  <div
-                    key={item.id}
-                    style={{
-                      border: '1px solid #F3F4F6',
-                      borderRadius: 14,
-                      padding: 12,
-                      background: '#FAFAFA',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                    }}
-                  >
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 800, color: '#1F2937' }}>
-                        {item.reason}
-                      </div>
-                      <div style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>
-                        Order #{item.orderId} • {item.date} • {item.destination === 'WALLET' ? 'Wallet Credit' : 'Bank Transfer'}
-                      </div>
-                    </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontSize: 14, fontWeight: 900, color: '#0E9F6E' }}>
-                        +₹{item.amount}
-                      </div>
-                      <span
+
+              {/* 2. Select Issue Type */}
+              <div>
+                <label style={{ fontSize: 11.5, fontWeight: 800, color: '#374151', display: 'block', marginBottom: 6 }}>
+                  2. WHAT IS THE COMPLAINT / ISSUE?
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 8 }}>
+                  {ISSUE_TYPES.map((it) => {
+                    const isSelected = selectedIssue === it.id;
+                    return (
+                      <div
+                        key={it.id}
+                        onClick={() => setSelectedIssue(it.id)}
                         style={{
-                          fontSize: 9.5,
-                          fontWeight: 800,
-                          padding: '2px 6px',
-                          borderRadius: 6,
-                          background: '#ECFDF5',
-                          color: '#047857',
-                          border: '1px solid #A7F3D0',
-                          display: 'inline-block',
-                          marginTop: 2,
+                          border: `1.5px solid ${isSelected ? '#4A0A10' : '#E5E7EB'}`,
+                          background: isSelected ? '#FFF7ED' : '#FAFAFA',
+                          borderRadius: 12,
+                          padding: '10px 8px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          textAlign: 'center',
+                          transition: 'all 0.2s ease',
                         }}
                       >
-                        ✓ {item.status}
-                      </span>
+                        <span style={{ fontSize: 11.5, fontWeight: isSelected ? 800 : 600, color: isSelected ? '#4A0A10' : '#374151' }}>
+                          {it.label}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* 3. Issue details */}
+              <div>
+                <label style={{ fontSize: 11.5, fontWeight: 800, color: '#374151', display: 'block', marginBottom: 6 }}>
+                  3. EXPLAIN TO SUPPORT AGENT (OPTIONAL)
+                </label>
+                <textarea
+                  placeholder="e.g., The biryani container lid came open during transit and spilled in bag..."
+                  value={issueDetails}
+                  onChange={(e) => setIssueDetails(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    borderRadius: 12,
+                    border: '1.5px solid #E5E7EB',
+                    fontSize: 12,
+                    outline: 'none',
+                    minHeight: 50,
+                    resize: 'none',
+                  }}
+                />
+              </div>
+
+              {/* 4. Choose Refund Mode */}
+              <div>
+                <label style={{ fontSize: 11.5, fontWeight: 800, color: '#374151', display: 'block', marginBottom: 6 }}>
+                  4. PREFERRED REFUND DESTINATION (UPON AGENT APPROVAL)
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  <div
+                    onClick={() => setRefundDest('WALLET')}
+                    style={{
+                      border: `1.5px solid ${refundDest === 'WALLET' ? '#0E9F6E' : '#E5E7EB'}`,
+                      background: refundDest === 'WALLET' ? '#ECFDF5' : '#FAFAFA',
+                      borderRadius: 12,
+                      padding: '10px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <div style={{ fontSize: 12, fontWeight: 900, color: '#065F46', display: 'flex', alignItems: 'center', gap: 4 }}>
+                      👛 QuickBite Wallet
+                    </div>
+                    <div style={{ fontSize: 10, color: '#047857', marginTop: 2 }}>
+                      ⚡ Instant + 5% Extra Bonus
                     </div>
                   </div>
-                ))}
+
+                  <div
+                    onClick={() => setRefundDest('BANK')}
+                    style={{
+                      border: `1.5px solid ${refundDest === 'BANK' ? '#4A0A10' : '#E5E7EB'}`,
+                      background: refundDest === 'BANK' ? '#FFF7ED' : '#FAFAFA',
+                      borderRadius: 12,
+                      padding: '10px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <div style={{ fontSize: 12, fontWeight: 900, color: '#4A0A10', display: 'flex', alignItems: 'center', gap: 4 }}>
+                      🏦 Original Source
+                    </div>
+                    <div style={{ fontSize: 10, color: '#6B7280', marginTop: 2 }}>
+                      UPI / Bank Account
+                    </div>
+                  </div>
+                </div>
               </div>
-            )}
+
+              {/* Estimated Value Banner */}
+              <div
+                style={{
+                  background: '#F9FAFB',
+                  borderRadius: 12,
+                  padding: '10px 14px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  border: '1px dashed #D1D5DB',
+                }}
+              >
+                <span style={{ fontSize: 12, fontWeight: 700, color: '#4B5563' }}>Eligible Refund Value:</span>
+                <span style={{ fontSize: 16, fontWeight: 900, color: '#0E9F6E' }}>₹{calculatedRefundAmount}</span>
+              </div>
+
+              {/* Connect with agent button */}
+              <button
+                type="submit"
+                disabled={isSubmittingTicket}
+                id="connect-agent-refund-btn"
+                style={{
+                  background: '#4A0A10',
+                  color: '#FFFFFF',
+                  border: 'none',
+                  borderRadius: 14,
+                  padding: '13px 0',
+                  fontSize: 13.5,
+                  fontWeight: 900,
+                  cursor: isSubmittingTicket ? 'default' : 'pointer',
+                  boxShadow: '0 4px 12px rgba(74, 10, 16, 0.25)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                }}
+              >
+                {isSubmittingTicket ? 'Connecting to Agent...' : '💬 Connect with Support Agent to Approve Refund →'}
+              </button>
+            </form>
           </div>
         </div>
       )}
 
-      {/* ─── TAB 2: 24x7 LIVE ASSISTANT CHAT ─── */}
+      {/* ─── TAB 2: LIVE AGENT REVIEW CHAT ─── */}
       {activeTab === 'chat' && (
         <div
           style={{
@@ -690,13 +706,13 @@ export default function CustomerHelpPage() {
             border: '1px solid #EADBCE',
             display: 'flex',
             flexDirection: 'column',
-            height: '65vh',
-            maxHeight: 520,
+            height: '75vh',
+            maxHeight: 620,
             boxShadow: '0 4px 14px rgba(0,0,0,0.04)',
             overflow: 'hidden',
           }}
         >
-          {/* Chat Header */}
+          {/* Agent Chat Header */}
           <div
             style={{
               background: '#4A0A10',
@@ -708,18 +724,70 @@ export default function CustomerHelpPage() {
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#FFF7ED', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>
-                🤖
+              <div style={{ position: 'relative' }}>
+                <div style={{ width: 38, height: 38, borderRadius: '50%', background: '#FFF7ED', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, color: '#4A0A10', fontWeight: 900 }}>
+                  👩‍💼
+                </div>
+                <span
+                  style={{
+                    position: 'absolute',
+                    bottom: 0,
+                    right: 0,
+                    width: 10,
+                    height: 10,
+                    borderRadius: '50%',
+                    background: '#10B981',
+                    border: '2px solid #4A0A10',
+                  }}
+                />
               </div>
               <div>
-                <div style={{ fontSize: 13.5, fontWeight: 900 }}>QuickBite AI Resolution Bot</div>
-                <div style={{ fontSize: 10.5, color: '#10B981', fontWeight: 700 }}>● Online • Instant Resolution</div>
+                <div style={{ fontSize: 13.5, fontWeight: 900, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  {activeTicket?.agentName || 'Pooja Sharma'}
+                  <span style={{ fontSize: 9.5, background: 'rgba(255,255,255,0.2)', padding: '2px 6px', borderRadius: 6 }}>
+                    Senior Executive
+                  </span>
+                </div>
+                <div style={{ fontSize: 10.5, color: '#FCD34D' }}>
+                  {activeTicket ? `Reviewing Ticket #${activeTicket.id}` : 'Live Agent Support'}
+                </div>
               </div>
             </div>
-            <span style={{ fontSize: 11, background: 'rgba(255,255,255,0.15)', padding: '3px 8px', borderRadius: 8 }}>
-              24x7 Help
-            </span>
+
+            <div style={{ textAlign: 'right' }}>
+              <span
+                style={{
+                  fontSize: 10,
+                  fontWeight: 800,
+                  padding: '3px 8px',
+                  borderRadius: 10,
+                  background: activeTicket?.agentApproved ? '#0E9F6E' : '#D97706',
+                  color: '#FFFFFF',
+                }}
+              >
+                {activeTicket?.agentApproved ? '✅ APPROVED' : '⏳ UNDER REVIEW'}
+              </span>
+            </div>
           </div>
+
+          {/* Ticket Information Bar */}
+          {activeTicket && (
+            <div
+              style={{
+                background: '#FFFBEB',
+                borderBottom: '1px solid #FEF3C7',
+                padding: '7px 14px',
+                fontSize: 11,
+                color: '#92400E',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <span>Order #{activeTicket.orderId} • {activeTicket.restaurantName}</span>
+              <span style={{ fontWeight: 800, color: '#B45309' }}>Claim: ₹{activeTicket.amount}</span>
+            </div>
+          )}
 
           {/* Messages Feed */}
           <div
@@ -733,54 +801,151 @@ export default function CustomerHelpPage() {
               gap: 10,
             }}
           >
-            {chatMessages.map((msg) => {
-              const isUser = msg.sender === 'user';
-              return (
-                <div
-                  key={msg.id}
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: isUser ? 'flex-end' : 'flex-start',
-                    maxWidth: '85%',
-                    alignSelf: isUser ? 'flex-end' : 'flex-start',
-                  }}
-                >
+            {chatMessages.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '30px 16px', color: '#9CA3AF' }}>
+                <div style={{ fontSize: 32, marginBottom: 6 }}>🎧</div>
+                <div style={{ fontSize: 13, fontWeight: 700 }}>No Active Chat Session</div>
+                <div style={{ fontSize: 11, marginTop: 4 }}>Select an order from "Request Refund" to chat with an agent.</div>
+              </div>
+            ) : (
+              chatMessages.map((msg) => {
+                if (msg.sender === 'system') {
+                  return (
+                    <div
+                      key={msg.id}
+                      style={{
+                        alignSelf: 'center',
+                        background: '#EEF2F6',
+                        color: '#475569',
+                        padding: '6px 12px',
+                        borderRadius: 12,
+                        fontSize: 11,
+                        textAlign: 'center',
+                        maxWidth: '90%',
+                      }}
+                    >
+                      {msg.text}
+                    </div>
+                  );
+                }
+
+                const isUser = msg.sender === 'user';
+                return (
                   <div
+                    key={msg.id}
                     style={{
-                      background: isUser ? '#4A0A10' : '#FFFFFF',
-                      color: isUser ? '#FFFFFF' : '#1F2937',
-                      borderRadius: isUser ? '16px 16px 2px 16px' : '16px 16px 16px 2px',
-                      padding: '10px 14px',
-                      fontSize: 12.5,
-                      lineHeight: 1.4,
-                      boxShadow: '0 2px 6px rgba(0,0,0,0.05)',
-                      border: isUser ? 'none' : '1px solid #E5E7EB',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: isUser ? 'flex-end' : 'flex-start',
+                      maxWidth: '85%',
+                      alignSelf: isUser ? 'flex-end' : 'flex-start',
                     }}
                   >
-                    {msg.text}
+                    <div
+                      style={{
+                        background: isUser ? '#4A0A10' : '#FFFFFF',
+                        color: isUser ? '#FFFFFF' : '#1F2937',
+                        borderRadius: isUser ? '16px 16px 2px 16px' : '16px 16px 16px 2px',
+                        padding: '10px 14px',
+                        fontSize: 12.5,
+                        lineHeight: 1.4,
+                        boxShadow: '0 2px 6px rgba(0,0,0,0.05)',
+                        border: isUser ? 'none' : '1px solid #E5E7EB',
+                      }}
+                    >
+                      {msg.text}
+                    </div>
+                    <span style={{ fontSize: 9.5, color: '#9CA3AF', marginTop: 3, padding: '0 4px' }}>
+                      {msg.time}
+                    </span>
                   </div>
-                  <span style={{ fontSize: 9.5, color: '#9CA3AF', marginTop: 3, padding: '0 4px' }}>
-                    {msg.time}
-                  </span>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
 
-            {isTyping && (
-              <div style={{ fontSize: 11.5, color: '#6B7280', padding: '4px 10px', background: '#FFFFFF', borderRadius: 12, width: 'fit-content', border: '1px solid #E5E7EB' }}>
-                AI Assistant is typing...
+            {/* Live Agent Typing */}
+            {isAgentTyping && (
+              <div style={{ fontSize: 11.5, color: '#6B7280', padding: '6px 12px', background: '#FFFFFF', borderRadius: 12, width: 'fit-content', border: '1px solid #E5E7EB' }}>
+                Pooja is reviewing kitchen telemetry...
               </div>
             )}
+
+            {/* Official Agent Approval Action Card */}
+            {activeTicket?.agentApproved && !claimedSuccess && (
+              <div
+                style={{
+                  background: '#ECFDF5',
+                  borderRadius: 16,
+                  border: '2px solid #10B981',
+                  padding: 14,
+                  marginTop: 8,
+                  boxShadow: '0 4px 12px rgba(16, 185, 129, 0.15)',
+                  animation: 'slideUp 0.3s ease',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <span style={{ fontSize: 24 }}>✅</span>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 900, color: '#065F46' }}>
+                      Refund Approved by Support Agent
+                    </div>
+                    <div style={{ fontSize: 11, color: '#047857' }}>
+                      Verified for Order #{activeTicket.orderId} • Approved Amount: ₹{activeTicket.amount}
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  id="claim-agent-approved-money-btn"
+                  onClick={handleClaimApprovedRefund}
+                  style={{
+                    width: '100%',
+                    background: '#059669',
+                    color: '#FFFFFF',
+                    border: 'none',
+                    borderRadius: 12,
+                    padding: '11px 0',
+                    fontSize: 13,
+                    fontWeight: 900,
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 8px rgba(5, 150, 105, 0.3)',
+                  }}
+                >
+                  ⚡ Claim ₹{activeTicket.amount} to {activeTicket.destination === 'WALLET' ? 'Wallet (+5% Bonus)' : 'Bank Account'}
+                </button>
+              </div>
+            )}
+
+            {/* Claimed Successful Notification */}
+            {claimedSuccess && (
+              <div
+                style={{
+                  background: '#F0FDF4',
+                  borderRadius: 14,
+                  border: '1px solid #86EFAC',
+                  padding: '12px',
+                  textAlign: 'center',
+                  color: '#166534',
+                  fontSize: 12,
+                  fontWeight: 700,
+                }}
+              >
+                🎉 <strong>Refund Completed:</strong> ₹{activeTicket?.amount} transferred to your{' '}
+                {activeTicket?.destination === 'WALLET' ? 'Wallet' : 'Bank Account'}.
+              </div>
+            )}
+
+            <div ref={messagesEndRef} />
           </div>
 
-          {/* Quick Problem Suggestions */}
+          {/* Quick Reply Chips */}
           <div style={{ background: '#FFFFFF', borderTop: '1px solid #E5E7EB', padding: '8px 12px 4px', display: 'flex', gap: 6, overflowX: 'auto', scrollbarWidth: 'none' }}>
             {[
-              'I need a refund for my order 💳',
-              'My food is spilled / damaged 🥣',
-              'Where is my driver right now? 🛵',
-              'Connect with human agent 📞',
+              'Yes, food was spilled in packaging 🥣',
+              'Items were completely missing 🔍',
+              'Driver arrived 40 mins late ⏰',
+              'Please review and approve refund 🙏',
             ].map((chip, i) => (
               <button
                 key={i}
@@ -790,7 +955,7 @@ export default function CustomerHelpPage() {
                   background: '#F3F4F6',
                   border: '1px solid #E5E7EB',
                   borderRadius: 14,
-                  padding: '4px 10px',
+                  padding: '5px 10px',
                   fontSize: 11,
                   color: '#374151',
                   cursor: 'pointer',
@@ -807,7 +972,7 @@ export default function CustomerHelpPage() {
           <div style={{ background: '#FFFFFF', padding: '10px 12px', borderTop: '1px solid #F3F4F6', display: 'flex', gap: 8 }}>
             <input
               type="text"
-              placeholder="Describe your issue or order inquiry..."
+              placeholder="Message Support Agent Pooja..."
               value={chatInput}
               onChange={(e) => setChatInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
@@ -823,6 +988,7 @@ export default function CustomerHelpPage() {
             />
             <button
               type="button"
+              id="send-agent-msg-btn"
               onClick={() => handleSendMessage()}
               style={{
                 background: '#4A0A10',
@@ -835,13 +1001,102 @@ export default function CustomerHelpPage() {
                 cursor: 'pointer',
               }}
             >
-              Send
+              Send 🚀
             </button>
           </div>
         </div>
       )}
 
-      {/* ─── TAB 3: FAQS & POLICIES ─── */}
+      {/* ─── TAB 3: TICKETS & REFUND STATUS ─── */}
+      {activeTab === 'history' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ fontSize: 14, fontWeight: 900, color: '#1A1A1A', marginBottom: 4 }}>
+            Support Tickets & Refund Claims
+          </div>
+
+          {refundHistory.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '24px 0', background: '#FFFFFF', borderRadius: 16, border: '1px solid #EADBCE', color: '#9CA3AF', fontSize: 12 }}>
+              No refund requests placed yet.
+            </div>
+          ) : (
+            refundHistory.map((t) => {
+              const isApproved = t.agentApproved;
+              const isRefunded = t.status === 'REFUNDED';
+
+              return (
+                <div
+                  key={t.id}
+                  style={{
+                    background: '#FFFFFF',
+                    borderRadius: 16,
+                    border: '1px solid #EADBCE',
+                    padding: 14,
+                    boxShadow: '0 2px 6px rgba(0,0,0,0.02)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 8,
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 800, color: '#1F2937' }}>
+                        {t.reason}
+                      </div>
+                      <div style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>
+                        Ticket #{t.id} • Order #{t.orderId} • {t.restaurantName}
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: 15, fontWeight: 900, color: '#0E9F6E' }}>
+                        ₹{t.amount}
+                      </div>
+                      <span
+                        style={{
+                          fontSize: 9.5,
+                          fontWeight: 800,
+                          padding: '2px 6px',
+                          borderRadius: 6,
+                          background: isRefunded ? '#ECFDF5' : isApproved ? '#EFF6FF' : '#FEF3C7',
+                          color: isRefunded ? '#047857' : isApproved ? '#1D4ED8' : '#B45309',
+                          border: `1px solid ${isRefunded ? '#A7F3D0' : isApproved ? '#BFDBFE' : '#FDE68A'}`,
+                          display: 'inline-block',
+                          marginTop: 2,
+                        }}
+                      >
+                        {isRefunded ? '✓ CREDITED' : isApproved ? '✓ AGENT APPROVED' : '⏳ UNDER REVIEW'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #F3F4F6', paddingTop: 8 }}>
+                    <span style={{ fontSize: 11, color: '#6B7280' }}>
+                      Agent: <strong>{t.agentName || 'Pooja Sharma'}</strong>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenTicketChat(t)}
+                      style={{
+                        background: '#4A0A10',
+                        color: '#FFFFFF',
+                        border: 'none',
+                        borderRadius: 8,
+                        padding: '5px 12px',
+                        fontSize: 11,
+                        fontWeight: 800,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Open Chat 💬
+                    </button>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
+
+      {/* ─── TAB 4: REFUND POLICY & FAQS ─── */}
       {activeTab === 'faqs' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {FAQS.map((faq, idx) => {
@@ -857,7 +1112,6 @@ export default function CustomerHelpPage() {
                   padding: '14px 16px',
                   cursor: 'pointer',
                   boxShadow: '0 2px 6px rgba(0,0,0,0.02)',
-                  transition: 'all 0.2s',
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -880,7 +1134,7 @@ export default function CustomerHelpPage() {
         </div>
       )}
 
-      {/* ─── TAB 4: DIRECT CONTACT ─── */}
+      {/* ─── TAB 5: DIRECT HELPLINE ─── */}
       {activeTab === 'contact' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {/* Toll Free Helpline */}
@@ -945,7 +1199,7 @@ export default function CustomerHelpPage() {
             </div>
             <button
               type="button"
-              onClick={() => alert('Redirecting to QuickBite Official WhatsApp Care...')}
+              onClick={() => alert('Opening QuickBite Official WhatsApp Care...')}
               style={{
                 background: '#059669',
                 color: '#FFFFFF',
@@ -959,44 +1213,6 @@ export default function CustomerHelpPage() {
             >
               Message
             </button>
-          </div>
-
-          {/* Email Support */}
-          <div
-            style={{
-              background: '#FFFFFF',
-              borderRadius: 18,
-              border: '1px solid #EADBCE',
-              padding: 16,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{ width: 44, height: 44, borderRadius: '50%', background: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>
-                ✉️
-              </div>
-              <div>
-                <div style={{ fontSize: 14, fontWeight: 900, color: '#1F2937' }}>Email Grievance Officer</div>
-                <div style={{ fontSize: 11, color: '#6B7280' }}>care@quickbite.com</div>
-              </div>
-            </div>
-            <a
-              href="mailto:care@quickbite.com"
-              style={{
-                background: '#2563EB',
-                color: '#FFFFFF',
-                borderRadius: 10,
-                padding: '8px 14px',
-                fontSize: 12,
-                fontWeight: 800,
-                textDecoration: 'none',
-              }}
-            >
-              Write Email
-            </a>
           </div>
         </div>
       )}
