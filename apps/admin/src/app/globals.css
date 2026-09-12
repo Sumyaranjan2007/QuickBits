@@ -2245,164 +2245,412 @@ html, body {
   align-self: flex-start;
 }
 
-/* ─── 6. Reusable Promo Components & Brand Card ─── */
-.promo-banners-showcase {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-top: 6px;
+/* ─── 1. Sub-Tabs Filter Bar (Image 2 Reference) ─── */
+.feed-filter-bar {
+  padding: 4px 0 8px;
 }
 
-.promo-card {
-  border-radius: 18px;
-  padding: 14px 16px;
+.feed-filter-scroll-row {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 2px 2px;
+}
+
+.feed-filter-scroll-row::-webkit-scrollbar {
+  display: none;
+}
+
+.feed-filter-tab-btn {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 5px;
+  background: #FFFFFF;
+  border: 1.5px solid #EADBCE;
+  border-radius: 20px;
+  padding: 7px 14px;
+  font-size: 12px;
+  font-weight: 800;
+  color: #4A3E37;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.03);
+}
+
+.feed-filter-tab-btn.active {
+  background: #4A0A10;
+  color: #FFFFFF;
+  border-color: #4A0A10;
+  box-shadow: 0 3px 10px rgba(74, 10, 16, 0.25);
+}
+
+.feed-tab-icon {
+  font-size: 13px;
+  line-height: 1;
+}
+
+/* ─── 3. Vertical Restaurant Feed List (Image 2 Reference) ─── */
+.restaurant-vertical-feed-section {
+  margin-top: 10px;
+  padding-bottom: 24px;
+}
+
+.rest-feed-list {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.rest-feed-card-link {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+}
+
+.rest-feed-card {
+  background: #FFFFFF;
+  border: 1px solid #EADBCE;
+  border-radius: 22px;
   overflow: hidden;
-  box-shadow: 0 4px 14px rgba(74, 10, 16, 0.08);
+  box-shadow: 0 4px 18px rgba(74, 10, 16, 0.05);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
   cursor: pointer;
 }
 
-.promo-first-order {
-  background: #4A0A10;
+.rest-feed-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(74, 10, 16, 0.1);
+}
+
+.rest-feed-img-box {
+  position: relative;
+  width: 100%;
+  height: 190px;
+  overflow: hidden;
+  background: #FAF7F2;
+}
+
+.rest-feed-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.rest-feed-card:hover .rest-feed-img {
+  transform: scale(1.03);
+}
+
+/* Dots Carousel Indicator */
+.rest-feed-dots {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 4px;
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(4px);
+  padding: 3px 8px;
+  border-radius: 10px;
+}
+
+.rest-feed-dots span {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  transition: all 0.2s ease;
+}
+
+.rest-feed-dots span.active {
+  background: #FFFFFF;
+  width: 12px;
+  border-radius: 4px;
+}
+
+/* Favorite Heart Icon */
+.rest-feed-fav-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 2;
+  transition: transform 0.15s ease;
+}
+
+.rest-feed-fav-btn:hover {
+  transform: scale(1.1);
+}
+
+/* Bottom Overlaid Badges */
+.rest-feed-overlay-bottom {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 30px 14px 10px;
+  background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 60%, transparent 100%);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.rest-feed-offer-badge {
+  background: #FF5200;
   color: #FFFFFF;
+  font-size: 11px;
+  font-weight: 900;
+  padding: 4px 9px;
+  border-radius: 6px;
+  letter-spacing: 0.3px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  box-shadow: 0 2px 6px rgba(255, 82, 0, 0.4);
 }
 
-.promo-free-delivery {
-  background: #F8EFE4;
-  border: 1px solid #EADBCE;
-  color: #1A1A1A;
-}
-
-.promo-flat-100 {
-  background: #3B080D;
-  color: #FFFFFF;
-}
-
-.promo-card-left {
+.rest-feed-time-badge {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: flex-end;
   gap: 2px;
-  flex: 1;
 }
 
-.promo-subtag {
+.rest-feed-time-text {
+  background: #FFFFFF;
+  color: #1A1A1A;
   font-size: 10px;
   font-weight: 800;
-  color: #FFD470;
+  padding: 3px 7px;
+  border-radius: 6px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+}
+
+.rest-feed-free-dl {
+  color: #FFB800;
+  font-size: 9px;
+  font-weight: 900;
+  text-transform: uppercase;
   letter-spacing: 0.5px;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.9);
 }
 
-.promo-yellow-title {
-  font-size: 18px;
+/* Card Body Details */
+.rest-feed-body {
+  padding: 12px 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.rest-feed-tag {
+  font-size: 10px;
+  font-weight: 800;
+  color: #B45309;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.rest-feed-name-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.rest-feed-name {
+  font-size: 16px;
   font-weight: 900;
-  color: #B36B00;
-  letter-spacing: -0.3px;
+  color: #1A1A1A;
+  margin: 0;
+  letter-spacing: -0.2px;
 }
 
-.promo-flat-100 .promo-yellow-title {
-  color: #F5A623;
+.rest-feed-rating-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #4A3E37;
+  font-weight: 600;
+  margin-top: 1px;
 }
 
-.promo-big-headline {
-  font-size: 22px;
-  font-weight: 900;
-  line-height: 1.1;
-  color: #F5A623;
-}
-
-.promo-desc-line {
+.rest-feed-rating-pill {
+  background: #098041;
+  color: #FFFFFF;
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.85);
-  margin-bottom: 6px;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
 }
 
-.promo-desc-line-dark {
+.rest-feed-rating-count {
   font-size: 11px;
   color: #7A6A5E;
-  margin-bottom: 6px;
+  font-weight: 600;
 }
 
-.promo-coupon-pill {
-  background: rgba(255, 255, 255, 0.15);
-  border: 1px dashed rgba(255, 212, 112, 0.6);
-  color: #FFD470;
+.rest-feed-dot-sep {
+  color: #C4B5A8;
   font-size: 10px;
+}
+
+.rest-feed-locality {
+  color: #7A6A5E;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rest-feed-cuisine-row {
+  font-size: 12px;
+  color: #7A6A5E;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ─── 4. Newly Featured Horizontal Carousel ─── */
+.newly-featured-container {
+  margin: 6px 0 10px;
+  background: #FAF7F2;
+  border: 1px solid #EADBCE;
+  border-radius: 18px;
+  padding: 14px 0 14px 12px;
+}
+
+.newly-featured-heading {
+  font-size: 13px;
   font-weight: 800;
-  padding: 4px 10px;
-  border-radius: 6px;
+  color: #1A1A1A;
+  margin: 0 0 10px 2px;
 }
 
-.promo-coupon-pill-gold {
-  background: #F5A623;
-  color: #4A0A10;
-  font-size: 10px;
-  font-weight: 900;
-  padding: 4px 10px;
-  border-radius: 6px;
+.featured-horizontal-scroll {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-right: 12px;
 }
 
-.promo-card-right img {
-  width: 85px;
-  height: 85px;
-  border-radius: 12px;
+.featured-horizontal-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.featured-brand-card {
+  flex: 0 0 120px;
+  background: #FFFFFF;
+  border: 1px solid #EADBCE;
+  border-radius: 14px;
+  overflow: hidden;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+
+.featured-card-img-wrapper {
+  position: relative;
+  width: 100%;
+  height: 95px;
+  overflow: hidden;
+}
+
+.featured-card-img {
+  width: 100%;
+  height: 100%;
   object-fit: cover;
 }
 
-.quickbits-brand-card {
-  background: #4A0A10;
+.featured-one-badge {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  background: #FF5200;
   color: #FFFFFF;
-  border-radius: 18px;
-  padding: 18px 16px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  box-shadow: 0 6px 20px rgba(74, 10, 16, 0.2);
-}
-
-.brand-logo-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.brand-bolt {
-  font-size: 24px;
-}
-
-.brand-name {
-  font-size: 26px;
+  font-size: 8px;
   font-weight: 900;
-  letter-spacing: -0.5px;
+  padding: 2px 5px;
+  border-radius: 4px;
 }
 
-.brand-tagline {
-  font-size: 12px;
-  font-style: italic;
+.featured-discount-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 100%);
+  padding: 12px 6px 4px;
+}
+
+.featured-offer-title {
+  font-size: 9px;
+  font-weight: 900;
+  color: #FFFFFF;
+  line-height: 1.1;
+}
+
+.featured-offer-sub {
+  font-size: 8px;
   color: #FFD470;
-  margin-top: 2px;
+  font-weight: 700;
 }
 
-.brand-trust-badges {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  width: 100%;
-  margin-top: 14px;
-  padding-top: 12px;
-  border-top: 1px solid rgba(255, 255, 255, 0.15);
+.featured-card-name {
+  font-size: 11px;
+  font-weight: 800;
+  color: #1A1A1A;
+  padding: 6px 8px 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.trust-badge-item {
+/* ─── 5. Floating Search Pill Button (Image 2 Reference) ─── */
+.feed-floating-search-btn {
+  position: fixed;
+  bottom: 68px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1A1A1A;
+  color: #FFFFFF;
+  border: none;
+  padding: 9px 20px;
+  border-radius: 24px;
+  font-size: 12px;
+  font-weight: 800;
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 10px;
-  font-weight: 700;
-  color: rgba(255, 255, 255, 0.9);
+  gap: 8px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.35);
+  z-index: 40;
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.feed-floating-search-btn:hover {
+  background: #333333;
+  transform: translateX(-50%) scale(1.04);
 }
 
 /* ─── Bottom Navigation ─── */

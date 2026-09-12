@@ -6,6 +6,15 @@ import { restaurantsApi } from '@quickbite/api-client';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from './CartContext';
 
+const FILTER_TABS = [
+  { id: 'all', label: 'All', icon: '🔥' },
+  { id: 'offers', label: 'Offers', icon: '🏷️' },
+  { id: 'gourmet', label: 'Gourmet', icon: '👑' },
+  { id: 'pure-veg', label: 'Pure Veg', icon: '🌱' },
+  { id: 'fast', label: 'Fast Delivery', icon: '⚡' },
+  { id: 'rating', label: 'Rating 4.0+', icon: '⭐' },
+];
+
 const FOOD_CATEGORIES = [
   {
     id: 'biryani',
@@ -39,36 +48,173 @@ const FOOD_CATEGORIES = [
   },
 ];
 
-const DEFAULT_POPULAR_RESTAURANTS = [
+const REFERENCE_RESTAURANTS = [
   {
-    id: 'the-biryani-house',
-    name: 'The Biryani House',
+    id: 'sharief-bhai',
+    name: 'Sharief Bhai Biryani',
+    tag: 'Best in Biryani',
+    rating: 4.0,
+    ratingCount: '3.4K+',
+    locality: 'Electronic City, 2.9 km',
+    cuisineType: 'Biryani, Shawarma',
+    priceForTwo: 600,
+    avgDeliveryTime: '30-35',
+    discountBadge: '50% OFF',
+    freeDelivery: true,
+    coverImageUrl: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=800&q=80',
+  },
+  {
+    id: 'behrouz-biryani',
+    name: 'Behrouz Biryani',
+    tag: 'Best in Mughlai',
+    rating: 4.1,
+    ratingCount: '4.1K+',
+    locality: 'Vidyanagar, 2.5 km',
     cuisineType: 'Biryani, North Indian',
-    rating: 4.6,
-    avgDeliveryTime: 20,
-    minOrderAmount: 200,
-    discountBadge: '10% OFF',
-    coverImageUrl: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=600&q=80',
+    priceForTwo: 500,
+    avgDeliveryTime: '25-30',
+    discountBadge: 'Items at ₹189',
+    freeDelivery: true,
+    coverImageUrl: 'https://images.unsplash.com/photo-1589302168068-964664d93dc0?w=800&q=80',
+  },
+  {
+    id: 'the-biryani-life',
+    name: 'The Biryani Life',
+    tag: 'Special Biryani',
+    rating: 4.1,
+    ratingCount: '2.2K+',
+    locality: 'Vidyanagar, 2.5 km',
+    cuisineType: 'Biryani, Mughlai',
+    priceForTwo: 250,
+    avgDeliveryTime: '20-25',
+    discountBadge: 'Items at ₹189',
+    freeDelivery: true,
+    coverImageUrl: 'https://images.unsplash.com/photo-1633945274405-b6c8069047b0?w=800&q=80',
+  },
+  {
+    id: 'big-bowl',
+    name: 'Big Bowl',
+    tag: 'Comfort Bowls',
+    rating: 4.4,
+    ratingCount: '1.3K+',
+    locality: 'Iggalur, 2.9 km',
+    cuisineType: 'North Indian, Chinese',
+    priceForTwo: 350,
+    avgDeliveryTime: '30-35',
+    discountBadge: 'Buy 1 get 1',
+    freeDelivery: true,
+    coverImageUrl: 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=800&q=80',
+  },
+  {
+    id: 'kfc',
+    name: 'KFC',
+    tag: 'Best in Rolls',
+    rating: 4.1,
+    ratingCount: '1.0K+',
+    locality: 'Chandapura, 2.3 km',
+    cuisineType: 'Burgers, Fast Food, Rolls',
+    priceForTwo: 400,
+    avgDeliveryTime: '25-30',
+    discountBadge: '50% OFF + 10% extra off',
+    freeDelivery: true,
+    coverImageUrl: 'https://images.unsplash.com/photo-1513639776629-7b61b0ac49cb?w=800&q=80',
+  },
+  {
+    id: 'chinese-wok',
+    name: 'Chinese Wok',
+    tag: 'Wok Specialties',
+    rating: 4.3,
+    ratingCount: '1.8K+',
+    locality: 'Iggalur, 2.9 km',
+    cuisineType: 'Chinese, Asian',
+    priceForTwo: 250,
+    avgDeliveryTime: '30-35',
+    discountBadge: 'Buy 1 get 1',
+    freeDelivery: true,
+    coverImageUrl: 'https://images.unsplash.com/photo-1585032226651-759b368d7246?w=800&q=80',
+  },
+  {
+    id: 'thalaiva-biryani',
+    name: 'Thalaiva Biryani',
+    tag: 'Authentic South Indian',
+    rating: 4.1,
+    ratingCount: '500+',
+    locality: 'Vidyanagar, 2.5 km',
+    cuisineType: 'Biryani, Mughlai',
+    priceForTwo: 400,
+    avgDeliveryTime: '25-30',
+    discountBadge: 'Items at ₹189',
+    freeDelivery: true,
+    coverImageUrl: 'https://images.unsplash.com/photo-1633945274405-b6c8069047b0?w=800&q=80',
+  },
+  {
+    id: 'itminaan-matka',
+    name: 'Itminaan Matka Biryani - Slow Cooked',
+    tag: 'Claypot Specialty',
+    rating: 4.2,
+    ratingCount: '850+',
+    locality: 'Electronic City, 3.1 km',
+    cuisineType: 'Biryani, North Indian',
+    priceForTwo: 550,
+    avgDeliveryTime: '35-45',
+    discountBadge: 'Buy 1 get 1',
+    freeDelivery: true,
+    coverImageUrl: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=800&q=80',
   },
   {
     id: 'pizza-corner',
     name: 'Pizza Corner',
-    cuisineType: 'Pizza, Fast Food',
+    tag: 'Best in Italian',
     rating: 4.4,
-    avgDeliveryTime: 25,
-    minOrderAmount: 150,
-    discountBadge: '15% OFF',
-    coverImageUrl: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600&q=80',
+    ratingCount: '2.1K+',
+    locality: 'Koramangala, 1.8 km',
+    cuisineType: 'Pizza, Fast Food',
+    priceForTwo: 350,
+    avgDeliveryTime: '20-25',
+    discountBadge: '40% OFF',
+    freeDelivery: true,
+    coverImageUrl: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=800&q=80',
   },
   {
     id: 'burger-bistro',
     name: 'Burger Bistro',
-    cuisineType: 'Burgers, American',
+    tag: 'Gourmet Burgers',
     rating: 4.5,
-    avgDeliveryTime: 18,
-    minOrderAmount: 180,
-    discountBadge: '20% OFF',
-    coverImageUrl: 'https://images.unsplash.com/photo-1550547660-d9450f859349?w=600&q=80',
+    ratingCount: '3.8K+',
+    locality: 'Indiranagar, 2.1 km',
+    cuisineType: 'Burgers, American',
+    priceForTwo: 300,
+    avgDeliveryTime: '15-20',
+    discountBadge: '30% OFF',
+    freeDelivery: true,
+    coverImageUrl: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=800&q=80',
+  },
+];
+
+const NEWLY_FEATURED = [
+  {
+    id: 'papa-johns',
+    name: 'Papa Johns',
+    offerText: 'FLAT DEAL ₹125 OFF',
+    subText: 'ABOVE ₹249',
+    freeDelivery: true,
+    image: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=400&q=80',
+  },
+  {
+    id: 'the-cheesecake-co',
+    name: 'The Cheesecake Co.',
+    offerText: '60% OFF',
+    subText: 'UPTO ₹150',
+    freeDelivery: true,
+    image: 'https://images.unsplash.com/photo-1533134242443-d4fd215305ad?w=400&q=80',
+  },
+  {
+    id: 'zingry',
+    name: 'Zingry Fried Chicken',
+    offerText: 'SAVE BIG 30% OFF',
+    subText: 'UPTO ₹100',
+    freeDelivery: true,
+    image: 'https://images.unsplash.com/photo-1562967914-608f82629710?w=400&q=80',
   },
 ];
 
@@ -77,8 +223,9 @@ export default function CustomerHomePage() {
   const router = useRouter();
   const { addItem } = useCart();
 
-  const [restaurants, setRestaurants] = useState<any[]>(DEFAULT_POPULAR_RESTAURANTS);
+  const [restaurants, setRestaurants] = useState<any[]>(REFERENCE_RESTAURANTS);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('all');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
@@ -89,20 +236,25 @@ export default function CustomerHomePage() {
         const d = r.data as any;
         const list = d.items || d || [];
         if (Array.isArray(list) && list.length > 0) {
-          // Merge with reference presentation properties
-          setRestaurants(list.map((item, idx) => ({
-            ...item,
-            rating: item.rating || (4.3 + (idx % 4) * 0.1),
-            avgDeliveryTime: item.avgDeliveryTime || (20 + (idx % 3) * 5),
-            minOrderAmount: item.minOrderAmount || (150 + idx * 25),
-            discountBadge: idx === 0 ? '10% OFF' : idx === 1 ? '15% OFF' : '20% OFF',
-            coverImageUrl: item.coverImageUrl || DEFAULT_POPULAR_RESTAURANTS[idx % DEFAULT_POPULAR_RESTAURANTS.length].coverImageUrl,
-          })));
+          const merged = list.map((item, idx) => ({
+            id: item.id,
+            name: item.name,
+            tag: idx % 2 === 0 ? 'Best in Biryani' : 'Popular Choice',
+            rating: item.rating || (4.1 + (idx % 4) * 0.1),
+            ratingCount: `${(2 + idx * 0.7).toFixed(1)}K+`,
+            locality: item.address || 'Koramangala, 2.1 km',
+            cuisineType: item.cuisineType || (idx % 2 === 0 ? 'Biryani, North Indian' : 'Pizza, Fast Food'),
+            priceForTwo: item.minOrderAmount ? item.minOrderAmount * 2 : 400,
+            avgDeliveryTime: `${item.avgDeliveryTime || 25}-${(item.avgDeliveryTime || 25) + 5}`,
+            discountBadge: idx === 0 ? '50% OFF' : idx === 1 ? 'Items at ₹189' : 'Buy 1 get 1',
+            freeDelivery: true,
+            coverImageUrl: item.coverImageUrl || REFERENCE_RESTAURANTS[idx % REFERENCE_RESTAURANTS.length].coverImageUrl,
+          }));
+          setRestaurants(merged);
         }
       })
       .catch(() => {
-        // Fallback to reference mock list
-        setRestaurants(DEFAULT_POPULAR_RESTAURANTS);
+        setRestaurants(REFERENCE_RESTAURANTS);
       })
       .finally(() => setLoading(false));
   }, []);
@@ -126,17 +278,24 @@ export default function CustomerHomePage() {
   };
 
   const filteredRestaurants = restaurants.filter(r => {
-    if (!selectedCategory || selectedCategory === 'more') return true;
-    const cat = selectedCategory.toLowerCase();
-    return (
-      r.cuisineType?.toLowerCase().includes(cat) ||
-      r.name?.toLowerCase().includes(cat)
-    );
+    if (activeTab === 'offers' && !r.discountBadge) return false;
+    if (activeTab === 'gourmet' && (r.rating < 4.4 && r.priceForTwo < 450)) return false;
+    if (activeTab === 'fast' && parseInt(r.avgDeliveryTime?.split('-')[0] || '30') > 25) return false;
+    if (activeTab === 'rating' && r.rating < 4.2) return false;
+
+    if (selectedCategory && selectedCategory !== 'more') {
+      const cat = selectedCategory.toLowerCase();
+      if (!r.cuisineType?.toLowerCase().includes(cat) && !r.name?.toLowerCase().includes(cat)) {
+        return false;
+      }
+    }
+
+    return true;
   });
 
   return (
     <div className="customer-home-screen">
-      {/* ─── 1. Hero Cravings Headline ─── */}
+      {/* ─── 1. Hero Cravings Headline (User Reference Top) ─── */}
       <section className="hero-cravings-section">
         <h1 className="hero-cravings-title">
           WHAT&apos;S YOUR<br />
@@ -179,7 +338,7 @@ export default function CustomerHomePage() {
         </form>
       </section>
 
-      {/* ─── 3. Food Category Strip (Circular Items) ─── */}
+      {/* ─── 3. Food Category Circular Strip ─── */}
       <section className="food-categories-section">
         <div className="category-scroll-row">
           {FOOD_CATEGORIES.map(cat => {
@@ -213,7 +372,7 @@ export default function CustomerHomePage() {
         </div>
       </section>
 
-      {/* ─── 4. Promotional Banner (HOT DEALS 🔥) ─── */}
+      {/* ─── 4. HOT DEALS 🔥 Promotional Banner ─── */}
       <section className="hot-deals-banner-section">
         <div className="hot-deals-banner-card">
           <div className="hot-deals-left">
@@ -241,67 +400,230 @@ export default function CustomerHomePage() {
         </div>
       </section>
 
-      {/* ─── 5. Popular Restaurants Horizontal Carousel ─── */}
-      <section className="popular-restaurants-section">
-        <div className="section-header-row">
+      {/* ─── 5. Sub-Tabs Filter Row ─── */}
+      <section className="feed-filter-bar">
+        <div className="feed-filter-scroll-row">
+          {FILTER_TABS.map(tab => {
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                className={`feed-filter-tab-btn ${isActive ? 'active' : ''}`}
+                onClick={() => setActiveTab(tab.id)}
+              >
+                <span className="feed-tab-icon">{tab.icon}</span>
+                <span className="feed-tab-label">{tab.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* ─── 6. Vertical Restaurant Feed (Replaces Bottom Ads) ─── */}
+      <section className="restaurant-vertical-feed-section">
+        <div className="section-header-row" style={{ padding: '0 2px 8px' }}>
           <h2 className="section-title">Popular Restaurants</h2>
           <Link href="/customer/search" className="section-see-all-link">
             See all
           </Link>
         </div>
 
-        <div className="restaurants-scroll-row">
-          {filteredRestaurants.map(rest => {
+        <div className="rest-feed-list">
+          {filteredRestaurants.slice(0, 3).map((rest) => {
             const isFav = favorites.has(rest.id);
             return (
               <Link
                 key={rest.id}
                 href={`/customer/restaurant/${rest.id}`}
-                className="rest-card-link"
+                className="rest-feed-card-link"
               >
-                <div className="rest-card">
-                  {/* Restaurant Image Container */}
-                  <div className="rest-card-img-wrapper">
+                <div className="rest-feed-card">
+                  {/* Hero Cover Image Container with Badges */}
+                  <div className="rest-feed-img-box">
                     <img
-                      src={rest.coverImageUrl || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=500'}
+                      src={rest.coverImageUrl}
                       alt={rest.name}
-                      className="rest-card-img"
+                      className="rest-feed-img"
                       onError={(e: any) => {
-                        e.target.src = 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=500';
+                        e.target.src = 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=800&q=80';
                       }}
                     />
-                    {/* Delivery Time Badge */}
-                    <div className="rest-time-badge">
-                      <span className="time-val">{rest.avgDeliveryTime || 20}</span>
-                      <span className="time-unit">MIN</span>
+
+                    {/* Carousel Dots Indicator */}
+                    <div className="rest-feed-dots">
+                      <span className="active" />
+                      <span />
+                      <span />
+                      <span />
+                      <span />
                     </div>
+
                     {/* Favorite Heart Button */}
                     <button
                       type="button"
-                      className="rest-heart-btn"
+                      className="rest-feed-fav-btn"
                       onClick={(e) => toggleFavorite(e, rest.id)}
                       title="Favorite"
                     >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill={isFav ? '#E74C3C' : 'none'} stroke={isFav ? '#E74C3C' : '#FFFFFF'} strokeWidth="2.5">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill={isFav ? '#FF385C' : 'none'} stroke={isFav ? '#FF385C' : '#FFFFFF'} strokeWidth="2.5">
                         <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
                       </svg>
                     </button>
-                  </div>
 
-                  {/* Restaurant Card Details */}
-                  <div className="rest-card-info">
-                    <div className="rest-name-rating-row">
-                      <h3 className="rest-name">{rest.name}</h3>
-                      <div className="rest-rating-badge">
-                        <span>★</span>
-                        <span>{rest.rating?.toFixed(1) || '4.5'}</span>
+                    {/* Overlaid Bottom Discount & Delivery Badges */}
+                    <div className="rest-feed-overlay-bottom">
+                      {rest.discountBadge && (
+                        <div className="rest-feed-offer-badge">
+                          <span>🔥</span>
+                          <span>{rest.discountBadge}</span>
+                        </div>
+                      )}
+                      <div className="rest-feed-time-badge">
+                        <span className="rest-feed-time-text">{rest.avgDeliveryTime} MINS</span>
+                        {rest.freeDelivery && (
+                          <span className="rest-feed-free-dl">FREE DELIVERY</span>
+                        )}
                       </div>
                     </div>
-                    <div className="rest-cuisine-text">{rest.cuisineType || 'Biryani, North Indian'}</div>
-                    <div className="rest-price-text">₹{rest.minOrderAmount || 200} for one</div>
-                    {rest.discountBadge && (
-                      <div className="rest-offer-chip">{rest.discountBadge}</div>
+                  </div>
+
+                  {/* Restaurant Info Details */}
+                  <div className="rest-feed-body">
+                    {rest.tag && (
+                      <div className="rest-feed-tag">
+                        <span>👑</span>
+                        <span>{rest.tag}</span>
+                      </div>
                     )}
+                    <div className="rest-feed-name-row">
+                      <h3 className="rest-feed-name">{rest.name}</h3>
+                    </div>
+
+                    <div className="rest-feed-rating-row">
+                      <div className="rest-feed-rating-pill">
+                        <span>★</span>
+                        <span>{rest.rating?.toFixed(1) || '4.0'}</span>
+                      </div>
+                      <span className="rest-feed-rating-count">({rest.ratingCount || '1.0K+'})</span>
+                      <span className="rest-feed-dot-sep">•</span>
+                      <span className="rest-feed-locality">{rest.locality}</span>
+                    </div>
+
+                    <div className="rest-feed-cuisine-row">
+                      <span>{rest.cuisineType}</span>
+                      <span className="rest-feed-dot-sep">•</span>
+                      <span>₹{rest.priceForTwo || 400} for two</span>
+                    </div>
+                  </div>
+                </div>
+              </Link>
+            );
+          })}
+
+          {/* ─── Newly Featured for You (Carousel in feed) ─── */}
+          <div className="newly-featured-container">
+            <h4 className="newly-featured-heading">Newly featured for you</h4>
+            <div className="featured-horizontal-scroll">
+              {NEWLY_FEATURED.map(feat => (
+                <div key={feat.id} className="featured-brand-card" onClick={() => router.push('/customer/search')}>
+                  <div className="featured-card-img-wrapper">
+                    <img src={feat.image} alt={feat.name} className="featured-card-img" />
+                    <div className="featured-one-badge">
+                      <span>⚡ Free Delivery</span>
+                    </div>
+                    <div className="featured-discount-overlay">
+                      <div className="featured-offer-title">{feat.offerText}</div>
+                      <div className="featured-offer-sub">{feat.subText}</div>
+                    </div>
+                  </div>
+                  <div className="featured-card-name">{feat.name}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Remaining Restaurant Cards in Feed */}
+          {filteredRestaurants.slice(3).map((rest) => {
+            const isFav = favorites.has(rest.id);
+            return (
+              <Link
+                key={rest.id}
+                href={`/customer/restaurant/${rest.id}`}
+                className="rest-feed-card-link"
+              >
+                <div className="rest-feed-card">
+                  <div className="rest-feed-img-box">
+                    <img
+                      src={rest.coverImageUrl}
+                      alt={rest.name}
+                      className="rest-feed-img"
+                      onError={(e: any) => {
+                        e.target.src = 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=800&q=80';
+                      }}
+                    />
+
+                    <div className="rest-feed-dots">
+                      <span className="active" />
+                      <span />
+                      <span />
+                      <span />
+                      <span />
+                    </div>
+
+                    <button
+                      type="button"
+                      className="rest-feed-fav-btn"
+                      onClick={(e) => toggleFavorite(e, rest.id)}
+                      title="Favorite"
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill={isFav ? '#FF385C' : 'none'} stroke={isFav ? '#FF385C' : '#FFFFFF'} strokeWidth="2.5">
+                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                      </svg>
+                    </button>
+
+                    <div className="rest-feed-overlay-bottom">
+                      {rest.discountBadge && (
+                        <div className="rest-feed-offer-badge">
+                          <span>🔥</span>
+                          <span>{rest.discountBadge}</span>
+                        </div>
+                      )}
+                      <div className="rest-feed-time-badge">
+                        <span className="rest-feed-time-text">{rest.avgDeliveryTime} MINS</span>
+                        {rest.freeDelivery && (
+                          <span className="rest-feed-free-dl">FREE DELIVERY</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rest-feed-body">
+                    {rest.tag && (
+                      <div className="rest-feed-tag">
+                        <span>👑</span>
+                        <span>{rest.tag}</span>
+                      </div>
+                    )}
+                    <div className="rest-feed-name-row">
+                      <h3 className="rest-feed-name">{rest.name}</h3>
+                    </div>
+
+                    <div className="rest-feed-rating-row">
+                      <div className="rest-feed-rating-pill">
+                        <span>★</span>
+                        <span>{rest.rating?.toFixed(1) || '4.0'}</span>
+                      </div>
+                      <span className="rest-feed-rating-count">({rest.ratingCount || '1.0K+'})</span>
+                      <span className="rest-feed-dot-sep">•</span>
+                      <span className="rest-feed-locality">{rest.locality}</span>
+                    </div>
+
+                    <div className="rest-feed-cuisine-row">
+                      <span>{rest.cuisineType}</span>
+                      <span className="rest-feed-dot-sep">•</span>
+                      <span>₹{rest.priceForTwo || 400} for two</span>
+                    </div>
                   </div>
                 </div>
               </Link>
@@ -310,82 +632,15 @@ export default function CustomerHomePage() {
         </div>
       </section>
 
-      {/* ─── 6. Reusable Promotional Banners (Bottom Row of Reference) ─── */}
-      <section className="promo-banners-showcase">
-        {/* Banner 1: FIRST ORDER OFFER */}
-        <div className="promo-card promo-first-order" onClick={() => router.push('/customer/offers')}>
-          <div className="promo-card-left">
-            <span className="promo-subtag">FIRST ORDER OFFER</span>
-            <div className="promo-big-headline">FLAT<br />50% OFF</div>
-            <span className="promo-desc-line">On your first order</span>
-            <div className="promo-coupon-pill">Code: QUICK50</div>
-          </div>
-          <div className="promo-card-right">
-            <img
-              src="https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=300&q=80"
-              alt="Burger Offer"
-            />
-          </div>
-        </div>
-
-        {/* Banner 2: FREE DELIVERY */}
-        <div className="promo-card promo-free-delivery" onClick={() => router.push('/customer/offers')}>
-          <div className="promo-card-left">
-            <span className="promo-yellow-title">FREE DELIVERY</span>
-            <span className="promo-desc-line-dark">On orders above ₹199</span>
-            <div className="promo-coupon-pill-gold">Code: FREEDL</div>
-          </div>
-          <div className="promo-card-right">
-            <img
-              src="https://images.unsplash.com/photo-1526367790999-0150786686a2?w=300&q=80"
-              alt="Free Delivery Rider"
-            />
-          </div>
-        </div>
-
-        {/* Banner 3: FLAT ₹100 OFF */}
-        <div className="promo-card promo-flat-100" onClick={() => router.push('/customer/offers')}>
-          <div className="promo-card-left">
-            <span className="promo-yellow-title">FLAT ₹100 OFF</span>
-            <span className="promo-desc-line">On orders above ₹299</span>
-            <div className="promo-coupon-pill">Code: TRY100</div>
-          </div>
-          <div className="promo-card-right">
-            <img
-              src="https://images.unsplash.com/photo-1513104890138-7c749659a591?w=300&q=80"
-              alt="Pizza Offer"
-            />
-          </div>
-        </div>
-
-        {/* Brand Card: Quickbits — Bites that reach you quick! */}
-        <div className="quickbits-brand-card">
-          <div className="brand-logo-row">
-            <span className="brand-bolt">⚡</span>
-            <span className="brand-name">Quickbits</span>
-          </div>
-          <div className="brand-tagline">&ldquo;Bites that reach you quick!&rdquo;</div>
-
-          <div className="brand-trust-badges">
-            <div className="trust-badge-item">
-              <span>🛡️</span>
-              <span>100% Safe Payments</span>
-            </div>
-            <div className="trust-badge-item">
-              <span>📦</span>
-              <span>Hygienic Packaging</span>
-            </div>
-            <div className="trust-badge-item">
-              <span>🏷️</span>
-              <span>No Minimum Order</span>
-            </div>
-            <div className="trust-badge-item">
-              <span>🔄</span>
-              <span>Easy Returns</span>
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* ─── 7. Floating Search Pill Button ─── */}
+      <button
+        type="button"
+        className="feed-floating-search-btn"
+        onClick={() => router.push('/customer/search')}
+      >
+        <span>🔍</span>
+        <span>Search</span>
+      </button>
     </div>
   );
 }
