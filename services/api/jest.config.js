@@ -10,8 +10,8 @@ module.exports = {
   testEnvironment: 'node',
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
-    '^@quickbite/types$': '<rootDir>/../../packages/types/src',
-    '^@quickbite/validation$': '<rootDir>/../../packages/validation/src',
-    '^@quickbite/config$': '<rootDir>/../../packages/config/src',
+    '^@quickbite/types$': '<rootDir>/../../../packages/types/src',
+    '^@quickbite/validation$': '<rootDir>/../../../packages/validation/src',
+    '^@quickbite/config$': '<rootDir>/../../../packages/config/src',
   },
 };

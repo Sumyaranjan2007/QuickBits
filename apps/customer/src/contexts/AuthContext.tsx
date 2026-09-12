@@ -18,6 +18,7 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
+  loginAsGuest: () => void;
   register: (data: { email: string; password: string; firstName: string; lastName: string }) => Promise<void>;
   logout: () => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -31,8 +32,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Configure API client to use our token
   useEffect(() => {
+    const win = typeof globalThis !== 'undefined' ? (globalThis as any).window : undefined;
+    const apiBase = win && win.location?.hostname
+      ? `http://${win.location.hostname}:3000/api/v1`
+      : 'http://10.0.2.2:3000/api/v1';
+
     configureApiClient({
-      baseUrl: 'http://10.0.2.2:3000/api/v1', // Android emulator → host
+      baseUrl: apiBase,
       getToken: async () => _accessToken,
     });
     // Try to load profile on mount (if token exists)
@@ -64,6 +70,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(data.user);
   }, []);
 
+  const loginAsGuest = useCallback(() => {
+    setUser({
+      id: 'demo-user-1',
+      email: 'guest@quickbits.com',
+      phone: '+91 98765 43210',
+      role: 'CUSTOMER',
+      profile: {
+        firstName: 'Suren',
+        lastName: 'Koramangala',
+        avatarUrl: null,
+      },
+    });
+  }, []);
+
   const register = useCallback(async (data: { email: string; password: string; firstName: string; lastName: string }) => {
     const res = await authApi.register({ ...data, role: 'CUSTOMER' });
     const d = res.data as { accessToken: string; refreshToken: string; user: User };
@@ -92,6 +112,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isLoading,
         isAuthenticated: !!user,
         login,
+        loginAsGuest,
         register,
         logout,
         refreshProfile,

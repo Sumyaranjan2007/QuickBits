@@ -1,68 +1,240 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '../../context/AuthContext';
 import { CartProvider, useCart } from './CartContext';
-import { notificationsApi } from '@quickbite/api-client';
-
-const SAVED_LOCATIONS = [
-  { name: 'Indiranagar, Bengaluru', tag: 'Home', desc: '100 Feet Road, Indiranagar, Bengaluru, 560038' },
-  { name: 'Koramangala 5th Block', tag: 'Work', desc: 'Prestige Tech Park, Outer Ring Road, 560103' },
-  { name: 'Lavelle Road, Bengaluru', tag: 'Other', desc: 'UB City, Vittal Mallya Road, 560001' },
-  { name: 'HSR Layout Sector 4', tag: 'Other', desc: '27th Main Road, HSR Layout, 560102' },
-];
+import { LocationProvider, useLocation, CustomerAddress } from './LocationContext';
 
 const MOBILE_NAV_ITEMS = [
-  { key: 'home', href: '/customer', icon: '🏠', label: 'Home' },
-  { key: 'search', href: '/customer/search', icon: '🔍', label: 'Search' },
-  { key: 'offers', href: '/customer/offers', icon: '🏷️', label: 'Offers' },
-  { key: 'orders', href: '/customer/orders', icon: '📦', label: 'Orders' },
-  { key: 'profile', href: '/customer/profile', icon: '👤', label: 'Profile' },
+  {
+    key: 'home',
+    href: '/customer',
+    label: 'Home',
+    icon: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+        <polyline points="9 22 9 12 15 12 15 22" />
+      </svg>
+    ),
+  },
+  {
+    key: 'search',
+    href: '/customer/search',
+    label: 'Search',
+    icon: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="11" cy="11" r="8" />
+        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+      </svg>
+    ),
+  },
+  {
+    key: 'orders',
+    href: '/customer/orders',
+    label: 'Orders',
+    icon: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
+        <line x1="3" y1="6" x2="21" y2="6" />
+        <path d="M16 10a4 4 0 0 1-8 0" />
+      </svg>
+    ),
+  },
+  {
+    key: 'offers',
+    href: '/customer/offers',
+    label: 'Offers',
+    icon: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="10" />
+        <line x1="12" y1="8" x2="12" y2="12" />
+        <line x1="12" y1="16" x2="12.01" y2="16" />
+        <path d="M9 9l6 6" />
+        <circle cx="9.5" cy="9.5" r=".5" fill="currentColor" />
+        <circle cx="14.5" cy="14.5" r=".5" fill="currentColor" />
+      </svg>
+    ),
+  },
+  {
+    key: 'profile',
+    href: '/customer/profile',
+    label: 'Profile',
+    icon: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+        <circle cx="12" cy="7" r="4" />
+      </svg>
+    ),
+  },
 ];
 
-function CustomerNavbar() {
-  const { user, logout } = useAuth();
+function CustomerMobileHeader({
+  selectedLocation,
+  setIsLocationModalOpen,
+  unreadCount,
+  setIsNotificationOpen,
+  isNotificationOpen,
+  notifications,
+  markAllNotificationsRead,
+}: any) {
+  return (
+    <header className="customer-app-header">
+      {/* Location Row & Notification Bell */}
+      <div className="customer-location-row">
+        <button
+          type="button"
+          className="location-pill-btn"
+          onClick={() => setIsLocationModalOpen(true)}
+          id="customer-location-pill"
+        >
+          <div className="location-pin-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="#4A0A10">
+              <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" />
+            </svg>
+          </div>
+          <div className="location-text-col">
+            <div className="location-main-title">
+              <span className="location-name-truncate">{selectedLocation?.name || 'Select Location'}</span>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#4A0A10" strokeWidth="3" strokeLinecap="round">
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </div>
+            <span className="location-sub-text">Delivering to you</span>
+          </div>
+        </button>
+
+        {/* Notification Bell */}
+        <div style={{ position: 'relative' }}>
+          <button
+            type="button"
+            className="header-bell-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsNotificationOpen(!isNotificationOpen);
+            }}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1A1A1A" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+              <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+            </svg>
+            {unreadCount > 0 && (
+              <span className="bell-badge">{unreadCount}</span>
+            )}
+          </button>
+
+          {/* Notifications Dropdown */}
+          {isNotificationOpen && (
+            <div className="notifications-dropdown" onClick={(e) => e.stopPropagation()}>
+              <div className="notif-header">
+                <span className="notif-title">Notifications</span>
+                <button type="button" onClick={markAllNotificationsRead} className="notif-mark-btn">Mark all read</button>
+              </div>
+              <div className="notif-list">
+                {notifications.map((n: any) => (
+                  <div key={n.id} className={`notif-item ${n.isRead ? 'read' : 'unread'}`}>
+                    <div className="notif-item-title">{n.title}</div>
+                    <div className="notif-item-body">{n.body}</div>
+                    <div className="notif-item-time">{n.time}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </header>
+  );
+}
+
+export function CustomerLayoutContent({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
-  const { items, itemCount, subtotal, deliveryFee, platformFee, taxes, appliedCoupon, total, updateQuantity, isCartDrawerOpen, setIsCartDrawerOpen } = useCart();
+  
+  const {
+    items, itemCount, subtotal, deliveryFee, platformFee,
+    taxes, total, updateQuantity, clearCart,
+    isCartDrawerOpen, setIsCartDrawerOpen
+  } = useCart();
 
-  const [selectedLocation, setSelectedLocation] = useState(SAVED_LOCATIONS[0]);
-  const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
-  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const {
+    selectedLocation,
+    savedLocations,
+    isDetecting,
+    detectionError,
+    detectionSuccess,
+    isLocationModalOpen,
+    setIsLocationModalOpen,
+    detectLocation,
+    selectLocation,
+    addCustomAddress,
+    searchAddress,
+    clearDetectionError,
+  } = useLocation();
+
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(2);
+  const [unreadCount, setUnreadCount] = useState(3);
+  const [cookingInstructions, setCookingInstructions] = useState('');
+  const [showCookingInput, setShowCookingInput] = useState(false);
+
+  // Search & manual location state inside modal
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<CustomerAddress[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showManualInput, setShowManualInput] = useState(false);
+  const [manualAddressText, setManualAddressText] = useState('');
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
   const [notifications, setNotifications] = useState<any[]>([
-    { id: '1', title: '🎉 50% OFF First Order!', body: 'Use coupon code WELCOME50 at checkout.', time: '10m ago', isRead: false },
-    { id: '2', title: '🍔 Gourmet Smash Burgers', body: 'Burger & Co is now open with free delivery.', time: '1h ago', isRead: false },
+    { id: '1', title: '🔥 HOT DEALS: 50% OFF Active!', body: 'Use coupon QUICK50 on orders above ₹199.', time: '5m ago', isRead: false },
+    { id: '2', title: '🛵 Free Delivery Unlocked!', body: 'Free delivery on all Biryani orders today with code FREEDL.', time: '25m ago', isRead: false },
+    { id: '3', title: '🍔 Gourmet Burger Fest', body: 'The Biryani House & Burger Bistro are now open.', time: '1h ago', isRead: false },
   ]);
 
-  // Close dropdowns when clicking outside
   useEffect(() => {
-    const handleClickOutside = () => {
-      setIsProfileMenuOpen(false);
-      setIsNotificationOpen(false);
-    };
-    if (isProfileMenuOpen || isNotificationOpen) {
+    const handleClickOutside = () => setIsNotificationOpen(false);
+    if (isNotificationOpen) {
       document.addEventListener('click', handleClickOutside);
     }
     return () => document.removeEventListener('click', handleClickOutside);
-  }, [isProfileMenuOpen, isNotificationOpen]);
+  }, [isNotificationOpen]);
 
-  // Handle GPS detection
-  const handleDetectLocation = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        () => {
-          setSelectedLocation({ name: 'Current Location (GPS)', tag: 'GPS', desc: 'Indiranagar, Bengaluru (12.9716° N, 77.5946° E)' });
-          setIsLocationModalOpen(false);
-        },
-        () => {
-          alert('GPS location permission denied. Using Indiranagar, Bengaluru.');
-          setIsLocationModalOpen(false);
-        }
-      );
+  // Handle Real GPS button click
+  const handleDetectGPS = async () => {
+    const result = await detectLocation();
+    if (result) {
+      setTimeout(() => {
+        setIsLocationModalOpen(false);
+      }, 700);
     }
+  };
+
+  // Debounced search query handler
+  useEffect(() => {
+    if (!searchQuery.trim() || searchQuery.length < 2) {
+      setSearchResults([]);
+      setIsSearching(false);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setIsSearching(true);
+      const res = await searchAddress(searchQuery);
+      setSearchResults(res);
+      setIsSearching(false);
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery, searchAddress]);
+
+  const handleManualAdd = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!manualAddressText.trim()) return;
+    addCustomAddress(manualAddressText.trim(), 'Other');
+    setManualAddressText('');
+    setShowManualInput(false);
+    setIsLocationModalOpen(false);
   };
 
   const markAllNotificationsRead = () => {
@@ -75,344 +247,461 @@ function CustomerNavbar() {
     return pathname.startsWith(href);
   };
 
+  // Hide top header on restaurant detail / checkout / order tracking if they have their own mobile headers
+  const isDedicatedHeaderPage = pathname.includes('/customer/restaurant/') || pathname === '/customer/checkout' || pathname.includes('/customer/order/');
+
   return (
-    <>
-      <header className="top-navbar" style={{ height: 72, background: 'rgba(255,255,255,0.95)', borderBottom: '1px solid #F0E6E0', position: 'sticky', top: 0, zIndex: 60 }}>
-        {/* Brand & Location */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 20, minWidth: 0, flex: '0 1 auto' }}>
-          <Link href="/customer" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none', flexShrink: 0 }}>
-            <span style={{ fontSize: 32 }}>🍔</span>
-            <div style={{ lineHeight: 1 }} className="hide-mobile">
-              <span style={{ fontSize: 24, fontWeight: 900, color: '#FF6B35', letterSpacing: '-0.5px' }}>QuickBite</span>
-              <span style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#8B7355', letterSpacing: 1, textTransform: 'uppercase' }}>Superfast Food</span>
-            </div>
-          </Link>
+    <div className="customer-app-viewport" data-theme="customer">
+      <div className="customer-phone-frame">
+        {/* Mobile Header */}
+        {!isDedicatedHeaderPage && (
+          <CustomerMobileHeader
+            selectedLocation={selectedLocation}
+            setIsLocationModalOpen={setIsLocationModalOpen}
+            unreadCount={unreadCount}
+            setIsNotificationOpen={setIsNotificationOpen}
+            isNotificationOpen={isNotificationOpen}
+            notifications={notifications}
+            markAllNotificationsRead={markAllNotificationsRead}
+          />
+        )}
 
-          {/* Location Selector */}
-          <button
-            className="location-btn"
-            onClick={() => setIsLocationModalOpen(true)}
-            style={{ display: 'flex', alignItems: 'center', gap: 8 }}
-          >
-            <span>📍</span>
-            <div style={{ textAlign: 'left', lineHeight: 1.2, minWidth: 0 }}>
-              <span className="location-tag">{selectedLocation.tag}</span>
-              <div className="location-text">{selectedLocation.name}</div>
-            </div>
-            <span style={{ fontSize: 10, color: '#8B7355' }}>▼</span>
-          </button>
-        </div>
+        {/* Main Screen Content */}
+        <main className="customer-screen-content">
+          {children}
+        </main>
 
-        {/* Navigation Links — hidden on mobile via CSS */}
-        <div className="top-navbar-links" style={{ display: 'flex', gap: 4 }}>
-          <Link href="/customer" className={`top-navbar-link ${pathname === '/customer' ? 'active' : ''}`}>
-            🏠 Home
-          </Link>
-          <Link href="/customer/search" className={`top-navbar-link ${pathname === '/customer/search' ? 'active' : ''}`}>
-            🔍 Search
-          </Link>
-          <Link href="/customer/offers" className={`top-navbar-link ${pathname === '/customer/offers' ? 'active' : ''}`}>
-            🏷️ Offers <span className="badge badge-error" style={{ fontSize: 9, padding: '2px 6px', marginLeft: 2 }}>NEW</span>
-          </Link>
-          <Link href="/customer/orders" className={`top-navbar-link ${pathname === '/customer/orders' ? 'active' : ''}`}>
-            📦 Orders
-          </Link>
-          <Link href="/customer/help" className={`top-navbar-link ${pathname === '/customer/help' ? 'active' : ''}`}>
-            💬 Help
-          </Link>
-        </div>
-
-        {/* Right Actions: Notifications, Cart, Profile */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-          {/* Notifications Dropdown */}
-          <div style={{ position: 'relative' }}>
+        {/* Floating Cart Pill Bar (Visible across pages when items exist) */}
+        {itemCount > 0 && pathname !== '/customer/checkout' && (
+          <div className="customer-floating-cart-bar">
             <button
-              className="btn btn-outline btn-icon"
-              style={{ position: 'relative', width: 42, height: 42, borderRadius: '50%', background: '#FFF5F0', border: '1.5px solid #FFD5C2', minHeight: 42 }}
-              onClick={(e) => { e.stopPropagation(); setIsNotificationOpen(!isNotificationOpen); setIsProfileMenuOpen(false); }}
+              type="button"
+              className="cart-pill-inner"
+              onClick={() => setIsCartDrawerOpen(true)}
             >
-              🔔
-              {unreadCount > 0 && (
-                <span style={{ position: 'absolute', top: -2, right: -2, background: '#E17055', color: '#fff', fontSize: 10, fontWeight: 800, width: 18, height: 18, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid #fff' }}>
-                  {unreadCount}
+              <div className="cart-pill-left">
+                <span className="cart-pill-icon">🛒</span>
+                <span className="cart-pill-summary">
+                  {itemCount} {itemCount === 1 ? 'Item' : 'Items'} • ₹{total}
                 </span>
+              </div>
+              <div className="cart-pill-right">
+                <span>View Cart</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
+              </div>
+            </button>
+          </div>
+        )}
+
+        {/* Fixed Mobile Bottom Navigation */}
+        <nav className="customer-bottom-nav">
+          <div className="customer-bottom-nav-inner">
+            {MOBILE_NAV_ITEMS.map(item => {
+              const active = isNavActive(item.href);
+              return (
+                <Link
+                  key={item.key}
+                  href={item.href}
+                  className={`nav-tab ${active ? 'active' : ''}`}
+                >
+                  <div className="nav-tab-icon">{item.icon}</div>
+                  <span className="nav-tab-label">{item.label}</span>
+                  {active && <span className="nav-active-dot" />}
+                </Link>
+              );
+            })}
+          </div>
+        </nav>
+      </div>
+
+      {/* ─── Location Selector Modal / Sheet ─── */}
+      {isLocationModalOpen && (
+        <div className="customer-modal-backdrop" onClick={() => setIsLocationModalOpen(false)}>
+          <div className="customer-modal-sheet" onClick={e => e.stopPropagation()}>
+            <div className="modal-sheet-header">
+              <div>
+                <h3 className="modal-title">Select Delivery Location</h3>
+                <p className="modal-sub">Choose address or detect current location</p>
+              </div>
+              <button
+                type="button"
+                className="modal-close-btn"
+                onClick={() => setIsLocationModalOpen(false)}
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Real GPS Detection Button */}
+            <button
+              type="button"
+              className={`detect-gps-btn ${isDetecting ? 'loading' : ''} ${detectionSuccess ? 'success' : ''}`}
+              onClick={handleDetectGPS}
+              disabled={isDetecting}
+              id="btn-detect-gps-location"
+            >
+              {isDetecting ? (
+                <>
+                  <span className="gps-spinner" />
+                  <span>Detecting your location...</span>
+                </>
+              ) : detectionSuccess ? (
+                <>
+                  <span className="gps-success-check">✓</span>
+                  <span>Location detected</span>
+                </>
+              ) : (
+                <>
+                  <span style={{ fontSize: '16px' }}>🎯</span>
+                  <span>Detect Current GPS Location</span>
+                </>
               )}
             </button>
 
-            {isNotificationOpen && (
-              <div onClick={(e) => e.stopPropagation()} style={{ position: 'absolute', top: 52, right: 0, width: 'min(320px, calc(100vw - 24px))', background: '#fff', borderRadius: 16, boxShadow: '0 10px 30px rgba(0,0,0,0.15)', border: '1px solid #F0E6E0', zIndex: 100, overflow: 'hidden' }}>
-                <div style={{ padding: '14px 18px', borderBottom: '1px solid #F0E6E0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontWeight: 800, fontSize: 14 }}>Notifications</span>
-                  <button onClick={markAllNotificationsRead} style={{ background: 'none', border: 'none', color: '#FF6B35', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>Mark all read</button>
-                </div>
-                <div style={{ maxHeight: 280, overflowY: 'auto' }}>
-                  {notifications.map(n => (
-                    <div key={n.id} style={{ padding: '12px 18px', borderBottom: '1px solid #F9F6F4', background: n.isRead ? '#fff' : '#FFF9F6' }}>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: '#1A1A2E' }}>{n.title}</div>
-                      <div style={{ fontSize: 12, color: '#8B7355', marginTop: 2 }}>{n.body}</div>
-                      <div style={{ fontSize: 10, color: '#BEA48A', marginTop: 4 }}>{n.time}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Cart Button */}
-          <button
-            className="btn btn-primary"
-            style={{ borderRadius: 24, padding: '10px 18px', gap: 8 }}
-            onClick={() => setIsCartDrawerOpen(true)}
-          >
-            <span>🛒</span>
-            <span className="hide-mobile">Cart</span>
-            {itemCount > 0 && (
-              <span style={{ background: '#fff', color: '#FF6B35', fontSize: 11, fontWeight: 800, padding: '2px 8px', borderRadius: 12 }}>
-                {itemCount}
-              </span>
-            )}
-          </button>
-
-          {/* User Profile Menu — hidden on mobile (accessible via bottom nav) */}
-          <div style={{ position: 'relative' }} className="hide-mobile">
-            <button
-              className="btn btn-outline"
-              style={{ borderRadius: 24, padding: '8px 14px', gap: 8, background: '#fff' }}
-              onClick={(e) => { e.stopPropagation(); setIsProfileMenuOpen(!isProfileMenuOpen); setIsNotificationOpen(false); }}
-            >
-              <div style={{ width: 26, height: 26, borderRadius: '50%', background: '#FF6B35', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800 }}>
-                {(user?.profile?.firstName || user?.email || 'U')[0].toUpperCase()}
-              </div>
-              <span style={{ fontSize: 13, fontWeight: 700 }}>
-                {user?.profile?.firstName || user?.email?.split('@')[0]}
-              </span>
-              <span style={{ fontSize: 10, color: '#8B7355' }}>▼</span>
-            </button>
-
-            {isProfileMenuOpen && (
-              <div onClick={(e) => e.stopPropagation()} style={{ position: 'absolute', top: 50, right: 0, width: 240, background: '#fff', borderRadius: 16, boxShadow: '0 10px 30px rgba(0,0,0,0.15)', border: '1px solid #F0E6E0', zIndex: 100, overflow: 'hidden', padding: '8px 0' }}>
-                <div style={{ padding: '12px 18px', borderBottom: '1px solid #F0E6E0' }}>
-                  <div style={{ fontWeight: 800, fontSize: 14 }}>{user?.profile?.firstName} {user?.profile?.lastName}</div>
-                  <div style={{ fontSize: 11, color: '#8B7355' }}>{user?.email}</div>
-                  <div style={{ marginTop: 6, display: 'inline-flex', alignItems: 'center', gap: 4, background: '#FFF5F0', color: '#FF6B35', padding: '3px 8px', borderRadius: 10, fontSize: 10, fontWeight: 800 }}>
-                    👑 QuickBite Gold Member
+            {/* Error Message UI */}
+            {detectionError && (
+              <div className="location-error-card">
+                <div className="location-error-header">
+                  <span className="location-error-icon">⚠️</span>
+                  <div className="location-error-titles">
+                    <span className="location-error-title">{detectionError.title}</span>
+                    <span className="location-error-msg">{detectionError.message}</span>
                   </div>
                 </div>
-                <Link href="/customer/profile" onClick={() => setIsProfileMenuOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 18px', fontSize: 13, fontWeight: 600, color: '#2D1B0E' }}>
-                  👤 My Profile & Addresses
-                </Link>
-                <Link href="/customer/orders" onClick={() => setIsProfileMenuOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 18px', fontSize: 13, fontWeight: 600, color: '#2D1B0E' }}>
-                  📦 Order History
-                </Link>
-                <Link href="/customer/offers" onClick={() => setIsProfileMenuOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 18px', fontSize: 13, fontWeight: 600, color: '#2D1B0E' }}>
-                  🏷️ Coupons & Vouchers
-                </Link>
-                <Link href="/customer/help" onClick={() => setIsProfileMenuOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 18px', fontSize: 13, fontWeight: 600, color: '#2D1B0E' }}>
-                  💬 Help & Support
-                </Link>
-                <div style={{ borderTop: '1px solid #F0E6E0', marginTop: 4, paddingTop: 4 }}>
-                  <button onClick={logout} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 18px', fontSize: 13, fontWeight: 600, color: '#E17055', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
-                    🚪 Sign Out
+                <div className="location-error-actions">
+                  <button
+                    type="button"
+                    className="location-retry-btn"
+                    onClick={handleDetectGPS}
+                  >
+                    🔄 Try Again
+                  </button>
+                  <button
+                    type="button"
+                    className="location-manual-btn"
+                    onClick={() => {
+                      clearDetectionError();
+                      setShowManualInput(true);
+                      setTimeout(() => searchInputRef.current?.focus(), 100);
+                    }}
+                  >
+                    ✏️ Enter Address Manually
                   </button>
                 </div>
               </div>
             )}
-          </div>
-        </div>
-      </header>
 
-      {/* ─── Mobile Bottom Navigation Bar ─── */}
-      <nav className="mobile-bottom-nav">
-        <div className="mobile-bottom-nav-inner">
-          {MOBILE_NAV_ITEMS.map(item => (
-            <Link
-              key={item.key}
-              href={item.href}
-              className={`mobile-nav-item ${isNavActive(item.href) ? 'active' : ''}`}
-            >
-              <span className="mobile-nav-icon">{item.icon}</span>
-              <span>{item.label}</span>
-            </Link>
-          ))}
-        </div>
-      </nav>
-
-      {/* Location Modal */}
-      {isLocationModalOpen && (
-        <div className="modal-backdrop" onClick={() => setIsLocationModalOpen(false)}>
-          <div className="modal-sheet" onClick={e => e.stopPropagation()}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <div>
-                <h3 style={{ fontSize: 20, fontWeight: 900 }}>Select Delivery Location</h3>
-                <p style={{ fontSize: 13, color: 'var(--text-sec)' }}>Choose address or detect current location</p>
-              </div>
-              <button onClick={() => setIsLocationModalOpen(false)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer' }}>✕</button>
-            </div>
-
-            {/* GPS Button */}
-            <button
-              className="btn btn-primary w-full"
-              style={{ width: '100%', marginBottom: 20, justifyContent: 'center', padding: '14px', gap: 10 }}
-              onClick={handleDetectLocation}
-            >
-              <span>🎯</span>
-              <span>Detect Current GPS Location</span>
-            </button>
-
-            <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 12 }}>
-              Saved Delivery Addresses
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {SAVED_LOCATIONS.map((loc, i) => (
-                <div
-                  key={i}
-                  onClick={() => { setSelectedLocation(loc); setIsLocationModalOpen(false); }}
-                  style={{
-                    padding: '14px 16px', borderRadius: 12, border: '1.5px solid var(--border)',
-                    cursor: 'pointer', background: selectedLocation.name === loc.name ? 'var(--primary-light)' : '#fff',
-                    borderColor: selectedLocation.name === loc.name ? 'var(--primary)' : 'var(--border)',
-                    transition: '0.2s', display: 'flex', alignItems: 'center', gap: 12
+            {/* Search Location Bar */}
+            <div className="modal-location-search-box">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7A6A5E" strokeWidth="2.5" strokeLinecap="round">
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+              <input
+                ref={searchInputRef}
+                type="text"
+                placeholder="Search area, landmark or street..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="modal-location-search-input"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  className="modal-search-clear"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setSearchResults([]);
                   }}
                 >
-                  <span style={{ fontSize: 24 }}>{loc.tag === 'Home' ? '🏠' : loc.tag === 'Work' ? '💼' : '📍'}</span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                      <span style={{ fontWeight: 800, fontSize: 14 }}>{loc.name}</span>
-                      <span className="badge badge-neutral" style={{ fontSize: 10 }}>{loc.tag}</span>
+                  ✕
+                </button>
+              )}
+            </div>
+
+            {/* Search Results Dropdown */}
+            {isSearching && (
+              <div className="location-searching-indicator">
+                <span className="gps-spinner-dark" /> Searching locations...
+              </div>
+            )}
+
+            {searchResults.length > 0 && (
+              <div className="search-results-list">
+                <div className="sheet-section-title">Search Results</div>
+                {searchResults.map((loc) => (
+                  <div
+                    key={loc.id}
+                    className="saved-addr-item search-result-item"
+                    onClick={() => {
+                      selectLocation(loc);
+                      setSearchQuery('');
+                      setSearchResults([]);
+                      setIsLocationModalOpen(false);
+                    }}
+                  >
+                    <span className="addr-icon">📍</span>
+                    <div className="addr-info">
+                      <div className="addr-title-row">
+                        <span className="addr-title">{loc.name}</span>
+                      </div>
+                      <div className="addr-desc">{loc.desc}</div>
                     </div>
-                    <div style={{ fontSize: 12, color: 'var(--text-sec)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{loc.desc}</div>
                   </div>
-                  {selectedLocation.name === loc.name && <span style={{ color: 'var(--primary)', fontWeight: 900, flexShrink: 0 }}>✓</span>}
+                ))}
+              </div>
+            )}
+
+            {/* Manual Address Input Accordion / Toggle */}
+            {showManualInput && (
+              <form onSubmit={handleManualAdd} className="manual-address-form">
+                <textarea
+                  placeholder="Type your complete flat / house no., street, locality, city..."
+                  value={manualAddressText}
+                  onChange={e => setManualAddressText(e.target.value)}
+                  rows={2}
+                  className="manual-address-textarea"
+                  autoFocus
+                />
+                <div className="manual-form-actions">
+                  <button
+                    type="submit"
+                    className="save-manual-addr-btn"
+                    disabled={!manualAddressText.trim()}
+                  >
+                    Use this Address
+                  </button>
+                  <button
+                    type="button"
+                    className="cancel-manual-btn"
+                    onClick={() => setShowManualInput(false)}
+                  >
+                    Cancel
+                  </button>
                 </div>
-              ))}
+              </form>
+            )}
+
+            {/* Saved Delivery Addresses Header & Manual Add button */}
+            <div className="saved-addr-header-row">
+              <span className="sheet-section-title">Saved Delivery Addresses</span>
+              {!showManualInput && (
+                <button
+                  type="button"
+                  className="add-custom-addr-link"
+                  onClick={() => setShowManualInput(true)}
+                >
+                  + Add New
+                </button>
+              )}
+            </div>
+
+            {/* Saved Addresses List */}
+            <div className="saved-addr-list">
+              {savedLocations.map((loc) => {
+                const isSelected = selectedLocation?.name === loc.name || selectedLocation?.id === loc.id;
+                return (
+                  <div
+                    key={loc.id}
+                    className={`saved-addr-item ${isSelected ? 'selected' : ''}`}
+                    onClick={() => {
+                      selectLocation(loc);
+                      setIsLocationModalOpen(false);
+                    }}
+                  >
+                    <span className="addr-icon">
+                      {loc.tag === 'GPS' ? '🎯' : loc.tag === 'Home' ? '🏠' : loc.tag === 'Work' ? '💼' : '📍'}
+                    </span>
+                    <div className="addr-info">
+                      <div className="addr-title-row">
+                        <span className="addr-title">{loc.name}</span>
+                        <span className={`addr-tag ${loc.tag === 'GPS' ? 'tag-gps' : ''}`}>{loc.tag}</span>
+                      </div>
+                      <div className="addr-desc">{loc.desc}</div>
+                    </div>
+                    {isSelected && (
+                      <span className="addr-check">✓</span>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
       )}
 
-      {/* Cart Drawer Modal */}
+      {/* ─── Reference-Matched Cart Drawer (Screen 3) ─── */}
       {isCartDrawerOpen && (
-        <div className="modal-backdrop" onClick={() => setIsCartDrawerOpen(false)}>
-          <div className="modal-sheet" style={{ maxWidth: 460 }} onClick={e => e.stopPropagation()}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <div>
-                <h3 style={{ fontSize: 20, fontWeight: 900 }}>Your Food Cart</h3>
-                <p style={{ fontSize: 12, color: 'var(--text-sec)' }}>{itemCount} {itemCount === 1 ? 'item' : 'items'} in order</p>
+        <div className="customer-modal-backdrop" onClick={() => setIsCartDrawerOpen(false)}>
+          <div className="customer-modal-sheet cart-drawer-sheet" onClick={e => e.stopPropagation()}>
+            {/* Header: ← My Cart | 2 Items | 🗑️ */}
+            <div className="cart-sheet-header">
+              <div className="cart-header-left">
+                <button type="button" className="cart-back-btn" onClick={() => setIsCartDrawerOpen(false)}>
+                  ←
+                </button>
+                <div>
+                  <h3 className="cart-title">My Cart</h3>
+                  <span className="cart-count-sub">{itemCount} {itemCount === 1 ? 'Item' : 'Items'}</span>
+                </div>
               </div>
-              <button onClick={() => setIsCartDrawerOpen(false)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer' }}>✕</button>
+              <button
+                type="button"
+                className="cart-trash-btn"
+                title="Clear Cart"
+                onClick={clearCart}
+              >
+                🗑️
+              </button>
             </div>
 
             {items.length === 0 ? (
-              <div className="empty-state" style={{ padding: '40px 10px' }}>
-                <div style={{ fontSize: 48 }}>🛒</div>
-                <div style={{ fontWeight: 800, fontSize: 16, marginTop: 12 }}>Your cart is empty</div>
-                <div style={{ fontSize: 13, color: 'var(--text-sec)', marginTop: 4 }}>Add mouth-watering dishes to start your order!</div>
+              <div className="empty-cart-view">
+                <span style={{ fontSize: 52 }}>🛒</span>
+                <h4>Your cart is empty</h4>
+                <p>Add mouth-watering dishes to satisfy your cravings!</p>
+                <button
+                  type="button"
+                  className="start-ordering-btn"
+                  onClick={() => setIsCartDrawerOpen(false)}
+                >
+                  Browse Menu 🍔
+                </button>
               </div>
             ) : (
-              <>
-                {/* Items List */}
-                <div style={{ maxHeight: 260, overflowY: 'auto', marginBottom: 16, borderBottom: '1px solid var(--border)' }}>
-                  {items.map(it => (
-                    <div key={it.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid #FAF7F5', gap: 8 }}>
-                      <div style={{ flex: 1, paddingRight: 8, minWidth: 0 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <span className={`food-badge ${it.foodType === 'VEG' ? 'veg' : 'nonveg'}`} style={{ fontSize: 9, flexShrink: 0 }}>
-                            {it.foodType === 'VEG' ? '●' : '▲'}
-                          </span>
-                          <span style={{ fontWeight: 700, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.name}</span>
-                        </div>
-                        {it.addons && it.addons.length > 0 && (
-                          <div style={{ fontSize: 11, color: 'var(--text-sec)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            + {it.addons.map(a => `${a.name} (₹${a.price})`).join(', ')}
-                          </div>
-                        )}
-                        <div style={{ fontWeight: 800, color: 'var(--primary)', fontSize: 14, marginTop: 4 }}>
-                          ₹{(it.price + (it.addons || []).reduce((s, a) => s + a.price, 0)) * it.quantity}
-                        </div>
-                      </div>
+              <div className="cart-scroll-body">
+                {/* Cooking Instructions Banner */}
+                <div
+                  className="cooking-banner-card"
+                  onClick={() => setShowCookingInput(!showCookingInput)}
+                >
+                  <div className="cooking-banner-left">
+                    <span className="chef-hat-icon">👨‍🍳</span>
+                    <span className="cooking-banner-text">Add cooking instructions</span>
+                  </div>
+                  <span className="cooking-banner-arrow">{showCookingInput ? '▲' : '›'}</span>
+                </div>
 
-                      {/* Quantity Controller */}
-                      <div className="dish-counter" style={{ flexShrink: 0 }}>
-                        <button className="dish-counter-btn" onClick={() => updateQuantity(it.id, -1)}>−</button>
-                        <span>{it.quantity}</span>
-                        <button className="dish-counter-btn" onClick={() => updateQuantity(it.id, 1)}>+</button>
+                {showCookingInput && (
+                  <div className="cooking-input-box">
+                    <textarea
+                      placeholder="e.g. Less spicy, extra raita, no onion..."
+                      value={cookingInstructions}
+                      onChange={e => setCookingInstructions(e.target.value)}
+                      rows={2}
+                    />
+                  </div>
+                )}
+
+                {/* Cart Items List */}
+                <div className="cart-items-card">
+                  {items.map((it, idx) => (
+                    <div key={it.id} className={`cart-dish-row ${idx < items.length - 1 ? 'border-b' : ''}`}>
+                      <img
+                        src={it.imageUrl || 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=200&q=80'}
+                        alt={it.name}
+                        className="cart-dish-thumb"
+                        onError={(e: any) => {
+                          e.target.src = 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=200&q=80';
+                        }}
+                      />
+                      <div className="cart-dish-info">
+                        <div className="cart-dish-name">{it.name}</div>
+                        <div className="cart-dish-price">₹{it.price}</div>
+                      </div>
+                      <div className="cart-stepper">
+                        <button
+                          type="button"
+                          className="cart-stepper-btn"
+                          onClick={() => updateQuantity(it.id, -1)}
+                        >
+                          −
+                        </button>
+                        <span className="cart-stepper-val">{it.quantity}</span>
+                        <button
+                          type="button"
+                          className="cart-stepper-btn"
+                          onClick={() => updateQuantity(it.id, 1)}
+                        >
+                          +
+                        </button>
                       </div>
                     </div>
                   ))}
                 </div>
 
-                {/* Free Delivery Bar */}
-                <div style={{ background: '#FFF5F0', padding: '10px 14px', borderRadius: 10, marginBottom: 16, border: '1px solid #FFD5C2' }}>
-                  {subtotal >= 299 ? (
-                    <span style={{ fontSize: 12, fontWeight: 700, color: '#00B894' }}>🎉 You unlocked FREE Delivery!</span>
-                  ) : (
-                    <span style={{ fontSize: 12, color: '#8B7355' }}>
-                      Add <strong>₹{299 - subtotal}</strong> more for <strong>FREE Delivery</strong>!
-                    </span>
-                  )}
-                </div>
-
-                {/* Bill Breakdown */}
-                <div style={{ fontSize: 13, color: 'var(--text-sec)', marginBottom: 20 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <span>Item Total</span>
-                    <span>₹{subtotal}</span>
+                {/* Bill Details */}
+                <div className="bill-details-card">
+                  <div className="bill-heading">Bill Details</div>
+                  <div className="bill-row">
+                    <span className="bill-label">Item Total</span>
+                    <span className="bill-val">₹{subtotal}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <span>Delivery Fee</span>
-                    <span>{deliveryFee === 0 ? <strong style={{ color: '#00B894' }}>FREE</strong> : `₹${deliveryFee}`}</span>
+                  <div className="bill-row">
+                    <span className="bill-label">Delivery Fee ⓘ</span>
+                    <span className="bill-val">₹{deliveryFee}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <span>Platform Fee</span>
-                    <span>₹{platformFee}</span>
+                  <div className="bill-row">
+                    <span className="bill-label">Platform Fee ⓘ</span>
+                    <span className="bill-val">₹{platformFee}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <span>Taxes (5% GST)</span>
-                    <span>₹{taxes}</span>
-                  </div>
-                  {appliedCoupon && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, color: '#00B894', fontWeight: 700 }}>
-                      <span>Coupon ({appliedCoupon.code})</span>
-                      <span>− ₹{appliedCoupon.discountAmount}</span>
-                    </div>
-                  )}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--border)', fontSize: 16, fontWeight: 900, color: 'var(--text)' }}>
-                    <span>To Pay</span>
-                    <span style={{ color: 'var(--primary)' }}>₹{total}</span>
+                  <div className="bill-row">
+                    <span className="bill-label">Taxes (GST)</span>
+                    <span className="bill-val">₹{taxes}</span>
                   </div>
                 </div>
 
-                {/* Checkout CTA */}
-                <button
-                  className="btn btn-primary w-full"
-                  style={{ width: '100%', justifyContent: 'center', padding: '14px', fontSize: 15 }}
-                  onClick={() => {
-                    setIsCartDrawerOpen(false);
-                    router.push('/customer/checkout');
-                  }}
-                >
-                  Proceed to Checkout (₹{total}) →
-                </button>
-              </>
+                {/* Sticky Bottom Bar inside Cart */}
+                <div className="cart-to-pay-container">
+                  <div className="to-pay-info">
+                    <span className="to-pay-label">To Pay</span>
+                    <span className="to-pay-amount">₹{total}</span>
+                  </div>
+                  <button
+                    type="button"
+                    className="proceed-pay-btn"
+                    onClick={() => {
+                      setIsCartDrawerOpen(false);
+                      router.push('/customer/checkout');
+                    }}
+                  >
+                    PROCEED TO PAY →
+                  </button>
+                </div>
+
+                {/* Cart Offer Banner (Screen 3 Bottom) */}
+                <div className="cart-offer-promo-card">
+                  <div className="cart-offer-left">
+                    <span className="offer-tagline">SAVE MORE WITH OFFERS</span>
+                    <div className="offer-big-title">FLAT<br />50% OFF</div>
+                    <span className="offer-sub-title">On your first order</span>
+                    <div className="offer-code-badge">Code: QUICK50</div>
+                  </div>
+                  <div className="cart-offer-img-box">
+                    <img
+                      src="https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=300&q=80"
+                      alt="Special Offer"
+                    />
+                  </div>
+                </div>
+              </div>
             )}
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }
 
 export default function CustomerLayout({ children }: { children: React.ReactNode }) {
   return (
-    <CartProvider>
-      <div className="top-layout" data-theme="customer">
-        <CustomerNavbar />
-        <main className="main-content" style={{ marginLeft: 0, maxWidth: 1240, margin: '0 auto', width: '100%', padding: '24px 20px 80px 20px' }}>
-          {children}
-        </main>
-      </div>
-    </CartProvider>
+    <LocationProvider>
+      <CartProvider>
+        <CustomerLayoutContent>{children}</CustomerLayoutContent>
+      </CartProvider>
+    </LocationProvider>
   );
 }
-

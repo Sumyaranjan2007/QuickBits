@@ -7,324 +7,385 @@ import { useAuth } from '../../context/AuthContext';
 import { useCart } from './CartContext';
 
 const FOOD_CATEGORIES = [
-  { id: 'all', name: 'All Cuisines', icon: '🍽️' },
-  { id: 'biryani', name: 'Biryani', icon: '🍚' },
-  { id: 'pizza', name: 'Pizzas', icon: '🍕' },
-  { id: 'burgers', name: 'Burgers', icon: '🍔' },
-  { id: 'north-indian', name: 'North Indian', icon: '🍛' },
-  { id: 'fast-food', name: 'Fast Food', icon: '🍟' },
-  { id: 'italian', name: 'Italian', icon: '🍝' },
-  { id: 'desserts', name: 'Desserts', icon: '🍰' },
-  { id: 'drinks', name: 'Beverages', icon: '🥤' },
+  {
+    id: 'biryani',
+    name: 'Biryani',
+    image: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=200&q=80',
+  },
+  {
+    id: 'pizza',
+    name: 'Pizza',
+    image: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=200&q=80',
+  },
+  {
+    id: 'burgers',
+    name: 'Burgers',
+    image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=200&q=80',
+  },
+  {
+    id: 'chinese',
+    name: 'Chinese',
+    image: 'https://images.unsplash.com/photo-1585032226651-759b368d7246?w=200&q=80',
+  },
+  {
+    id: 'thalis',
+    name: 'Thalis',
+    image: 'https://images.unsplash.com/photo-1610057099443-fde8c4d50f91?w=200&q=80',
+  },
+  {
+    id: 'more',
+    name: 'More',
+    isMore: true,
+  },
+];
+
+const DEFAULT_POPULAR_RESTAURANTS = [
+  {
+    id: 'the-biryani-house',
+    name: 'The Biryani House',
+    cuisineType: 'Biryani, North Indian',
+    rating: 4.6,
+    avgDeliveryTime: 20,
+    minOrderAmount: 200,
+    discountBadge: '10% OFF',
+    coverImageUrl: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=600&q=80',
+  },
+  {
+    id: 'pizza-corner',
+    name: 'Pizza Corner',
+    cuisineType: 'Pizza, Fast Food',
+    rating: 4.4,
+    avgDeliveryTime: 25,
+    minOrderAmount: 150,
+    discountBadge: '15% OFF',
+    coverImageUrl: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600&q=80',
+  },
+  {
+    id: 'burger-bistro',
+    name: 'Burger Bistro',
+    cuisineType: 'Burgers, American',
+    rating: 4.5,
+    avgDeliveryTime: 18,
+    minOrderAmount: 180,
+    discountBadge: '20% OFF',
+    coverImageUrl: 'https://images.unsplash.com/photo-1550547660-d9450f859349?w=600&q=80',
+  },
 ];
 
 export default function CustomerHomePage() {
   const { user } = useAuth();
   const router = useRouter();
-  const { addItem, itemCount, total, setIsCartDrawerOpen } = useCart();
+  const { addItem } = useCart();
 
-  const [restaurants, setRestaurants] = useState<any[]>([]);
+  const [restaurants, setRestaurants] = useState<any[]>(DEFAULT_POPULAR_RESTAURANTS);
   const [loading, setLoading] = useState(true);
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [activeFilter, setActiveFilter] = useState('all');
-  const [sortBy, setSortBy] = useState('rating');
-  const [popularDishes, setPopularDishes] = useState<any[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [favorites, setFavorites] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     restaurantsApi.list()
-      .then(async r => {
+      .then(r => {
         const d = r.data as any;
         const list = d.items || d || [];
-        setRestaurants(list);
-
-        // Fetch menu items from each restaurant to populate popular dishes
-        const allDishes: any[] = [];
-        for (const rest of list.slice(0, 3)) {
-          try {
-            const restDetail = await restaurantsApi.getById(rest.id);
-            const rData = restDetail.data as any;
-            const categories = rData?.menuCategories || rData?.categories || [];
-            for (const cat of categories) {
-              const items = cat?.items || cat?.menuItems || [];
-              for (const it of items) {
-                allDishes.push({
-                  ...it,
-                  restaurantId: rest.id,
-                  restaurantName: rest.name,
-                });
-              }
-            }
-          } catch {}
+        if (Array.isArray(list) && list.length > 0) {
+          // Merge with reference presentation properties
+          setRestaurants(list.map((item, idx) => ({
+            ...item,
+            rating: item.rating || (4.3 + (idx % 4) * 0.1),
+            avgDeliveryTime: item.avgDeliveryTime || (20 + (idx % 3) * 5),
+            minOrderAmount: item.minOrderAmount || (150 + idx * 25),
+            discountBadge: idx === 0 ? '10% OFF' : idx === 1 ? '15% OFF' : '20% OFF',
+            coverImageUrl: item.coverImageUrl || DEFAULT_POPULAR_RESTAURANTS[idx % DEFAULT_POPULAR_RESTAURANTS.length].coverImageUrl,
+          })));
         }
-        setPopularDishes(allDishes.slice(0, 6));
       })
-      .catch(() => setRestaurants([]))
+      .catch(() => {
+        // Fallback to reference mock list
+        setRestaurants(DEFAULT_POPULAR_RESTAURANTS);
+      })
       .finally(() => setLoading(false));
   }, []);
 
-  // Filter & Sort Logic
-  const filteredRestaurants = restaurants.filter(r => {
-    if (selectedCategory !== 'all') {
-      const matchCat = r.cuisineType?.toLowerCase().includes(selectedCategory.replace('-', ' '));
-      if (!matchCat) return false;
+  const toggleFavorite = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setFavorites(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      router.push(`/customer/search?q=${encodeURIComponent(searchQuery)}`);
     }
-    if (activeFilter === 'fast') return (r.avgDeliveryTime || 30) <= 25;
-    if (activeFilter === 'top_rated') return (r.rating || 0) >= 4.5;
-    if (activeFilter === 'offers') return true;
-    if (activeFilter === 'veg') return r.cuisineType?.toLowerCase().includes('veg');
-    return true;
-  }).sort((a, b) => {
-    if (sortBy === 'rating') return (b.rating || 0) - (a.rating || 0);
-    if (sortBy === 'delivery_time') return (a.avgDeliveryTime || 30) - (b.avgDeliveryTime || 30);
-    if (sortBy === 'cost_asc') return (a.minOrderAmount || 0) - (b.minOrderAmount || 0);
-    return 0;
+  };
+
+  const filteredRestaurants = restaurants.filter(r => {
+    if (!selectedCategory || selectedCategory === 'more') return true;
+    const cat = selectedCategory.toLowerCase();
+    return (
+      r.cuisineType?.toLowerCase().includes(cat) ||
+      r.name?.toLowerCase().includes(cat)
+    );
   });
 
   return (
-    <div>
-      {/* ─── 1. Promotional Hero Banner ─── */}
-      <div className="promo-banner">
-        <div style={{ position: 'relative', zIndex: 2 }}>
-          <span className="promo-badge">🎉 Special Promotion</span>
-          <h1 className="promo-title">Craving Delicious Food,<br />Delivered Superfast?</h1>
-          <p className="promo-desc">
-            Enjoy <strong>50% OFF</strong> up to ₹100 on your first order. Use code <strong style={{ textDecoration: 'underline' }}>WELCOME50</strong>
-          </p>
-          <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
+    <div className="customer-home-screen">
+      {/* ─── 1. Hero Cravings Headline ─── */}
+      <section className="hero-cravings-section">
+        <h1 className="hero-cravings-title">
+          WHAT&apos;S YOUR<br />
+          <span>CRAVING?</span>
+        </h1>
+        <p className="hero-cravings-sub">We&apos;ve got it.</p>
+      </section>
+
+      {/* ─── 2. Search Bar & Filter ─── */}
+      <section className="search-bar-section">
+        <form onSubmit={handleSearchSubmit} className="search-bar-form">
+          <div className="search-bar-pill">
+            <span className="search-bar-icon">🔍</span>
+            <input
+              type="text"
+              className="search-bar-input"
+              placeholder="Search for biryani, pizza, burgers..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+            />
+          </div>
+          <button
+            type="button"
+            className="filter-square-btn"
+            onClick={() => router.push('/customer/search')}
+            title="Filters"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="2.5" strokeLinecap="round">
+              <line x1="4" y1="21" x2="4" y2="14" />
+              <line x1="4" y1="10" x2="4" y2="3" />
+              <line x1="12" y1="21" x2="12" y2="12" />
+              <line x1="12" y1="8" x2="12" y2="3" />
+              <line x1="20" y1="21" x2="20" y2="16" />
+              <line x1="20" y1="12" x2="20" y2="3" />
+              <line x1="1" y1="14" x2="7" y2="14" />
+              <line x1="9" y1="8" x2="15" y2="8" />
+              <line x1="17" y1="16" x2="23" y2="16" />
+            </svg>
+          </button>
+        </form>
+      </section>
+
+      {/* ─── 3. Food Category Strip (Circular Items) ─── */}
+      <section className="food-categories-section">
+        <div className="category-scroll-row">
+          {FOOD_CATEGORIES.map(cat => {
+            const isSelected = selectedCategory === cat.id;
+            return (
+              <div
+                key={cat.id}
+                className={`category-item-col ${isSelected ? 'active' : ''}`}
+                onClick={() => setSelectedCategory(isSelected ? null : cat.id)}
+              >
+                <div className="category-circle-box">
+                  {cat.isMore ? (
+                    <div className="category-more-dots">
+                      <span />
+                      <span />
+                      <span />
+                      <span />
+                    </div>
+                  ) : (
+                    <img
+                      src={cat.image}
+                      alt={cat.name}
+                      className="category-circle-img"
+                    />
+                  )}
+                </div>
+                <span className="category-label">{cat.name}</span>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* ─── 4. Promotional Banner (HOT DEALS 🔥) ─── */}
+      <section className="hot-deals-banner-section">
+        <div className="hot-deals-banner-card">
+          <div className="hot-deals-left">
+            <span className="deals-tag">HOT DEALS 🔥</span>
+            <div className="deals-discount-text">
+              UP TO<br />
+              <strong>50% OFF</strong>
+            </div>
+            <span className="deals-subtext">On top restaurants</span>
             <button
-              className="btn"
-              style={{ background: '#fff', color: '#FF6B35', fontWeight: 800, padding: '10px 20px', borderRadius: 20 }}
+              type="button"
+              className="deals-cta-btn"
               onClick={() => router.push('/customer/offers')}
             >
-              View All Offers 🏷️
-            </button>
-            <button
-              className="btn"
-              style={{ background: 'rgba(0,0,0,0.2)', color: '#fff', border: '1.5px solid rgba(255,255,255,0.4)', borderRadius: 20 }}
-              onClick={() => {
-                const el = document.getElementById('all-restaurants');
-                if (el) el.scrollIntoView({ behavior: 'smooth' });
-              }}
-            >
-              Order Now 🚀
+              ORDER NOW →
             </button>
           </div>
-        </div>
-
-        <div className="promo-banner-emoji">
-          🍕
-        </div>
-      </div>
-
-      {/* ─── 2. Food Category Strip ─── */}
-      <div style={{ marginBottom: 8 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-          <h2 style={{ fontSize: 20, fontWeight: 900, color: 'var(--text)' }}>What&apos;s on your mind?</h2>
-          <span style={{ fontSize: 13, color: 'var(--text-sec)', fontWeight: 600 }}>Explore top dishes</span>
-        </div>
-
-        <div className="category-strip">
-          {FOOD_CATEGORIES.map(cat => (
-            <div
-              key={cat.id}
-              className={`category-item ${selectedCategory === cat.id ? 'active' : ''}`}
-              onClick={() => setSelectedCategory(cat.id === selectedCategory ? 'all' : cat.id)}
-            >
-              <div className="category-icon-box">
-                {cat.icon}
-              </div>
-              <span className="category-name">{cat.name}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ─── 3. Quick Filter Bar ─── */}
-      <div className="filter-bar">
-        <button
-          className={`filter-pill ${activeFilter === 'all' ? 'active' : ''}`}
-          onClick={() => setActiveFilter('all')}
-        >
-          All
-        </button>
-        <button
-          className={`filter-pill ${activeFilter === 'fast' ? 'active' : ''}`}
-          onClick={() => setActiveFilter(activeFilter === 'fast' ? 'all' : 'fast')}
-        >
-          ⚡ Fast Delivery (&lt; 25 mins)
-        </button>
-        <button
-          className={`filter-pill ${activeFilter === 'top_rated' ? 'active' : ''}`}
-          onClick={() => setActiveFilter(activeFilter === 'top_rated' ? 'all' : 'top_rated')}
-        >
-          ⭐ Rating 4.5+
-        </button>
-        <button
-          className={`filter-pill ${activeFilter === 'offers' ? 'active' : ''}`}
-          onClick={() => setActiveFilter(activeFilter === 'offers' ? 'all' : 'offers')}
-        >
-          🏷️ Great Offers
-        </button>
-
-        {/* Sort dropdown */}
-        <select
-          value={sortBy}
-          onChange={e => setSortBy(e.target.value)}
-          className="filter-pill"
-          style={{ paddingRight: 24, outline: 'none', background: '#fff' }}
-        >
-          <option value="rating">Sort by: Rating (High to Low)</option>
-          <option value="delivery_time">Sort by: Delivery Time</option>
-          <option value="cost_asc">Sort by: Min Order</option>
-        </select>
-      </div>
-
-      {/* ─── 4. Popular Dishes to Order Now (Direct Add to Cart) ─── */}
-      {popularDishes.length > 0 && selectedCategory === 'all' && activeFilter === 'all' && (
-        <div style={{ marginBottom: 36 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-            <div>
-              <h2 style={{ fontSize: 20, fontWeight: 900, color: 'var(--text)' }}>🔥 Popular Dishes Near You</h2>
-              <p style={{ fontSize: 13, color: 'var(--text-sec)' }}>Top ordered items right now</p>
-            </div>
+          <div className="hot-deals-right">
+            <img
+              src="https://images.unsplash.com/photo-1513104890138-7c749659a591?w=400&q=80"
+              alt="Hot Deals Food"
+              className="hot-deals-img"
+            />
           </div>
+        </div>
+      </section>
 
-          <div className="popular-dishes-grid">
-            {popularDishes.map(dish => (
-              <div
-                key={dish.id}
-                style={{
-                  background: '#fff', borderRadius: 16, border: '1px solid var(--border)',
-                  padding: 16, display: 'flex', gap: 12, alignItems: 'center',
-                  boxShadow: 'var(--shadow-sm)', transition: '0.2s'
-                }}
+      {/* ─── 5. Popular Restaurants Horizontal Carousel ─── */}
+      <section className="popular-restaurants-section">
+        <div className="section-header-row">
+          <h2 className="section-title">Popular Restaurants</h2>
+          <Link href="/customer/search" className="section-see-all-link">
+            See all
+          </Link>
+        </div>
+
+        <div className="restaurants-scroll-row">
+          {filteredRestaurants.map(rest => {
+            const isFav = favorites.has(rest.id);
+            return (
+              <Link
+                key={rest.id}
+                href={`/customer/restaurant/${rest.id}`}
+                className="rest-card-link"
               >
-                <img
-                  src={dish.imageUrl || 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=200'}
-                  alt={dish.name}
-                  style={{ width: 80, height: 80, borderRadius: 12, objectFit: 'cover', flexShrink: 0 }}
-                  onError={(e: any) => { e.target.src = 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=200'; }}
-                />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <span className={`food-badge ${dish.foodType === 'VEG' ? 'veg' : 'nonveg'}`} style={{ fontSize: 9 }}>
-                    {dish.foodType === 'VEG' ? '● Veg' : '▲ Non-Veg'}
-                  </span>
-                  <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: 2 }}>
-                    {dish.name}
-                  </div>
-                  <div style={{ fontSize: 11, color: 'var(--text-sec)' }}>{dish.restaurantName}</div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}>
-                    <span style={{ fontSize: 15, fontWeight: 900, color: 'var(--primary)' }}>₹{dish.price}</span>
+                <div className="rest-card">
+                  {/* Restaurant Image Container */}
+                  <div className="rest-card-img-wrapper">
+                    <img
+                      src={rest.coverImageUrl || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=500'}
+                      alt={rest.name}
+                      className="rest-card-img"
+                      onError={(e: any) => {
+                        e.target.src = 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=500';
+                      }}
+                    />
+                    {/* Delivery Time Badge */}
+                    <div className="rest-time-badge">
+                      <span className="time-val">{rest.avgDeliveryTime || 20}</span>
+                      <span className="time-unit">MIN</span>
+                    </div>
+                    {/* Favorite Heart Button */}
                     <button
-                      className="btn btn-sm btn-primary"
-                      style={{ padding: '4px 12px', fontSize: 12, borderRadius: 6 }}
-                      onClick={() => addItem({
-                        menuItemId: dish.id,
-                        name: dish.name,
-                        price: dish.price,
-                        quantity: 1,
-                        foodType: dish.foodType || 'NON_VEG',
-                        imageUrl: dish.imageUrl,
-                        restaurantId: dish.restaurantId,
-                        restaurantName: dish.restaurantName,
-                      })}
+                      type="button"
+                      className="rest-heart-btn"
+                      onClick={(e) => toggleFavorite(e, rest.id)}
+                      title="Favorite"
                     >
-                      + ADD
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill={isFav ? '#E74C3C' : 'none'} stroke={isFav ? '#E74C3C' : '#FFFFFF'} strokeWidth="2.5">
+                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                      </svg>
                     </button>
                   </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
-      {/* ─── 5. All Restaurants Grid ─── */}
-      <div id="all-restaurants" style={{ marginBottom: 20 }}>
-        <div className="page-header" style={{ marginBottom: 16 }}>
-          <div>
-            <h2 style={{ fontSize: 22, fontWeight: 900, color: 'var(--text)' }}>
-              🍽️ Restaurants to Explore ({filteredRestaurants.length})
-            </h2>
-            <p className="page-subtitle">Handpicked dining destinations delivering to you</p>
-          </div>
-        </div>
-
-        {loading ? (
-          <div className="loading"><div className="spinner" /></div>
-        ) : (
-          <div className="cards-grid">
-            {filteredRestaurants.map(r => (
-              <Link key={r.id} href={`/customer/restaurant/${r.id}`}>
-                <div className="card" style={{ cursor: 'pointer', position: 'relative' }}>
-                  {/* Top discount ribbon */}
-                  <div style={{ position: 'relative' }}>
-                    <img
-                      className="card-img"
-                      src={r.coverImageUrl || r.logoUrl || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=600'}
-                      alt={r.name}
-                      onError={(e: any) => { e.target.src = 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=600'; }}
-                    />
-                    <div style={{
-                      position: 'absolute', bottom: 10, left: 10,
-                      background: 'rgba(26, 26, 46, 0.85)', backdropFilter: 'blur(4px)',
-                      color: '#FFD93D', fontSize: 11, fontWeight: 800,
-                      padding: '4px 10px', borderRadius: 6, display: 'flex', alignItems: 'center', gap: 4
-                    }}>
-                      <span>🏷️ 50% OFF UPTO ₹100</span>
-                    </div>
-                  </div>
-
-                  <div className="card-body">
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <div className="card-title" style={{ fontSize: 18, marginBottom: 2 }}>{r.name}</div>
-                      <div className="rating">
-                        <span className="rating-star">⭐</span>
-                        <span className="rating-value">{r.rating || '4.6'}</span>
-                        <span className="rating-count">({r.totalRatings || 120})</span>
+                  {/* Restaurant Card Details */}
+                  <div className="rest-card-info">
+                    <div className="rest-name-rating-row">
+                      <h3 className="rest-name">{rest.name}</h3>
+                      <div className="rest-rating-badge">
+                        <span>★</span>
+                        <span>{rest.rating?.toFixed(1) || '4.5'}</span>
                       </div>
                     </div>
-
-                    <div className="card-text" style={{ fontWeight: 500, color: 'var(--text-sec)' }}>
-                      {r.cuisineType || 'Burgers, Fast Food'}
-                    </div>
-
-                    <div className="card-meta" style={{ marginTop: 12, borderTop: '1px solid var(--border)', paddingTop: 10 }}>
-                      <span className="card-meta-item">🕐 <strong>{r.avgDeliveryTime || 25} mins</strong></span>
-                      <span className="card-meta-item">📍 <strong>2.4 km</strong></span>
-                      <span className="card-meta-item">💰 ₹{r.minOrderAmount ? r.minOrderAmount * 2 : 350} for two</span>
-                    </div>
+                    <div className="rest-cuisine-text">{rest.cuisineType || 'Biryani, North Indian'}</div>
+                    <div className="rest-price-text">₹{rest.minOrderAmount || 200} for one</div>
+                    {rest.discountBadge && (
+                      <div className="rest-offer-chip">{rest.discountBadge}</div>
+                    )}
                   </div>
                 </div>
               </Link>
-            ))}
+            );
+          })}
+        </div>
+      </section>
 
-            {filteredRestaurants.length === 0 && (
-              <div className="empty-state" style={{ gridColumn: '1 / -1' }}>
-                <div className="empty-state-icon">🔍</div>
-                <div className="empty-state-title">No restaurants match your filters</div>
-                <div className="empty-state-text">Try removing filters or selecting &quot;All Cuisines&quot; to see available options.</div>
-              </div>
-            )}
+      {/* ─── 6. Reusable Promotional Banners (Bottom Row of Reference) ─── */}
+      <section className="promo-banners-showcase">
+        {/* Banner 1: FIRST ORDER OFFER */}
+        <div className="promo-card promo-first-order" onClick={() => router.push('/customer/offers')}>
+          <div className="promo-card-left">
+            <span className="promo-subtag">FIRST ORDER OFFER</span>
+            <div className="promo-big-headline">FLAT<br />50% OFF</div>
+            <span className="promo-desc-line">On your first order</span>
+            <div className="promo-coupon-pill">Code: QUICK50</div>
           </div>
-        )}
-      </div>
-
-      {/* ─── 6. Floating Bottom Cart Bar ─── */}
-      {itemCount > 0 && (
-        <div className="floating-cart-bar" onClick={() => setIsCartDrawerOpen(true)}>
-          <div>
-            <span style={{ fontWeight: 800, fontSize: 15 }}>{itemCount} {itemCount === 1 ? 'ITEM' : 'ITEMS'} ADDED</span>
-            <div style={{ fontSize: 12, opacity: 0.9 }}>Extra ₹50 OFF applied</div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 18, fontWeight: 900 }}>₹{total}</span>
-            <span style={{ background: '#fff', color: '#FF6B35', padding: '6px 14px', borderRadius: 20, fontWeight: 800, fontSize: 13 }}>
-              View Cart →
-            </span>
+          <div className="promo-card-right">
+            <img
+              src="https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=300&q=80"
+              alt="Burger Offer"
+            />
           </div>
         </div>
-      )}
+
+        {/* Banner 2: FREE DELIVERY */}
+        <div className="promo-card promo-free-delivery" onClick={() => router.push('/customer/offers')}>
+          <div className="promo-card-left">
+            <span className="promo-yellow-title">FREE DELIVERY</span>
+            <span className="promo-desc-line-dark">On orders above ₹199</span>
+            <div className="promo-coupon-pill-gold">Code: FREEDL</div>
+          </div>
+          <div className="promo-card-right">
+            <img
+              src="https://images.unsplash.com/photo-1526367790999-0150786686a2?w=300&q=80"
+              alt="Free Delivery Rider"
+            />
+          </div>
+        </div>
+
+        {/* Banner 3: FLAT ₹100 OFF */}
+        <div className="promo-card promo-flat-100" onClick={() => router.push('/customer/offers')}>
+          <div className="promo-card-left">
+            <span className="promo-yellow-title">FLAT ₹100 OFF</span>
+            <span className="promo-desc-line">On orders above ₹299</span>
+            <div className="promo-coupon-pill">Code: TRY100</div>
+          </div>
+          <div className="promo-card-right">
+            <img
+              src="https://images.unsplash.com/photo-1513104890138-7c749659a591?w=300&q=80"
+              alt="Pizza Offer"
+            />
+          </div>
+        </div>
+
+        {/* Brand Card: Quickbits — Bites that reach you quick! */}
+        <div className="quickbits-brand-card">
+          <div className="brand-logo-row">
+            <span className="brand-bolt">⚡</span>
+            <span className="brand-name">Quickbits</span>
+          </div>
+          <div className="brand-tagline">&ldquo;Bites that reach you quick!&rdquo;</div>
+
+          <div className="brand-trust-badges">
+            <div className="trust-badge-item">
+              <span>🛡️</span>
+              <span>100% Safe Payments</span>
+            </div>
+            <div className="trust-badge-item">
+              <span>📦</span>
+              <span>Hygienic Packaging</span>
+            </div>
+            <div className="trust-badge-item">
+              <span>🏷️</span>
+              <span>No Minimum Order</span>
+            </div>
+            <div className="trust-badge-item">
+              <span>🔄</span>
+              <span>Easy Returns</span>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

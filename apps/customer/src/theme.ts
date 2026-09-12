@@ -1,38 +1,54 @@
-// QuickBite Design System — Customer App
+// QuickBite Design System — Customer App (Premium Maroon + Gold Theme)
 export const Colors = {
-  // Primary
-  primary: '#FF6B35',
-  primaryDark: '#E55A2B',
-  primaryLight: '#FF8F65',
-  primaryBg: '#FFF5F0',
+  // Primary — Deep Maroon / Wine Red
+  primary: '#4A0A10',
+  primaryDark: '#3A0008',
+  primaryLight: '#6B1A22',
+  primaryBg: '#FFF8F0',
+
+  // Accent — Golden Yellow
+  accent: '#F5A623',
+  accentDark: '#D4900E',
+  accentLight: '#FFD470',
+  accentBg: '#FFF9EC',
 
   // Secondary
   secondary: '#2D3436',
   secondaryLight: '#636E72',
 
   // Status
-  success: '#00B894',
-  warning: '#FDCB6E',
-  error: '#E17055',
-  info: '#74B9FF',
+  success: '#2ECC71',
+  successBg: '#EAFAF1',
+  warning: '#F39C12',
+  warningBg: '#FEF9E7',
+  error: '#E74C3C',
+  errorBg: '#FDEDEC',
+  info: '#3498DB',
+  infoBg: '#EBF5FB',
 
   // Neutral
   white: '#FFFFFF',
-  background: '#F8F9FA',
+  background: '#FDF6EE',
   surface: '#FFFFFF',
-  border: '#E9ECEF',
-  borderLight: '#F1F3F5',
-  textPrimary: '#1A1A2E',
-  textSecondary: '#6C757D',
-  textMuted: '#ADB5BD',
+  surfaceWarm: '#FFF9F2',
+  cream: '#F8EFE4',
+  border: '#E8DDD0',
+  borderLight: '#F2EBE2',
+  textPrimary: '#1A1A1A',
+  textSecondary: '#6B6B6B',
+  textMuted: '#A0A0A0',
   textInverse: '#FFFFFF',
 
   // Misc
-  overlay: 'rgba(0,0,0,0.5)',
-  shadow: 'rgba(0,0,0,0.08)',
-  star: '#FFD700',
-  veg: '#00B894',
-  nonVeg: '#E17055',
+  overlay: 'rgba(74, 10, 16, 0.6)',
+  shadow: 'rgba(74, 10, 16, 0.08)',
+  star: '#F5A623',
+  veg: '#2ECC71',
+  nonVeg: '#E74C3C',
+
+  // Card
+  cardBg: '#FFFFFF',
+  cardBorder: '#F0E6DA',
 };
 
 export const Spacing = {
@@ -55,37 +71,54 @@ export const FontSize = {
   xl: 20,
   xxl: 24,
   xxxl: 32,
-  hero: 40,
+  hero: 36,
+};
+
+export const FontFamily = {
+  regular: 'System',
+  medium: 'System',
+  semiBold: 'System',
+  bold: 'System',
+  extraBold: 'System',
 };
 
 export const BorderRadius = {
-  sm: 6,
-  md: 10,
-  lg: 14,
+  xs: 4,
+  sm: 8,
+  md: 12,
+  lg: 16,
   xl: 20,
+  xxl: 28,
   full: 999,
 };
 
 export const Shadows = {
   sm: {
-    shadowColor: '#000',
+    shadowColor: '#4A0A10',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
     elevation: 2,
   },
   md: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
+    shadowColor: '#4A0A10',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.07,
+    shadowRadius: 10,
     elevation: 4,
   },
   lg: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
+    shadowColor: '#4A0A10',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.10,
+    shadowRadius: 20,
     elevation: 8,
+  },
+  gold: {
+    shadowColor: '#F5A623',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
   },
 } as const;
