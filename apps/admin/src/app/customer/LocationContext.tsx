@@ -32,6 +32,7 @@ interface LocationContextType {
   detectLocation: () => Promise<CustomerAddress | null>;
   selectLocation: (location: CustomerAddress) => void;
   addCustomAddress: (fullAddress: string, tag?: 'Home' | 'Work' | 'Other') => CustomerAddress;
+  removeAddress: (addressId: string) => void;
   searchAddress: (query: string) => Promise<CustomerAddress[]>;
   clearDetectionError: () => void;
 }
@@ -318,6 +319,18 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
     return newAddress;
   }, [selectLocation]);
 
+  const removeAddress = useCallback((addressId: string) => {
+    setSavedLocations((prev) => {
+      const updated = prev.filter((item) => item.id !== addressId);
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('qb_customer_saved_locations', JSON.stringify(updated));
+        } catch {}
+      }
+      return updated;
+    });
+  }, []);
+
   const searchAddress = useCallback(async (query: string): Promise<CustomerAddress[]> => {
     if (!query.trim() || query.length < 2) return [];
 
@@ -358,6 +371,7 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
         detectLocation,
         selectLocation,
         addCustomAddress,
+        removeAddress,
         searchAddress,
         clearDetectionError,
       }}

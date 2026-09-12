@@ -1,50 +1,126 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { ordersApi, reviewsApi } from '@quickbite/api-client';
 
 const STAGES = [
-  { key: 'PENDING', title: 'Order Placed', desc: 'Sent to restaurant', icon: '📝' },
-  { key: 'PREPARING', title: 'Preparing Food', desc: 'Chef is cooking your meal', icon: '🍳' },
+  { key: 'PENDING', title: 'Order Placed', desc: 'Order received by restaurant', icon: '📝' },
+  { key: 'PREPARING', title: 'Preparing Food', desc: 'Chef is preparing your meal', icon: '🍳' },
   { key: 'READY', title: 'Driver Assigned', desc: 'Amit Verma reached restaurant', icon: '🛵' },
   { key: 'OUT_FOR_DELIVERY', title: 'On the Way', desc: 'Driver is en route to you', icon: '🚀' },
-  { key: 'DELIVERED', title: 'Delivered', desc: 'Enjoy your hot meal!', icon: '🎉' },
+  { key: 'DELIVERED', title: 'Delivered', desc: 'Enjoy your delicious meal!', icon: '🎉' },
 ];
 
 export default function CustomerOrderTrackingPage() {
   const params = useParams();
   const router = useRouter();
-  const orderId = params.id as string;
+  const searchParams = useSearchParams();
+  const orderId = (params?.id as string) || 'QB-982144';
 
   const [currentStageIndex, setCurrentStageIndex] = useState(1);
-  const [etaMinutes, setEtaMinutes] = useState(24);
-  const [driverPosition, setDriverPosition] = useState(15); // percentage along route
+  const [etaMinutes, setEtaMinutes] = useState(22);
+  const [driverPosition, setDriverPosition] = useState(25); // percentage along route
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const [rating, setRating] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
   const [isReviewed, setIsReviewed] = useState(false);
-  const [orderData, setOrderData] = useState<any>(null);
+  const [order, setOrder] = useState<any>(null);
 
   useEffect(() => {
-    // Try fetching actual order from backend
-    if (orderId && !orderId.startsWith('QB-')) {
-      ordersApi.getById(orderId)
-        .then(r => setOrderData(r.data))
-        .catch(() => {});
+    let matchedOrder: any = null;
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('qb_customer_orders');
+        if (stored) {
+          const list = JSON.parse(stored);
+          matchedOrder = list.find((o: any) => o.id === orderId);
+        }
+      } catch (e) {
+        console.error(e);
+      }
     }
-  }, [orderId]);
 
-  // Handle stage simulation
+    if (matchedOrder) {
+      setOrder(matchedOrder);
+      if (matchedOrder.status === 'DELIVERED') {
+        setCurrentStageIndex(4);
+        setEtaMinutes(0);
+        setDriverPosition(95);
+      } else if (matchedOrder.status === 'OUT_FOR_DELIVERY') {
+        setCurrentStageIndex(3);
+        setEtaMinutes(12);
+        setDriverPosition(60);
+      } else if (matchedOrder.status === 'READY') {
+        setCurrentStageIndex(2);
+        setEtaMinutes(18);
+        setDriverPosition(35);
+      } else if (matchedOrder.status === 'PREPARING') {
+        setCurrentStageIndex(1);
+        setEtaMinutes(24);
+        setDriverPosition(15);
+      }
+    } else {
+      // Fetch from API or use rich default
+      ordersApi.getById(orderId)
+        .then(r => {
+          const d = r.data as any;
+          if (d) setOrder(d);
+        })
+        .catch(() => {
+          setOrder({
+            id: orderId,
+            status: 'PREPARING',
+            total: searchParams.get('total') ? Number(searchParams.get('total')) : 489,
+            createdAt: new Date().toISOString(),
+            restaurant: {
+              name: 'Sharief Bhai Biryani',
+              address: '100 Feet Road, Indiranagar',
+            },
+            deliveryAddress: {
+              name: 'Home',
+              desc: 'Indiranagar, Bengaluru 560038',
+            },
+            items: [
+              { name: 'Hyderabadi Chicken Dum Biryani', price: 299, quantity: 1, foodType: 'NON_VEG' },
+              { name: 'Peri Peri Crispy Fries', price: 139, quantity: 1, foodType: 'VEG' },
+            ],
+            driver: {
+              name: 'Amit Verma',
+              phone: '+91 98765 43210',
+              rating: 4.9,
+              vehicle: 'Hero Electric (KA 03 HK 2910)',
+            },
+          });
+        });
+    }
+  }, [orderId, searchParams]);
+
   const handleSimulateNextStage = () => {
     if (currentStageIndex < STAGES.length - 1) {
       const nextStage = currentStageIndex + 1;
       setCurrentStageIndex(nextStage);
       setEtaMinutes(Math.max(0, 24 - nextStage * 6));
-      setDriverPosition(Math.min(90, 15 + nextStage * 22));
+      setDriverPosition(Math.min(92, 15 + nextStage * 20));
+
+      // Update in localStorage
+      if (typeof window !== 'undefined') {
+        try {
+          const stored = localStorage.getItem('qb_customer_orders');
+          if (stored) {
+            const list = JSON.parse(stored);
+            const updated = list.map((o: any) => {
+              if (o.id === orderId) {
+                return { ...o, status: STAGES[nextStage].key };
+              }
+              return o;
+            });
+            localStorage.setItem('qb_customer_orders', JSON.stringify(updated));
+          }
+        } catch {}
+      }
 
       if (nextStage === STAGES.length - 1) {
-        // Delivered! Open review modal after 1s
         setTimeout(() => setIsReviewModalOpen(true), 1200);
       }
     }
@@ -70,167 +146,544 @@ export default function CustomerOrderTrackingPage() {
   const currentStage = STAGES[currentStageIndex];
 
   return (
-    <div style={{ maxWidth: 860, margin: '0 auto' }}>
-      {/* ─── Header Status Card ─── */}
-      <div style={{ background: '#fff', borderRadius: 24, border: '1.5px solid var(--border)', padding: 28, marginBottom: 24, boxShadow: 'var(--shadow)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
+    <div className="customer-tracking-screen" style={{ padding: '4px 0 30px' }}>
+      {/* ─── Top Bar: ← Back & Live Badge ─── */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+        <button
+          type="button"
+          onClick={() => router.push('/customer/orders')}
+          style={{
+            background: '#FFFFFF',
+            border: '1px solid #EADBCE',
+            borderRadius: 12,
+            padding: '6px 12px',
+            fontSize: 13,
+            fontWeight: 800,
+            color: '#4A0A10',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4,
+          }}
+        >
+          ← Orders
+        </button>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#0E9F6E', display: 'inline-block', boxShadow: '0 0 0 3px rgba(14, 159, 110, 0.2)' }} />
+          <span style={{ fontSize: 12, fontWeight: 800, color: '#0E9F6E' }}>LIVE TRACKING</span>
+        </div>
+      </div>
+
+      {/* ─── Status Hero Card ─── */}
+      <div
+        style={{
+          background: '#FFFFFF',
+          borderRadius: 20,
+          border: '1px solid #EADBCE',
+          padding: 16,
+          boxShadow: '0 4px 14px rgba(74, 10, 16, 0.05)',
+          marginBottom: 16,
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 14 }}>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span className="badge badge-primary" style={{ fontSize: 12 }}>Live Tracking</span>
-              <span style={{ fontSize: 13, color: 'var(--text-sec)', fontWeight: 600 }}>Order #{orderId.slice(0, 10)}</span>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#8C7B72', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+              Order #{orderId}
             </div>
-            <h1 style={{ fontSize: 26, fontWeight: 900, marginTop: 6, color: 'var(--text)' }}>
+            <h2 style={{ fontSize: 20, fontWeight: 900, color: '#4A0A10', margin: '2px 0' }}>
               {currentStage.title} {currentStage.icon}
-            </h1>
-            <p style={{ fontSize: 14, color: 'var(--text-sec)', marginTop: 2 }}>
+            </h2>
+            <p style={{ fontSize: 12, color: '#6B7280', margin: 0 }}>
               {currentStage.desc}
             </p>
           </div>
 
-          <div style={{ background: 'var(--primary-light)', padding: '12px 20px', borderRadius: 16, textAlign: 'center', border: '1.5px solid #FFD5C2' }}>
-            <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: 0.8 }}>Estimated Arrival</div>
-            <div style={{ fontSize: 28, fontWeight: 900, color: 'var(--primary)', lineHeight: 1.1 }}>
+          <div
+            style={{
+              background: '#FFF7ED',
+              border: '1.5px solid #FFEDD5',
+              padding: '6px 12px',
+              borderRadius: 14,
+              textAlign: 'center',
+              flexShrink: 0,
+            }}
+          >
+            <div style={{ fontSize: 9.5, fontWeight: 800, color: '#EA580C', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+              Estimated Arrival
+            </div>
+            <div style={{ fontSize: 18, fontWeight: 900, color: '#EA580C', lineHeight: 1.1, marginTop: 1 }}>
               {currentStageIndex === STAGES.length - 1 ? 'Delivered' : `~${etaMinutes} mins`}
             </div>
           </div>
         </div>
 
-        {/* ─── Interactive Stepper ─── */}
-        <div className="stepper-container">
-          <div className="stepper-line">
-            <div className="stepper-line-active" style={{ width: `${(currentStageIndex / (STAGES.length - 1)) * 100}%` }} />
+        {/* ─── Animated Multi-Stage Stepper ─── */}
+        <div style={{ position: 'relative', margin: '20px 0 14px' }}>
+          {/* Progress Track Line */}
+          <div style={{ position: 'absolute', top: 14, left: 10, right: 10, height: 3, background: '#E5E7EB', zIndex: 1 }}>
+            <div
+              style={{
+                height: '100%',
+                background: '#0E9F6E',
+                width: `${(currentStageIndex / (STAGES.length - 1)) * 100}%`,
+                transition: 'width 0.4s ease',
+              }}
+            />
           </div>
 
-          {STAGES.map((st, i) => (
-            <div
-              key={st.key}
-              className={`stepper-step ${i < currentStageIndex ? 'completed' : i === currentStageIndex ? 'active' : ''}`}
-            >
-              <div className="stepper-circle">
-                {i < currentStageIndex ? '✓' : st.icon}
-              </div>
-              <div className="stepper-title">{st.title}</div>
-            </div>
-          ))}
+          <div style={{ display: 'flex', justifyContent: 'space-between', position: 'relative', zIndex: 2 }}>
+            {STAGES.map((st, i) => {
+              const isCompleted = i < currentStageIndex;
+              const isCurrent = i === currentStageIndex;
+
+              return (
+                <div key={st.key} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 54 }}>
+                  <div
+                    style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: '50%',
+                      background: isCompleted ? '#0E9F6E' : isCurrent ? '#4A0A10' : '#FFFFFF',
+                      color: isCompleted || isCurrent ? '#FFFFFF' : '#9CA3AF',
+                      border: isCompleted ? '2px solid #0E9F6E' : isCurrent ? '2px solid #4A0A10' : '2px solid #E5E7EB',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: 12,
+                      fontWeight: 800,
+                      boxShadow: isCurrent ? '0 0 0 3px rgba(74, 10, 16, 0.15)' : 'none',
+                      transition: 'all 0.3s ease',
+                    }}
+                  >
+                    {isCompleted ? '✓' : st.icon}
+                  </div>
+                  <span
+                    style={{
+                      fontSize: 9,
+                      fontWeight: isCurrent ? 800 : 600,
+                      color: isCurrent ? '#4A0A10' : isCompleted ? '#0E9F6E' : '#9CA3AF',
+                      textAlign: 'center',
+                      marginTop: 4,
+                      lineHeight: 1.1,
+                    }}
+                  >
+                    {st.title}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
         </div>
 
-        {/* Demo Stage Advance Tool */}
-        <div style={{ display: 'flex', justifyContent: 'center', marginTop: 8 }}>
+        {/* Demo Advance Stage Button */}
+        <div style={{ textAlign: 'center', marginTop: 10 }}>
           <button
-            className="btn btn-sm btn-primary"
+            type="button"
             onClick={handleSimulateNextStage}
             disabled={currentStageIndex === STAGES.length - 1}
-            style={{ borderRadius: 20, padding: '8px 20px', gap: 6 }}
+            id="simulate-stage-btn"
+            style={{
+              background: currentStageIndex === STAGES.length - 1 ? '#E5E7EB' : '#4A0A10',
+              color: currentStageIndex === STAGES.length - 1 ? '#9CA3AF' : '#FFFFFF',
+              border: 'none',
+              padding: '7px 16px',
+              borderRadius: 20,
+              fontSize: 11.5,
+              fontWeight: 800,
+              cursor: currentStageIndex === STAGES.length - 1 ? 'default' : 'pointer',
+              boxShadow: currentStageIndex === STAGES.length - 1 ? 'none' : '0 2px 8px rgba(74, 10, 16, 0.25)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
           >
-            <span>⚡ Demo: Advance to Next Stage</span>
+            <span>⚡ Simulate Next Delivery Stage</span>
             <span>({currentStageIndex + 1}/{STAGES.length})</span>
           </button>
         </div>
       </div>
 
       {/* ─── Simulated Live Map ─── */}
-      <div className="simulated-map" style={{ marginBottom: 24 }}>
-        <div className="map-road" />
-        <div className="map-pin-restaurant" title="Restaurant">🍽️</div>
-        <div className="map-pin-driver" style={{ left: `${driverPosition}%` }} title="Amit Verma (Delivery Partner)">🛵</div>
-        <div className="map-pin-home" title="Delivery Address">🏠</div>
-
-        <div style={{ position: 'absolute', bottom: 12, left: 16, background: 'rgba(255,255,255,0.9)', backdropFilter: 'blur(4px)', padding: '6px 12px', borderRadius: 8, fontSize: 11, fontWeight: 700, color: '#1A1A2E' }}>
-          📍 Live Driver GPS: {driverPosition < 40 ? 'At Restaurant' : driverPosition < 80 ? 'En route on 100 Feet Rd' : 'Arrived at gate'}
+      <div
+        style={{
+          background: '#FFFFFF',
+          borderRadius: 20,
+          border: '1px solid #EADBCE',
+          padding: 14,
+          marginBottom: 16,
+          boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
+        }}
+      >
+        <div style={{ fontSize: 13, fontWeight: 800, color: '#1A1A1A', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span>🗺️</span> Live Delivery Route
         </div>
-      </div>
 
-      {/* ─── Delivery Partner & OTP Card ─── */}
-      <div className="stats-grid" style={{ marginBottom: 24 }}>
-        {/* Delivery Partner */}
-        <div style={{ background: '#fff', borderRadius: 16, border: '1px solid var(--border)', padding: 20, display: 'flex', alignItems: 'center', gap: 14 }}>
-          <div style={{ width: 52, height: 52, borderRadius: '50%', background: '#0984E3', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, fontWeight: 800 }}>
+        <div
+          style={{
+            position: 'relative',
+            height: 120,
+            background: '#F3F4F6',
+            borderRadius: 14,
+            border: '1px solid #E5E7EB',
+            overflow: 'hidden',
+          }}
+        >
+          {/* Map Grid Background pattern */}
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              backgroundImage: 'radial-gradient(#D1D5DB 1px, transparent 1px)',
+              backgroundSize: '16px 16px',
+              opacity: 0.6,
+            }}
+          />
+
+          {/* Road Path Line */}
+          <div
+            style={{
+              position: 'absolute',
+              top: '50%',
+              left: 30,
+              right: 30,
+              height: 6,
+              background: '#D1D5DB',
+              borderRadius: 3,
+              transform: 'translateY(-50%)',
+            }}
+          >
+            {/* Active Driver Trail */}
+            <div
+              style={{
+                height: '100%',
+                background: '#0E9F6E',
+                width: `${driverPosition}%`,
+                borderRadius: 3,
+                transition: 'width 0.4s ease',
+              }}
+            />
+          </div>
+
+          {/* Restaurant Marker */}
+          <div
+            style={{
+              position: 'absolute',
+              left: 16,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              background: '#FFFFFF',
+              border: '2px solid #4A0A10',
+              borderRadius: 8,
+              padding: 4,
+              fontSize: 16,
+              boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
+            }}
+            title={order?.restaurant?.name || 'Restaurant'}
+          >
+            🍽️
+          </div>
+
+          {/* Live Driver Moving Pin */}
+          <div
+            style={{
+              position: 'absolute',
+              left: `calc(${driverPosition}% - 14px)`,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              background: '#0E9F6E',
+              color: '#FFFFFF',
+              borderRadius: '50%',
+              width: 32,
+              height: 32,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 16,
+              boxShadow: '0 2px 8px rgba(14, 159, 110, 0.4)',
+              transition: 'left 0.4s ease',
+              zIndex: 5,
+            }}
+            title="Amit Verma (Delivery Partner)"
+          >
             🛵
           </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 800, fontSize: 15 }}>Amit Verma</div>
-            <div style={{ fontSize: 12, color: 'var(--text-sec)' }}>⭐ 4.85 • Motorcycle (KA-01-EQ-9876)</div>
-            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-              <button className="btn btn-sm btn-outline" onClick={() => alert('Calling Amit Verma (+91 99999 99994)...')} style={{ padding: '3px 10px', fontSize: 11, borderRadius: 6 }}>
-                📞 Call Driver
-              </button>
-              <button className="btn btn-sm btn-outline" onClick={() => alert('Driver Chat: "I have picked up your food and will reach in ~15 mins!"')} style={{ padding: '3px 10px', fontSize: 11, borderRadius: 6 }}>
-                💬 Chat
-              </button>
-            </div>
-          </div>
-        </div>
 
-        {/* Delivery OTP & Verification */}
-        <div style={{ background: '#fff', borderRadius: 16, border: '1px solid var(--border)', padding: 20, display: 'flex', flexDirection: 'column', justifyContent: 'center', textAlign: 'center' }}>
-          <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.8 }}>
-            Delivery Verification OTP
+          {/* Home / Customer Marker */}
+          <div
+            style={{
+              position: 'absolute',
+              right: 16,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              background: '#FFFFFF',
+              border: '2px solid #0E9F6E',
+              borderRadius: 8,
+              padding: 4,
+              fontSize: 16,
+              boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
+            }}
+            title="Your Location"
+          >
+            🏠
           </div>
-          <div style={{ fontSize: 32, fontWeight: 900, color: 'var(--primary)', letterSpacing: 4, marginTop: 2 }}>
-            4829
-          </div>
-          <div style={{ fontSize: 11, color: 'var(--text-sec)', marginTop: 2 }}>
-            Share this 4-digit OTP with Amit when food arrives
+
+          {/* Live GPS Status Pill */}
+          <div
+            style={{
+              position: 'absolute',
+              bottom: 8,
+              left: 12,
+              background: 'rgba(255, 255, 255, 0.92)',
+              backdropFilter: 'blur(4px)',
+              padding: '3px 8px',
+              borderRadius: 6,
+              fontSize: 10,
+              fontWeight: 700,
+              color: '#1F2937',
+              border: '1px solid rgba(0,0,0,0.06)',
+            }}
+          >
+            📍 GPS: {driverPosition < 30 ? 'At Restaurant' : driverPosition < 80 ? 'On Outer Ring Rd (1.2 km away)' : 'Arriving at your gate'}
           </div>
         </div>
       </div>
 
-      {/* ─── Actions Strip ─── */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, background: '#fff', borderRadius: 16, border: '1px solid var(--border)', padding: '16px 20px', marginBottom: 32 }}>
-        <Link href="/customer/orders" className="btn btn-outline" style={{ borderRadius: 10 }}>
-          ← View All Orders
-        </Link>
-        <div style={{ display: 'flex', gap: 10 }}>
-          {currentStageIndex === STAGES.length - 1 && !isReviewed && (
-            <button className="btn btn-primary" onClick={() => setIsReviewModalOpen(true)} style={{ borderRadius: 10 }}>
-              ⭐ Rate Your Order
+      {/* ─── Delivery Partner & OTP ─── */}
+      <div
+        style={{
+          background: '#FFFFFF',
+          borderRadius: 20,
+          border: '1px solid #EADBCE',
+          padding: 14,
+          marginBottom: 16,
+          boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: '50%',
+                background: '#4A0A10',
+                color: '#FFFFFF',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 20,
+                fontWeight: 900,
+              }}
+            >
+              🛵
+            </div>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 800, color: '#1A1A1A' }}>
+                {order?.driver?.name || 'Amit Verma'}
+              </div>
+              <div style={{ fontSize: 11, color: '#6B7280' }}>
+                ★ {order?.driver?.rating || '4.9'} • {order?.driver?.vehicle || 'Hero Electric (KA 03 HK 2910)'}
+              </div>
+            </div>
+          </div>
+
+          {/* Action Call & Chat buttons */}
+          <div style={{ display: 'flex', gap: 6 }}>
+            <a
+              href="tel:+919876543210"
+              style={{
+                background: '#ECFDF5',
+                color: '#0E9F6E',
+                border: '1px solid #A7F3D0',
+                borderRadius: 10,
+                padding: '6px 10px',
+                fontSize: 12,
+                fontWeight: 800,
+                textDecoration: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4,
+              }}
+            >
+              📞 Call
+            </a>
+            <button
+              type="button"
+              onClick={() => alert('Opening live chat with driver Amit...')}
+              style={{
+                background: '#F3F4F6',
+                color: '#374151',
+                border: '1px solid #E5E7EB',
+                borderRadius: 10,
+                padding: '6px 10px',
+                fontSize: 12,
+                fontWeight: 800,
+                cursor: 'pointer',
+              }}
+            >
+              💬 Chat
             </button>
-          )}
-          <button className="btn btn-outline" onClick={() => router.push('/customer/help')} style={{ borderRadius: 10 }}>
-            💬 Need Help?
-          </button>
+          </div>
+        </div>
+
+        {/* Delivery OTP */}
+        <div
+          style={{
+            background: '#F9FAFB',
+            borderRadius: 10,
+            padding: '8px 12px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            border: '1px dashed #D1D5DB',
+          }}
+        >
+          <span style={{ fontSize: 11, color: '#4B5563', fontWeight: 600 }}>Delivery Confirmation OTP:</span>
+          <span style={{ fontSize: 15, fontWeight: 900, letterSpacing: 2, color: '#4A0A10' }}>4821</span>
         </div>
       </div>
 
-      {/* ─── Rating & Review Modal ─── */}
-      {isReviewModalOpen && (
-        <div className="modal-backdrop" onClick={() => setIsReviewModalOpen(false)}>
-          <div className="modal-sheet" onClick={e => e.stopPropagation()}>
-            <div style={{ textAlign: 'center', marginBottom: 20 }}>
-              <div style={{ fontSize: 48 }}>🎉</div>
-              <h3 style={{ fontSize: 22, fontWeight: 900, marginTop: 8 }}>How was your food?</h3>
-              <p style={{ fontSize: 13, color: 'var(--text-sec)' }}>Rate your experience with Burger &amp; Co. and Amit Verma</p>
-            </div>
+      {/* ─── Order Items & Delivery Address Details ─── */}
+      <div
+        style={{
+          background: '#FFFFFF',
+          borderRadius: 20,
+          border: '1px solid #EADBCE',
+          padding: 14,
+          marginBottom: 16,
+          boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
+        }}
+      >
+        <div style={{ fontSize: 13, fontWeight: 800, color: '#1A1A1A', marginBottom: 10 }}>
+          🍽️ Order Summary
+        </div>
 
-            {/* Stars */}
-            <div style={{ display: 'flex', justifyContent: 'center', gap: 12, marginBottom: 20 }}>
-              {[1, 2, 3, 4, 5].map(s => (
+        <div style={{ fontSize: 12, color: '#4B5563', marginBottom: 10, lineHeight: 1.4 }}>
+          <div><strong>Restaurant:</strong> {order?.restaurant?.name || 'QuickBite Partner'}</div>
+          <div><strong>Deliver to:</strong> {order?.deliveryAddress?.desc || order?.deliveryAddress?.fullAddress || 'Indiranagar, Bengaluru'}</div>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, borderTop: '1px solid #F3F4F6', paddingTop: 8 }}>
+          {(order?.items || []).map((it: any, i: number) => (
+            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+              <span style={{ color: '#374151' }}>{it.quantity}x {it.name}</span>
+              <span style={{ fontWeight: 700, color: '#1A1A1A' }}>₹{it.price * (it.quantity || 1)}</span>
+            </div>
+          ))}
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, fontWeight: 900, color: '#4A0A10', borderTop: '1px solid #E5E7EB', paddingTop: 8, marginTop: 4 }}>
+            <span>Total Paid</span>
+            <span>₹{order?.total || 489}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* ─── Review Modal ─── */}
+      {isReviewModalOpen && !isReviewed && (
+        <div
+          className="modal-backdrop"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.6)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: 16,
+          }}
+        >
+          <div
+            style={{
+              background: '#FFFFFF',
+              borderRadius: 20,
+              padding: 20,
+              width: '100%',
+              maxWidth: 380,
+              textAlign: 'center',
+            }}
+          >
+            <div style={{ fontSize: 36, marginBottom: 6 }}>🎉</div>
+            <h3 style={{ fontSize: 18, fontWeight: 900, color: '#4A0A10', margin: '0 0 4px 0' }}>
+              Order Delivered!
+            </h3>
+            <p style={{ fontSize: 12, color: '#6B7280', margin: '0 0 14px 0' }}>
+              How was your experience with {order?.restaurant?.name || 'this order'}?
+            </p>
+
+            {/* Star Rating */}
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginBottom: 14 }}>
+              {[1, 2, 3, 4, 5].map((star) => (
                 <button
-                  key={s}
-                  onClick={() => setRating(s)}
-                  style={{ background: 'none', border: 'none', fontSize: 36, cursor: 'pointer', transform: s <= rating ? 'scale(1.15)' : 'scale(1)', transition: '0.1s' }}
+                  key={star}
+                  type="button"
+                  onClick={() => setRating(star)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    fontSize: 26,
+                    color: star <= rating ? '#F59E0B' : '#D1D5DB',
+                    cursor: 'pointer',
+                    padding: 0,
+                  }}
                 >
-                  {s <= rating ? '⭐' : '☆'}
+                  ★
                 </button>
               ))}
             </div>
 
             <textarea
-              className="input"
-              rows={3}
-              placeholder="What did you love? (e.g. Delicious hot smash burger, crisp fries, superfast delivery!)"
+              placeholder="Tell us what you liked (food quality, delivery speed)..."
               value={reviewComment}
               onChange={e => setReviewComment(e.target.value)}
-              style={{ marginBottom: 20 }}
+              style={{
+                width: '100%',
+                borderRadius: 10,
+                border: '1px solid #D1D5DB',
+                padding: 10,
+                fontSize: 12,
+                marginBottom: 14,
+                outline: 'none',
+                minHeight: 60,
+              }}
             />
 
-            <button
-              className="btn btn-primary w-full"
-              style={{ width: '100%', justifyContent: 'center', padding: '14px', fontSize: 15 }}
-              onClick={handleSubmitReview}
-            >
-              Submit Feedback ⭐
-            </button>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                type="button"
+                onClick={() => setIsReviewModalOpen(false)}
+                style={{
+                  flex: 1,
+                  background: '#F3F4F6',
+                  color: '#4B5563',
+                  border: 'none',
+                  borderRadius: 10,
+                  padding: '9px 0',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                Skip
+              </button>
+              <button
+                type="button"
+                onClick={handleSubmitReview}
+                style={{
+                  flex: 1,
+                  background: '#4A0A10',
+                  color: '#FFFFFF',
+                  border: 'none',
+                  borderRadius: 10,
+                  padding: '9px 0',
+                  fontSize: 12,
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                }}
+              >
+                Submit Review
+              </button>
+            </div>
           </div>
         </div>
       )}

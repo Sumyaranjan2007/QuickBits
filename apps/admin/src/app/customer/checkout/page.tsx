@@ -127,20 +127,67 @@ export default function CustomerCheckoutPage() {
   const handlePlaceOrder = async () => {
     setIsPlacingOrder(true);
     try {
-      const orderPayload = {
-        deliveryAddressId: selectedLocation?.id || 'addr-default',
-        paymentMethod: paymentMethod === 'COD' ? 'CASH_ON_DELIVERY' : 'RAZORPAY',
-        couponId: appliedCoupon?.code,
+      const orderId = `QB-${Math.floor(100000 + Math.random() * 900000)}`;
+      
+      const newOrder = {
+        id: orderId,
+        status: 'PREPARING',
+        total,
+        subtotal,
+        deliveryFee,
+        platformFee,
+        taxes,
+        tip,
+        discountAmount: appliedCoupon?.discountAmount || 0,
+        couponCode: appliedCoupon?.code || null,
+        paymentMethod: paymentMethod === 'COD' ? 'Cash on Delivery (COD)' : paymentMethod === 'UPI' ? 'UPI' : 'Credit / Debit Card',
+        createdAt: new Date().toISOString(),
+        estimatedDeliveryTime: '20-25 mins',
+        restaurant: {
+          id: restaurantId || 'rest-1',
+          name: restaurantName || 'Burger & Co.',
+          address: '100 Feet Road, Indiranagar',
+        },
+        deliveryAddress: selectedLocation || {
+          id: 'addr-default',
+          name: 'Delivery Location',
+          desc: 'Indiranagar, Bengaluru 560038',
+          fullAddress: 'Indiranagar, Bengaluru 560038',
+        },
+        items: items.map(it => ({
+          id: it.menuItemId || `dish-${Date.now()}`,
+          name: it.name,
+          price: it.price,
+          quantity: it.quantity,
+          foodType: it.foodType || 'NON_VEG',
+          imageUrl: it.imageUrl,
+        })),
+        driver: {
+          name: 'Amit Verma',
+          phone: '+91 98765 43210',
+          rating: 4.9,
+          vehicle: 'Hero Electric (KA 03 HK 2910)',
+        },
       };
 
-      let orderId = `QB-${Math.floor(100000 + Math.random() * 900000)}`;
-      try {
-        const res = await ordersApi.create(orderPayload);
-        const d = res.data as any;
-        if (d?.id) orderId = d.id;
-      } catch {
-        // use generated reference ID
+      if (typeof window !== 'undefined') {
+        try {
+          const stored = localStorage.getItem('qb_customer_orders');
+          const list = stored ? JSON.parse(stored) : [];
+          const updated = [newOrder, ...list.filter((o: any) => o.id !== orderId)];
+          localStorage.setItem('qb_customer_orders', JSON.stringify(updated));
+        } catch (e) {
+          console.error('Failed to save order to localStorage', e);
+        }
       }
+
+      try {
+        await ordersApi.create({
+          deliveryAddressId: selectedLocation?.id || 'addr-default',
+          paymentMethod: paymentMethod === 'COD' ? 'CASH_ON_DELIVERY' : 'RAZORPAY',
+          couponId: appliedCoupon?.code,
+        });
+      } catch {}
 
       clearCart();
       router.push(`/customer/order/${orderId}?status=placed&total=${total}`);

@@ -53,6 +53,7 @@ const REFERENCE_RESTAURANTS = [
     id: 'sharief-bhai',
     name: 'Sharief Bhai Biryani',
     tag: 'Best in Biryani',
+    foodType: 'NON_VEG',
     rating: 4.0,
     ratingCount: '3.4K+',
     locality: 'Electronic City, 2.9 km',
@@ -67,6 +68,7 @@ const REFERENCE_RESTAURANTS = [
     id: 'behrouz-biryani',
     name: 'Behrouz Biryani',
     tag: 'Best in Mughlai',
+    foodType: 'NON_VEG',
     rating: 4.1,
     ratingCount: '4.1K+',
     locality: 'Vidyanagar, 2.5 km',
@@ -81,6 +83,7 @@ const REFERENCE_RESTAURANTS = [
     id: 'the-biryani-life',
     name: 'The Biryani Life',
     tag: 'Special Biryani',
+    foodType: 'NON_VEG',
     rating: 4.1,
     ratingCount: '2.2K+',
     locality: 'Vidyanagar, 2.5 km',
@@ -95,10 +98,11 @@ const REFERENCE_RESTAURANTS = [
     id: 'big-bowl',
     name: 'Big Bowl',
     tag: 'Comfort Bowls',
+    foodType: 'BOTH',
     rating: 4.4,
     ratingCount: '1.3K+',
     locality: 'Iggalur, 2.9 km',
-    cuisineType: 'North Indian, Chinese',
+    cuisineType: 'North Indian, Chinese, Paneer',
     priceForTwo: 350,
     avgDeliveryTime: '30-35',
     discountBadge: 'Buy 1 get 1',
@@ -109,6 +113,7 @@ const REFERENCE_RESTAURANTS = [
     id: 'kfc',
     name: 'KFC',
     tag: 'Best in Rolls',
+    foodType: 'NON_VEG',
     rating: 4.1,
     ratingCount: '1.0K+',
     locality: 'Chandapura, 2.3 km',
@@ -123,10 +128,11 @@ const REFERENCE_RESTAURANTS = [
     id: 'chinese-wok',
     name: 'Chinese Wok',
     tag: 'Wok Specialties',
+    foodType: 'BOTH',
     rating: 4.3,
     ratingCount: '1.8K+',
     locality: 'Iggalur, 2.9 km',
-    cuisineType: 'Chinese, Asian',
+    cuisineType: 'Chinese, Asian, Veg Noodles',
     priceForTwo: 250,
     avgDeliveryTime: '30-35',
     discountBadge: 'Buy 1 get 1',
@@ -137,6 +143,7 @@ const REFERENCE_RESTAURANTS = [
     id: 'thalaiva-biryani',
     name: 'Thalaiva Biryani',
     tag: 'Authentic South Indian',
+    foodType: 'NON_VEG',
     rating: 4.1,
     ratingCount: '500+',
     locality: 'Vidyanagar, 2.5 km',
@@ -151,10 +158,11 @@ const REFERENCE_RESTAURANTS = [
     id: 'itminaan-matka',
     name: 'Itminaan Matka Biryani - Slow Cooked',
     tag: 'Claypot Specialty',
+    foodType: 'BOTH',
     rating: 4.2,
     ratingCount: '850+',
     locality: 'Electronic City, 3.1 km',
-    cuisineType: 'Biryani, North Indian',
+    cuisineType: 'Biryani, North Indian, Veg Biryani',
     priceForTwo: 550,
     avgDeliveryTime: '35-45',
     discountBadge: 'Buy 1 get 1',
@@ -165,10 +173,11 @@ const REFERENCE_RESTAURANTS = [
     id: 'pizza-corner',
     name: 'Pizza Corner',
     tag: 'Best in Italian',
+    foodType: 'BOTH',
     rating: 4.4,
     ratingCount: '2.1K+',
     locality: 'Koramangala, 1.8 km',
-    cuisineType: 'Pizza, Fast Food',
+    cuisineType: 'Pizza, Fast Food, Veg Options',
     priceForTwo: 350,
     avgDeliveryTime: '20-25',
     discountBadge: '40% OFF',
@@ -179,10 +188,11 @@ const REFERENCE_RESTAURANTS = [
     id: 'burger-bistro',
     name: 'Burger Bistro',
     tag: 'Gourmet Burgers',
+    foodType: 'BOTH',
     rating: 4.5,
     ratingCount: '3.8K+',
     locality: 'Indiranagar, 2.1 km',
-    cuisineType: 'Burgers, American',
+    cuisineType: 'Burgers, American, Veg Burgers',
     priceForTwo: 300,
     avgDeliveryTime: '15-20',
     discountBadge: '30% OFF',
@@ -226,9 +236,20 @@ export default function CustomerHomePage() {
   const [restaurants, setRestaurants] = useState<any[]>(REFERENCE_RESTAURANTS);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('all');
+  const [vegFilter, setVegFilter] = useState<'ALL' | 'VEG' | 'NON_VEG'>('ALL');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
+
+  const getCuisineString = (val: any): string => {
+    if (!val) return '';
+    if (typeof val === 'string') return val;
+    if (Array.isArray(val)) {
+      return val.map(v => (typeof v === 'string' ? v : v?.name || '')).filter(Boolean).join(', ');
+    }
+    if (typeof val === 'object' && val.name) return String(val.name);
+    return String(val);
+  };
 
   useEffect(() => {
     restaurantsApi.list()
@@ -240,10 +261,11 @@ export default function CustomerHomePage() {
             id: item.id,
             name: item.name,
             tag: idx % 2 === 0 ? 'Best in Biryani' : 'Popular Choice',
-            rating: item.rating || (4.1 + (idx % 4) * 0.1),
+            foodType: idx % 3 === 0 ? 'NON_VEG' : idx % 3 === 1 ? 'VEG' : 'BOTH',
+            rating: typeof item.rating === 'number' ? item.rating : (4.1 + (idx % 4) * 0.1),
             ratingCount: `${(2 + idx * 0.7).toFixed(1)}K+`,
             locality: item.address || 'Koramangala, 2.1 km',
-            cuisineType: item.cuisineType || (idx % 2 === 0 ? 'Biryani, North Indian' : 'Pizza, Fast Food'),
+            cuisineType: getCuisineString(item.cuisineType) || getCuisineString(item.cuisines) || getCuisineString(item.cuisine) || (idx % 2 === 0 ? 'Biryani, North Indian' : 'Pizza, Fast Food'),
             priceForTwo: item.minOrderAmount ? item.minOrderAmount * 2 : 400,
             avgDeliveryTime: `${item.avgDeliveryTime || 25}-${(item.avgDeliveryTime || 25) + 5}`,
             discountBadge: idx === 0 ? '50% OFF' : idx === 1 ? 'Items at ₹189' : 'Buy 1 get 1',
@@ -277,15 +299,40 @@ export default function CustomerHomePage() {
     }
   };
 
+  // Filter restaurants based on Veg Toggle + Tab + Category
   const filteredRestaurants = restaurants.filter(r => {
+    // 1. Veg / Non-Veg Toggle Filter
+    if (vegFilter === 'VEG') {
+      if (r.foodType === 'NON_VEG') return false;
+    } else if (vegFilter === 'NON_VEG') {
+      if (r.foodType === 'VEG') return false;
+    }
+
+    // 2. Tab Filter
     if (activeTab === 'offers' && !r.discountBadge) return false;
     if (activeTab === 'gourmet' && (r.rating < 4.4 && r.priceForTwo < 450)) return false;
-    if (activeTab === 'fast' && parseInt(r.avgDeliveryTime?.split('-')[0] || '30') > 25) return false;
+    if (activeTab === 'pure-veg' && r.foodType === 'NON_VEG') return false;
+    if (activeTab === 'fast' && parseInt(String(r.avgDeliveryTime || '30').split('-')[0] || '30') > 25) return false;
     if (activeTab === 'rating' && r.rating < 4.2) return false;
 
+    // 3. Category Filter
     if (selectedCategory && selectedCategory !== 'more') {
       const cat = selectedCategory.toLowerCase();
-      if (!r.cuisineType?.toLowerCase().includes(cat) && !r.name?.toLowerCase().includes(cat)) {
+      const cType = getCuisineString(r.cuisineType).toLowerCase();
+      const rName = String(r.name || '').toLowerCase();
+      const rTag = String(r.tag || '').toLowerCase();
+
+      const isMatch =
+        cType.includes(cat) ||
+        rName.includes(cat) ||
+        rTag.includes(cat) ||
+        (cat === 'biryani' && (cType.includes('biryani') || rName.includes('biryani') || rTag.includes('biryani'))) ||
+        (cat === 'pizza' && (cType.includes('pizza') || rName.includes('pizza') || cType.includes('italian'))) ||
+        (cat === 'burgers' && (cType.includes('burger') || cType.includes('fast food') || rName.includes('burger') || rName.includes('kfc'))) ||
+        (cat === 'chinese' && (cType.includes('chinese') || cType.includes('asian') || cType.includes('noodles') || rName.includes('bowl'))) ||
+        (cat === 'thalis' && (cType.includes('thali') || cType.includes('north indian') || cType.includes('south indian') || cType.includes('paneer') || rName.includes('bowl')));
+
+      if (!isMatch) {
         return false;
       }
     }
@@ -293,9 +340,49 @@ export default function CustomerHomePage() {
     return true;
   });
 
+  const CRAVING_PLACEHOLDERS = [
+    "Search for 'Biryani'",
+    "Search for 'Pizza'",
+    "Search for 'Burgers'",
+    "Search for 'Butter Chicken'",
+    "Search for 'Dosa'",
+    "Search for 'Chinese'",
+    "Search for 'Thalis'",
+  ];
+  const [placeholderIdx, setPlaceholderIdx] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setPlaceholderIdx(prev => (prev + 1) % CRAVING_PLACEHOLDERS.length);
+    }, 2800);
+    return () => clearInterval(interval);
+  }, [CRAVING_PLACEHOLDERS.length]);
+
+  const handleVoiceSearch = () => {
+    if (typeof window !== 'undefined') {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        try {
+          const recognition = new SpeechRecognition();
+          recognition.lang = 'en-IN';
+          recognition.onresult = (event: any) => {
+            const transcript = event.results[0][0].transcript;
+            setSearchQuery(transcript);
+            router.push(`/customer/search?q=${encodeURIComponent(transcript)}`);
+          };
+          recognition.start();
+          return;
+        } catch (err) {
+          // ignore
+        }
+      }
+      router.push('/customer/search');
+    }
+  };
+
   return (
     <div className="customer-home-screen">
-      {/* ─── 1. Hero Cravings Headline (User Reference Top) ─── */}
+      {/* ─── 1. Hero Cravings Headline ─── */}
       <section className="hero-cravings-section">
         <h1 className="hero-cravings-title">
           WHAT&apos;S YOUR<br />
@@ -304,41 +391,59 @@ export default function CustomerHomePage() {
         <p className="hero-cravings-sub">We&apos;ve got it.</p>
       </section>
 
-      {/* ─── 2. Search Bar & Filter ─── */}
+      {/* ─── 2. Search Bar & VEG Toggle Row (Exact Reference UI) ─── */}
       <section className="search-bar-section">
-        <form onSubmit={handleSearchSubmit} className="search-bar-form">
-          <div className="search-bar-pill">
-            <span className="search-bar-icon">🔍</span>
+        <div className="search-veg-header-row">
+          <form onSubmit={handleSearchSubmit} className="search-input-pill">
+            <span className="search-magnify-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#718096" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+            </span>
             <input
               type="text"
-              className="search-bar-input"
-              placeholder="Search for biryani, pizza, burgers..."
+              className="search-main-input"
+              placeholder={CRAVING_PLACEHOLDERS[placeholderIdx]}
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
             />
-          </div>
+            <div className="search-divider-line" />
+            <button
+              type="button"
+              className="search-mic-btn"
+              onClick={handleVoiceSearch}
+              title="Voice Search"
+              aria-label="Voice Search"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FF5200" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                <line x1="12" y1="19" x2="12" y2="23"/>
+                <line x1="8" y1="23" x2="16" y2="23"/>
+              </svg>
+            </button>
+          </form>
+
+          {/* VEG Toggle Card matching exact reference image */}
           <button
             type="button"
-            className="filter-square-btn"
-            onClick={() => router.push('/customer/search')}
-            title="Filters"
+            className={`header-veg-toggle-card ${vegFilter === 'VEG' ? 'active' : ''}`}
+            onClick={() => setVegFilter(prev => prev === 'VEG' ? 'ALL' : 'VEG')}
+            id="header-veg-toggle"
+            title={vegFilter === 'VEG' ? 'Pure Veg Active (Tap for All)' : 'Tap for Pure Veg'}
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="2.5" strokeLinecap="round">
-              <line x1="4" y1="21" x2="4" y2="14" />
-              <line x1="4" y1="10" x2="4" y2="3" />
-              <line x1="12" y1="21" x2="12" y2="12" />
-              <line x1="12" y1="8" x2="12" y2="3" />
-              <line x1="20" y1="21" x2="20" y2="16" />
-              <line x1="20" y1="12" x2="20" y2="3" />
-              <line x1="1" y1="14" x2="7" y2="14" />
-              <line x1="9" y1="8" x2="15" y2="8" />
-              <line x1="17" y1="16" x2="23" y2="16" />
-            </svg>
+            <span className="header-veg-label">VEG</span>
+            <div className={`header-veg-switch-track ${vegFilter === 'VEG' ? 'on' : ''}`}>
+              <div className="header-veg-switch-knob">
+                <div className="veg-indicator-dot" />
+              </div>
+            </div>
           </button>
-        </form>
+        </div>
       </section>
 
-      {/* ─── 3. Food Category Circular Strip ─── */}
+      {/* ─── 4. Food Category Circular Strip ─── */}
       <section className="food-categories-section">
         <div className="category-scroll-row">
           {FOOD_CATEGORIES.map(cat => {
@@ -347,7 +452,16 @@ export default function CustomerHomePage() {
               <div
                 key={cat.id}
                 className={`category-item-col ${isSelected ? 'active' : ''}`}
-                onClick={() => setSelectedCategory(isSelected ? null : cat.id)}
+                onClick={() => {
+                  if (cat.isMore) {
+                    router.push('/customer/search');
+                  } else {
+                    setSelectedCategory(isSelected ? null : cat.id);
+                  }
+                }}
+                id={`cat-item-${cat.id}`}
+                role="button"
+                tabIndex={0}
               >
                 <div className="category-circle-box">
                   {cat.isMore ? (
@@ -372,7 +486,7 @@ export default function CustomerHomePage() {
         </div>
       </section>
 
-      {/* ─── 4. HOT DEALS 🔥 Promotional Banner ─── */}
+      {/* ─── 5. HOT DEALS 🔥 Promotional Banner ─── */}
       <section className="hot-deals-banner-section">
         <div className="hot-deals-banner-card">
           <div className="hot-deals-left">
@@ -400,7 +514,7 @@ export default function CustomerHomePage() {
         </div>
       </section>
 
-      {/* ─── 5. Sub-Tabs Filter Row ─── */}
+      {/* ─── 6. Sub-Tabs Filter Row ─── */}
       <section className="feed-filter-bar">
         <div className="feed-filter-scroll-row">
           {FILTER_TABS.map(tab => {
@@ -420,10 +534,12 @@ export default function CustomerHomePage() {
         </div>
       </section>
 
-      {/* ─── 6. Vertical Restaurant Feed (Replaces Bottom Ads) ─── */}
+      {/* ─── 7. Vertical Restaurant Feed ─── */}
       <section className="restaurant-vertical-feed-section">
         <div className="section-header-row" style={{ padding: '0 2px 8px' }}>
-          <h2 className="section-title">Popular Restaurants</h2>
+          <h2 className="section-title">
+            {vegFilter === 'VEG' ? 'Pure Veg Restaurants' : vegFilter === 'NON_VEG' ? 'Non-Veg Specialties' : 'Popular Restaurants'}
+          </h2>
           <Link href="/customer/search" className="section-see-all-link">
             See all
           </Link>
@@ -490,12 +606,31 @@ export default function CustomerHomePage() {
 
                   {/* Restaurant Info Details */}
                   <div className="rest-feed-body">
-                    {rest.tag && (
-                      <div className="rest-feed-tag">
-                        <span>👑</span>
-                        <span>{rest.tag}</span>
-                      </div>
-                    )}
+                    <div className="rest-feed-top-tag-row">
+                      {rest.tag && (
+                        <div className="rest-feed-tag">
+                          <span>👑</span>
+                          <span>{rest.tag}</span>
+                        </div>
+                      )}
+                      {rest.foodType === 'VEG' && (
+                        <span className="food-type-chip veg-chip">
+                          <span className="food-symbol-square veg-symbol mini">
+                            <span className="food-symbol-circle mini" />
+                          </span>
+                          <span>Pure Veg</span>
+                        </span>
+                      )}
+                      {rest.foodType === 'NON_VEG' && (
+                        <span className="food-type-chip nonveg-chip">
+                          <span className="food-symbol-square nonveg-symbol mini">
+                            <span className="food-symbol-triangle mini" />
+                          </span>
+                          <span>Non-Veg</span>
+                        </span>
+                      )}
+                    </div>
+
                     <div className="rest-feed-name-row">
                       <h3 className="rest-feed-name">{rest.name}</h3>
                     </div>
@@ -599,12 +734,31 @@ export default function CustomerHomePage() {
                   </div>
 
                   <div className="rest-feed-body">
-                    {rest.tag && (
-                      <div className="rest-feed-tag">
-                        <span>👑</span>
-                        <span>{rest.tag}</span>
-                      </div>
-                    )}
+                    <div className="rest-feed-top-tag-row">
+                      {rest.tag && (
+                        <div className="rest-feed-tag">
+                          <span>👑</span>
+                          <span>{rest.tag}</span>
+                        </div>
+                      )}
+                      {rest.foodType === 'VEG' && (
+                        <span className="food-type-chip veg-chip">
+                          <span className="food-symbol-square veg-symbol mini">
+                            <span className="food-symbol-circle mini" />
+                          </span>
+                          <span>Pure Veg</span>
+                        </span>
+                      )}
+                      {rest.foodType === 'NON_VEG' && (
+                        <span className="food-type-chip nonveg-chip">
+                          <span className="food-symbol-square nonveg-symbol mini">
+                            <span className="food-symbol-triangle mini" />
+                          </span>
+                          <span>Non-Veg</span>
+                        </span>
+                      )}
+                    </div>
+
                     <div className="rest-feed-name-row">
                       <h3 className="rest-feed-name">{rest.name}</h3>
                     </div>
@@ -632,7 +786,7 @@ export default function CustomerHomePage() {
         </div>
       </section>
 
-      {/* ─── 7. Floating Search Pill Button ─── */}
+      {/* ─── 8. Floating Search Pill Button ─── */}
       <button
         type="button"
         className="feed-floating-search-btn"
