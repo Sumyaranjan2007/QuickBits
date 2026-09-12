@@ -320,22 +320,38 @@ export default function CustomerOrdersPage() {
                 </div>
 
                 {/* Action Buttons */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 10, borderTop: '1px solid #F3F4F6' }}>
-                  <button
-                    type="button"
-                    onClick={() => setInvoiceOrder(order)}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      fontSize: 11,
-                      fontWeight: 700,
-                      color: '#4A0A10',
-                      cursor: 'pointer',
-                      padding: 0,
-                    }}
-                  >
-                    📄 View Bill Details
-                  </button>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 10, borderTop: '1px solid #F3F4F6', flexWrap: 'wrap', gap: 6 }}>
+                  <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                    <button
+                      type="button"
+                      onClick={() => setInvoiceOrder(order)}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        fontSize: 11,
+                        fontWeight: 700,
+                        color: '#4A0A10',
+                        cursor: 'pointer',
+                        padding: 0,
+                      }}
+                    >
+                      📄 Bill Details
+                    </button>
+                    <Link
+                      href={`/customer/help?orderId=${order.id}`}
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 700,
+                        color: '#EA580C',
+                        textDecoration: 'none',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 2,
+                      }}
+                    >
+                      🎧 Need Help?
+                    </Link>
+                  </div>
 
                   <div style={{ display: 'flex', gap: 8 }}>
                     {isLive ? (

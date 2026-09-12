@@ -251,9 +251,29 @@ export default function CustomerOrderTrackingPage() {
           ← Orders
         </button>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#0E9F6E', display: 'inline-block', boxShadow: '0 0 0 3px rgba(14, 159, 110, 0.2)' }} />
-          <span style={{ fontSize: 12, fontWeight: 800, color: '#0E9F6E' }}>LIVE TRACKING</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Link
+            href={`/customer/help?orderId=${orderId}`}
+            style={{
+              background: '#FFF7ED',
+              border: '1px solid #FFEDD5',
+              borderRadius: 12,
+              padding: '6px 10px',
+              fontSize: 11.5,
+              fontWeight: 800,
+              color: '#EA580C',
+              textDecoration: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+            }}
+          >
+            🎧 Help & Refund
+          </Link>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#ECFDF5', padding: '6px 10px', borderRadius: 12, border: '1px solid #A7F3D0' }}>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#0E9F6E', display: 'inline-block', boxShadow: '0 0 0 3px rgba(14, 159, 110, 0.2)' }} />
+            <span style={{ fontSize: 11, fontWeight: 800, color: '#0E9F6E' }}>LIVE</span>
+          </div>
         </div>
       </div>
 

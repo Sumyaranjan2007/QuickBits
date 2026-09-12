@@ -14,7 +14,7 @@ export default function CustomerProfilePage() {
     removeAddress,
   } = useLocation();
 
-  const [activeTab, setActiveTab] = useState<'profile' | 'addresses' | 'wallet' | 'gold' | 'referral'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'addresses' | 'wallet' | 'gold' | 'referral' | 'help'>('profile');
   
   // Profile form state with localStorage sync
   const [firstName, setFirstName] = useState('Rahul');
@@ -183,6 +183,7 @@ export default function CustomerProfilePage() {
           { id: 'wallet', label: '👛 Wallet' },
           { id: 'gold', label: '👑 Gold' },
           { id: 'referral', label: '🎁 Refer' },
+          { id: 'help', label: '🎧 Help & Refunds' },
         ].map(tab => (
           <button
             key={tab.id}
@@ -659,6 +660,132 @@ export default function CustomerProfilePage() {
               >
                 💬 WhatsApp
               </a>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── 6. Help & Refunds Tab ─── */}
+      {activeTab === 'help' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {/* Main Resolution Hub Card */}
+          <div
+            style={{
+              background: '#FFFFFF',
+              borderRadius: 20,
+              border: '1px solid #EADBCE',
+              padding: 16,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+              <div style={{ width: 44, height: 44, borderRadius: '50%', background: '#FFF7ED', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>
+                ⚡
+              </div>
+              <div>
+                <h3 style={{ fontSize: 16, fontWeight: 900, color: '#4A0A10', margin: 0 }}>
+                  Refund & Issue Resolution
+                </h3>
+                <p style={{ fontSize: 11.5, color: '#6B7280', margin: 0 }}>
+                  Instant wallet refunds, order queries & 24x7 support
+                </p>
+              </div>
+            </div>
+
+            <div
+              style={{
+                background: '#F9FAFB',
+                borderRadius: 14,
+                padding: '12px 14px',
+                marginBottom: 14,
+                border: '1px solid #E5E7EB',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 8,
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                <span style={{ color: '#4B5563' }}>Current QuickBite Wallet:</span>
+                <span style={{ fontWeight: 900, color: '#0E9F6E', fontSize: 14 }}>₹{walletBalance}</span>
+              </div>
+              <div style={{ fontSize: 11, color: '#6B7280' }}>
+                💡 Refunds credited to wallet include an extra <strong>5% instant bonus</strong> and can be used on any future order!
+              </div>
+            </div>
+
+            <Link
+              href="/customer/help"
+              style={{
+                display: 'block',
+                background: '#4A0A10',
+                color: '#FFFFFF',
+                borderRadius: 12,
+                padding: '12px 0',
+                fontSize: 13,
+                fontWeight: 900,
+                textAlign: 'center',
+                textDecoration: 'none',
+                boxShadow: '0 4px 12px rgba(74, 10, 16, 0.2)',
+              }}
+            >
+              Open Help & Instant Refund Center ⚡
+            </Link>
+          </div>
+
+          {/* Direct Support Channels */}
+          <div
+            style={{
+              background: '#FFFFFF',
+              borderRadius: 20,
+              border: '1px solid #EADBCE',
+              padding: 16,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
+            }}
+          >
+            <div style={{ fontSize: 13.5, fontWeight: 900, color: '#1F2937', marginBottom: 12 }}>
+              Quick Contact Support
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <a
+                href="tel:18004192483"
+                style={{
+                  background: '#ECFDF5',
+                  border: '1px solid #A7F3D0',
+                  borderRadius: 12,
+                  padding: '12px',
+                  textDecoration: 'none',
+                  textAlign: 'center',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 4,
+                }}
+              >
+                <span style={{ fontSize: 20 }}>📞</span>
+                <span style={{ fontSize: 12, fontWeight: 800, color: '#065F46' }}>Call 24x7</span>
+                <span style={{ fontSize: 10, color: '#047857' }}>1800-419-BITE</span>
+              </a>
+
+              <Link
+                href="/customer/help?tab=chat"
+                style={{
+                  background: '#EFF6FF',
+                  border: '1px solid #BFDBFE',
+                  borderRadius: 12,
+                  padding: '12px',
+                  textDecoration: 'none',
+                  textAlign: 'center',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 4,
+                }}
+              >
+                <span style={{ fontSize: 20 }}>🤖</span>
+                <span style={{ fontSize: 12, fontWeight: 800, color: '#1E40AF' }}>Live Chat</span>
+                <span style={{ fontSize: 10, color: '#2563EB' }}>Instant reply</span>
+              </Link>
             </div>
           </div>
         </div>

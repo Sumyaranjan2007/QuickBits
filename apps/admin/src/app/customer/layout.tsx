@@ -104,43 +104,56 @@ function CustomerMobileHeader({
           </div>
         </button>
 
-        {/* Notification Bell */}
-        <div style={{ position: 'relative' }}>
-          <button
-            type="button"
+        {/* Header Action Buttons: Help & Notifications */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {/* Help & Support Button */}
+          <Link
+            href="/customer/help"
             className="header-bell-btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsNotificationOpen(!isNotificationOpen);
-            }}
+            title="Help & Refunds"
+            style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1A1A1A" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-              <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-            </svg>
-            {unreadCount > 0 && (
-              <span className="bell-badge">{unreadCount}</span>
-            )}
-          </button>
+            <span style={{ fontSize: 16 }}>🎧</span>
+          </Link>
 
-          {/* Notifications Dropdown */}
-          {isNotificationOpen && (
-            <div className="notifications-dropdown" onClick={(e) => e.stopPropagation()}>
-              <div className="notif-header">
-                <span className="notif-title">Notifications</span>
-                <button type="button" onClick={markAllNotificationsRead} className="notif-mark-btn">Mark all read</button>
+          {/* Notification Bell */}
+          <div style={{ position: 'relative' }}>
+            <button
+              type="button"
+              className="header-bell-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsNotificationOpen(!isNotificationOpen);
+              }}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1A1A1A" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+              </svg>
+              {unreadCount > 0 && (
+                <span className="bell-badge">{unreadCount}</span>
+              )}
+            </button>
+
+            {/* Notifications Dropdown */}
+            {isNotificationOpen && (
+              <div className="notifications-dropdown" onClick={(e) => e.stopPropagation()}>
+                <div className="notif-header">
+                  <span className="notif-title">Notifications</span>
+                  <button type="button" onClick={markAllNotificationsRead} className="notif-mark-btn">Mark all read</button>
+                </div>
+                <div className="notif-list">
+                  {notifications.map((n: any) => (
+                    <div key={n.id} className={`notif-item ${n.isRead ? 'read' : 'unread'}`}>
+                      <div className="notif-item-title">{n.title}</div>
+                      <div className="notif-item-body">{n.body}</div>
+                      <div className="notif-item-time">{n.time}</div>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div className="notif-list">
-                {notifications.map((n: any) => (
-                  <div key={n.id} className={`notif-item ${n.isRead ? 'read' : 'unread'}`}>
-                    <div className="notif-item-title">{n.title}</div>
-                    <div className="notif-item-body">{n.body}</div>
-                    <div className="notif-item-time">{n.time}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </header>
