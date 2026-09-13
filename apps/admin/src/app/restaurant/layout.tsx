@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '../../context/AuthContext';
 import { restaurantsApi } from '@quickbite/api-client';
 import { OrderSoundAlertProvider } from '../../context/OrderSoundAlertContext';
-import { NewOrderAlertModal, AudioUnlockBanner } from '../../components/NewOrderAlertModal';
+import { NewOrderAlertModal, AudioUnlockBanner, PendingOrderWaitingBanner } from '../../components/NewOrderAlertModal';
 
 const MAIN_NAV = [
   { icon: '🏠', label: 'Dashboard', href: '/restaurant' },
@@ -261,8 +261,9 @@ export default function RestaurantLayout({ children }: { children: React.ReactNo
   return (
     <OrderSoundAlertProvider>
       <div className="app-layout" data-theme="restaurant" style={{ background: '#FAF6EF', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-        {/* Floating Sound Alerts and Autoplay Unlock Banner */}
+        {/* Floating Sound Alerts, Waiting Order Banner and Autoplay Unlock Banner */}
         <AudioUnlockBanner />
+        <PendingOrderWaitingBanner />
         <NewOrderAlertModal />
 
         {/* ─── Desktop Collapsible Sidebar (240px expanded / 72px collapsed) ─── */}

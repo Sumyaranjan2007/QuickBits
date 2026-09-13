@@ -17,9 +17,14 @@ export default function RestaurantSettingsPage() {
     setSoundEnabled,
     volume,
     setVolume,
+    alertDuration,
+    setAlertDuration,
     repeatReminder,
     setRepeatReminder,
+    isPlayingAlert,
+    remainingAlertSeconds,
     testSound,
+    stopSound,
     notificationPermission,
     requestBrowserNotificationPermission,
   } = useOrderSoundAlert();
@@ -489,6 +494,52 @@ export default function RestaurantSettingsPage() {
               </div>
             </div>
 
+            {/* Alert Duration Control (Enforced >= 15 Seconds) */}
+            <div
+              style={{
+                background: '#FAF6EF',
+                padding: '16px',
+                borderRadius: 12,
+                border: '1px solid #EAE0D0',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 800, color: '#171717' }}>
+                  Alert Duration (Minimum 15 Seconds)
+                </div>
+                <div style={{ fontSize: 11, color: '#6F6F6F', marginTop: 2 }}>
+                  Guarantees sound rings continuously for busy restaurant counters
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                {[15, 20, 30].map(secs => (
+                  <button
+                    key={secs}
+                    onClick={() => {
+                      setAlertDuration(secs);
+                      showToast(`Alert duration set to ${secs}s!`);
+                    }}
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: 8,
+                      border: alertDuration === secs ? '2px solid #4A0A10' : '1px solid #EAE0D0',
+                      background: alertDuration === secs ? '#4A0A10' : '#FFFFFF',
+                      color: alertDuration === secs ? '#FFFFFF' : '#171717',
+                      fontSize: 12,
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {secs}s
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* Repeat Reminder & Test Sound Buttons */}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', justifyContent: 'space-between' }}>
               <label
@@ -511,34 +562,38 @@ export default function RestaurantSettingsPage() {
                   }}
                   style={{ width: 18, height: 18, accentColor: '#4A0A10' }}
                 />
-                <span>Repeat reminder every 20s while order is PENDING</span>
+                <span>Repeat reminder every 30s while order is PENDING</span>
               </label>
 
-              {/* TEST SOUND BUTTON */}
-              <button
-                onClick={testSound}
-                id="test-sound-btn"
-                style={{
-                  padding: '10px 18px',
-                  borderRadius: 10,
-                  border: 'none',
-                  background: '#FFB21A',
-                  color: '#4A0A10',
-                  fontSize: 13,
-                  fontWeight: 900,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  boxShadow: '0 2px 8px rgba(255, 178, 26, 0.35)',
-                  transition: 'transform 0.15s ease',
-                }}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)'; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(0)'; }}
-              >
-                <span>🔔</span>
-                <span>TEST SOUND</span>
-              </button>
+              {/* TEST ORDER SOUND BUTTON (15 SECONDS) */}
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  onClick={testSound}
+                  id="test-sound-btn"
+                  style={{
+                    padding: '10px 18px',
+                    borderRadius: 10,
+                    border: 'none',
+                    background: isPlayingAlert ? '#D64545' : '#FFB21A',
+                    color: isPlayingAlert ? '#FFFFFF' : '#4A0A10',
+                    fontSize: 13,
+                    fontWeight: 900,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <span>{isPlayingAlert ? '⏹️' : '🔔'}</span>
+                  <span>
+                    {isPlayingAlert
+                      ? `STOP ALERT (${remainingAlertSeconds}s left)`
+                      : `TEST ORDER SOUND (${alertDuration}s)`}
+                  </span>
+                </button>
+              </div>
             </div>
           </div>
 

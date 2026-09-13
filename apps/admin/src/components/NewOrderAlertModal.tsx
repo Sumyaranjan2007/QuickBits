@@ -50,7 +50,7 @@ export function AudioUnlockBanner() {
         <div>
           <div style={{ fontSize: 14, fontWeight: 800, color: '#FFFFFF' }}>Enable New Order Alerts</div>
           <div style={{ fontSize: 12, color: '#F0D4CB', marginTop: 2 }}>
-            Allow audio chime so you never miss new incoming orders.
+            Allow 15-second audio alert so you never miss new incoming orders.
           </div>
         </div>
       </div>
@@ -92,14 +92,94 @@ export function AudioUnlockBanner() {
   );
 }
 
+// Persistent Mini Bar when an order is still PENDING after modal dismiss or 15s alert finish
+export function PendingOrderWaitingBanner() {
+  const router = useRouter();
+  const { pendingAlertOrders, isAlertModalOpen, acceptOrderFromAlert } = useOrderSoundAlert();
+
+  if (isAlertModalOpen || pendingAlertOrders.length === 0) return null;
+
+  const count = pendingAlertOrders.length;
+  const topOrder = pendingAlertOrders[0];
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        top: 80,
+        right: 24,
+        background: '#4A0A10',
+        color: '#FFFFFF',
+        borderRadius: 14,
+        padding: '12px 18px',
+        boxShadow: '0 8px 24px rgba(74, 10, 16, 0.3)',
+        zIndex: 9000,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 14,
+        border: '1px solid #FFB21A',
+        animation: 'slideInRight 0.3s ease-out',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <span style={{ fontSize: 20 }}>🔔</span>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 900, color: '#FFB21A' }}>
+            {count === 1 ? 'NEW ORDER WAITING' : `${count} NEW ORDERS WAITING`}
+          </div>
+          <div style={{ fontSize: 12, color: '#FFF' }}>
+            #{topOrder.id} · ₹{topOrder.total} ({topOrder.itemsCount} items)
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', gap: 6 }}>
+        <button
+          onClick={() => router.push('/restaurant/orders')}
+          style={{
+            padding: '6px 12px',
+            borderRadius: 8,
+            border: '1px solid #FFFFFF',
+            background: 'transparent',
+            color: '#FFFFFF',
+            fontSize: 12,
+            fontWeight: 700,
+            cursor: 'pointer',
+          }}
+        >
+          View
+        </button>
+        <button
+          onClick={() => acceptOrderFromAlert(topOrder.id)}
+          style={{
+            padding: '6px 14px',
+            borderRadius: 8,
+            border: 'none',
+            background: '#FFB21A',
+            color: '#4A0A10',
+            fontSize: 12,
+            fontWeight: 900,
+            cursor: 'pointer',
+          }}
+        >
+          Accept
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function NewOrderAlertModal() {
   const router = useRouter();
   const {
     pendingAlertOrders,
     isAlertModalOpen,
+    isPlayingAlert,
+    remainingAlertSeconds,
     dismissAlertModal,
     acceptOrderFromAlert,
     rejectOrderFromAlert,
+    stopSound,
   } = useOrderSoundAlert();
 
   const [rejectingOrderId, setRejectingOrderId] = useState<string | null>(null);
@@ -134,8 +214,8 @@ export function NewOrderAlertModal() {
       style={{
         position: 'fixed',
         inset: 0,
-        background: 'rgba(0, 0, 0, 0.65)',
-        backdropFilter: 'blur(4px)',
+        background: 'rgba(0, 0, 0, 0.7)',
+        backdropFilter: 'blur(5px)',
         zIndex: 99999,
         display: 'flex',
         alignItems: 'center',
@@ -147,72 +227,118 @@ export function NewOrderAlertModal() {
       <div
         style={{
           width: '100%',
-          maxWidth: 480,
+          maxWidth: 490,
           background: '#FFFFFF',
-          borderRadius: 20,
+          borderRadius: 22,
           border: '2px solid #4A0A10',
-          boxShadow: '0 20px 60px rgba(74, 10, 16, 0.35)',
+          boxShadow: '0 25px 70px rgba(74, 10, 16, 0.4)',
           overflow: 'hidden',
           animation: 'popIn 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
         }}
         onClick={e => e.stopPropagation()}
       >
-        {/* Header with Brand Palette */}
+        {/* Header with Brand Palette & 15-Second Audio Indicator */}
         <div
           style={{
             background: '#4A0A10',
             color: '#FFFFFF',
-            padding: '18px 24px',
+            padding: '20px 24px',
             display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
+            flexDirection: 'column',
+            gap: 12,
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div
+                style={{
+                  width: 46,
+                  height: 46,
+                  borderRadius: 14,
+                  background: '#FFB21A',
+                  color: '#4A0A10',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 26,
+                  animation: 'bellShake 1.1s infinite ease-in-out',
+                  boxShadow: '0 0 20px rgba(255, 178, 26, 0.6)',
+                }}
+              >
+                🔔
+              </div>
+              <div>
+                <div style={{ fontSize: 19, fontWeight: 900, color: '#FFFFFF', letterSpacing: 0.2 }}>
+                  {orderCount === 1 ? 'NEW ORDER RECEIVED' : `${orderCount} NEW ORDERS RECEIVED!`}
+                </div>
+                <div style={{ fontSize: 12, color: '#FFB21A', fontWeight: 700, marginTop: 2 }}>
+                  Action required: Confirm order to start prep
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={dismissAlertModal}
               style={{
-                width: 44,
-                height: 44,
-                borderRadius: 12,
-                background: '#FFB21A',
-                color: '#4A0A10',
+                background: 'rgba(255,255,255,0.15)',
+                border: 'none',
+                width: 32,
+                height: 32,
+                borderRadius: 16,
+                color: '#FFFFFF',
+                fontSize: 14,
+                cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: 24,
-                animation: 'bellShake 1.2s infinite ease-in-out',
+              }}
+              title="Close Alert"
+            >
+              ✕
+            </button>
+          </div>
+
+          {/* 15-Second Continuous Sound Status Banner */}
+          {isPlayingAlert ? (
+            <div
+              style={{
+                background: 'rgba(255, 178, 26, 0.15)',
+                border: '1px solid rgba(255, 178, 26, 0.4)',
+                borderRadius: 10,
+                padding: '8px 12px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                fontSize: 12,
+                fontWeight: 800,
+                color: '#FFB21A',
               }}
             >
-              🔔
-            </div>
-            <div>
-              <div style={{ fontSize: 18, fontWeight: 900, color: '#FFFFFF', letterSpacing: 0.2 }}>
-                {orderCount === 1 ? 'NEW ORDER RECEIVED' : `${orderCount} NEW ORDERS RECEIVED!`}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span className="audio-pulse-dot" style={{ width: 8, height: 8, borderRadius: 4, background: '#FFB21A' }} />
+                <span>🔊 Alert Ringing ({remainingAlertSeconds}s remaining)</span>
               </div>
-              <div style={{ fontSize: 12, color: '#FFB21A', fontWeight: 600, marginTop: 2 }}>
-                Action required: Confirm order to start prep
-              </div>
+              <button
+                onClick={stopSound}
+                style={{
+                  background: 'rgba(255,255,255,0.2)',
+                  border: 'none',
+                  color: '#FFFFFF',
+                  padding: '2px 8px',
+                  borderRadius: 6,
+                  fontSize: 11,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                Mute Chime
+              </button>
             </div>
-          </div>
-          <button
-            onClick={dismissAlertModal}
-            style={{
-              background: 'rgba(255,255,255,0.15)',
-              border: 'none',
-              width: 32,
-              height: 32,
-              borderRadius: 16,
-              color: '#FFFFFF',
-              fontSize: 14,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-            title="Close Alert"
-          >
-            ✕
-          </button>
+          ) : (
+            <div style={{ fontSize: 11, color: '#E5A5A5' }}>
+              ⚠️ Sound alert finished (15s). Order is waiting for your confirmation.
+            </div>
+          )}
         </div>
 
         {/* Order Details Body */}
@@ -221,7 +347,7 @@ export function NewOrderAlertModal() {
           <div
             style={{
               background: '#FFFFFF',
-              borderRadius: 14,
+              borderRadius: 16,
               padding: '18px',
               border: '1px solid #EAE0D0',
               boxShadow: '0 4px 14px rgba(0,0,0,0.04)',
@@ -229,7 +355,7 @@ export function NewOrderAlertModal() {
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
               <div>
-                <div style={{ fontSize: 20, fontWeight: 900, color: '#4A0A10' }}>
+                <div style={{ fontSize: 22, fontWeight: 900, color: '#4A0A10' }}>
                   #{activeOrder.id}
                 </div>
                 <div style={{ fontSize: 13, color: '#6F6F6F', marginTop: 2 }}>
@@ -251,7 +377,7 @@ export function NewOrderAlertModal() {
               </span>
             </div>
 
-            {/* Quick Metrics Grid */}
+            {/* Metrics */}
             <div
               style={{
                 display: 'grid',
@@ -269,7 +395,7 @@ export function NewOrderAlertModal() {
               </div>
               <div>
                 <div style={{ fontSize: 11, color: '#6F6F6F' }}>Total</div>
-                <div style={{ fontSize: 15, fontWeight: 900, color: '#20A464' }}>₹{activeOrder.total}</div>
+                <div style={{ fontSize: 16, fontWeight: 900, color: '#20A464' }}>₹{activeOrder.total}</div>
               </div>
               <div>
                 <div style={{ fontSize: 11, color: '#6F6F6F' }}>Payment</div>
@@ -277,7 +403,7 @@ export function NewOrderAlertModal() {
               </div>
             </div>
 
-            {/* Item Preview list */}
+            {/* Items list */}
             {activeOrder.items && activeOrder.items.length > 0 && (
               <div style={{ borderTop: '1px solid #F0E8DC', paddingTop: 10 }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: '#888', marginBottom: 6, textTransform: 'uppercase' }}>
@@ -300,7 +426,7 @@ export function NewOrderAlertModal() {
             )}
           </div>
 
-          {/* Multiple Orders Stack indicator */}
+          {/* Multiple Orders Queue indicator */}
           {orderCount > 1 && (
             <div
               style={{
@@ -316,14 +442,14 @@ export function NewOrderAlertModal() {
                 justifyContent: 'space-between',
               }}
             >
-              <span>+ {orderCount - 1} more order(s) in queue:</span>
+              <span>+ {orderCount - 1} more order(s) waiting:</span>
               <span style={{ fontSize: 11, color: '#6F6F6F' }}>
                 {pendingAlertOrders.slice(1).map(o => `#${o.id}`).join(', ')}
               </span>
             </div>
           )}
 
-          {/* Reject Reason Selector when clicking Reject */}
+          {/* Reject Reason Selector */}
           {rejectingOrderId === activeOrder.id ? (
             <div
               style={{
@@ -476,10 +602,10 @@ export function NewOrderAlertModal() {
       <style jsx>{`
         @keyframes bellShake {
           0%, 100% { transform: rotate(0deg); }
-          20% { transform: rotate(-15deg); }
-          40% { transform: rotate(15deg); }
-          60% { transform: rotate(-8deg); }
-          80% { transform: rotate(8deg); }
+          20% { transform: rotate(-16deg); }
+          40% { transform: rotate(16deg); }
+          60% { transform: rotate(-10deg); }
+          80% { transform: rotate(10deg); }
         }
         @keyframes popIn {
           0% { transform: scale(0.9); opacity: 0; }
@@ -488,6 +614,17 @@ export function NewOrderAlertModal() {
         @keyframes slideInUp {
           0% { transform: translateY(20px); opacity: 0; }
           100% { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes slideInRight {
+          0% { transform: translateX(30px); opacity: 0; }
+          100% { transform: translateX(0); opacity: 1; }
+        }
+        .audio-pulse-dot {
+          animation: pulse 1s infinite alternate;
+        }
+        @keyframes pulse {
+          0% { transform: scale(0.8); opacity: 0.6; }
+          100% { transform: scale(1.4); opacity: 1; }
         }
       `}</style>
     </div>
