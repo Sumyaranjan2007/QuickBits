@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '../../context/AuthContext';
 import { restaurantsApi } from '@quickbite/api-client';
+import { OrderSoundAlertProvider } from '../../context/OrderSoundAlertContext';
+import { NewOrderAlertModal, AudioUnlockBanner } from '../../components/NewOrderAlertModal';
 
 const MAIN_NAV = [
   { icon: '🏠', label: 'Dashboard', href: '/restaurant' },
@@ -257,8 +259,13 @@ export default function RestaurantLayout({ children }: { children: React.ReactNo
   const badgeStyle = getStatusBadgeStyle();
 
   return (
-    <div className="app-layout" data-theme="restaurant" style={{ background: '#FAF6EF', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      {/* ─── Desktop Collapsible Sidebar (240px expanded / 72px collapsed) ─── */}
+    <OrderSoundAlertProvider>
+      <div className="app-layout" data-theme="restaurant" style={{ background: '#FAF6EF', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+        {/* Floating Sound Alerts and Autoplay Unlock Banner */}
+        <AudioUnlockBanner />
+        <NewOrderAlertModal />
+
+        {/* ─── Desktop Collapsible Sidebar (240px expanded / 72px collapsed) ─── */}
       <aside
         className="sidebar hide-mobile"
         style={{
@@ -1077,5 +1084,6 @@ export default function RestaurantLayout({ children }: { children: React.ReactNo
         }
       `}</style>
     </div>
-  );
+  </OrderSoundAlertProvider>
+);
 }

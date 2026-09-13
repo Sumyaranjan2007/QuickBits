@@ -1,5 +1,6 @@
 'use client';
 import React, { useState } from 'react';
+import { useOrderSoundAlert } from '../../../context/OrderSoundAlertContext';
 
 const STAFF_ROLES = ['Store Manager', 'Kitchen Chef', 'Cashier', 'Order Handler'];
 
@@ -11,6 +12,18 @@ const DEMO_STAFF = [
 ];
 
 export default function RestaurantSettingsPage() {
+  const {
+    soundEnabled,
+    setSoundEnabled,
+    volume,
+    setVolume,
+    repeatReminder,
+    setRepeatReminder,
+    testSound,
+    notificationPermission,
+    requestBrowserNotificationPermission,
+  } = useOrderSoundAlert();
+
   const [activeTab, setActiveTab] = useState<'STAFF' | 'AI' | 'NOTIFICATIONS' | 'ACCOUNT'>('STAFF');
   const [staffList, setStaffList] = useState(DEMO_STAFF);
   const [inviteModal, setInviteModal] = useState(false);
@@ -356,25 +369,254 @@ export default function RestaurantSettingsPage() {
 
       {/* ─── TAB 3: NOTIFICATIONS ─── */}
       {activeTab === 'NOTIFICATIONS' && (
-        <div
-          style={{
-            background: '#FFFFFF',
-            borderRadius: 16,
-            border: '1px solid #EAE0D0',
-            padding: '24px',
-            maxWidth: 600,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 16,
-          }}
-        >
-          <h3 style={{ fontSize: 18, fontWeight: 900, color: '#171717', margin: 0 }}>
-            Sound & Push Alert Preferences
-          </h3>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 640 }}>
+          {/* 1. Core New Order Sound Alert Card */}
+          <div
+            style={{
+              background: '#FFFFFF',
+              borderRadius: 16,
+              border: '2px solid #4A0A10',
+              padding: '24px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 18,
+              boxShadow: '0 4px 16px rgba(74, 10, 16, 0.08)',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 12,
+                    background: '#4A0A10',
+                    color: '#FFB21A',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 22,
+                  }}
+                >
+                  🔔
+                </div>
+                <div>
+                  <h3 style={{ fontSize: 17, fontWeight: 900, color: '#171717', margin: 0 }}>
+                    New Order Sound Alert
+                  </h3>
+                  <p style={{ fontSize: 12, color: '#6F6F6F', margin: '3px 0 0' }}>
+                    Instant attention-grabbing chime whenever a customer places an order
+                  </p>
+                </div>
+              </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {/* Sound ON/OFF Toggle Button */}
+              <button
+                onClick={() => {
+                  setSoundEnabled(!soundEnabled);
+                  showToast(soundEnabled ? '🔇 Order sound disabled' : '🔊 Order sound enabled!');
+                }}
+                id="toggle-order-sound-btn"
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: 20,
+                  border: soundEnabled ? '1px solid #BBE9D1' : '1px solid #EAE0D0',
+                  background: soundEnabled ? '#E8F8F0' : '#F5F5F5',
+                  color: soundEnabled ? '#20A464' : '#6F6F6F',
+                  fontWeight: 800,
+                  fontSize: 13,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <span>{soundEnabled ? '🔊 Sound ON' : '🔇 Sound OFF'}</span>
+              </button>
+            </div>
+
+            {/* Volume Slider */}
+            <div
+              style={{
+                background: '#FAF6EF',
+                padding: '16px',
+                borderRadius: 12,
+                border: '1px solid #EAE0D0',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 10,
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <label style={{ fontSize: 13, fontWeight: 800, color: '#171717' }}>
+                  Notification Volume
+                </label>
+                <span
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 900,
+                    color: '#4A0A10',
+                    background: '#FFFFFF',
+                    padding: '2px 10px',
+                    borderRadius: 8,
+                    border: '1px solid #EAE0D0',
+                  }}
+                >
+                  {Math.round(volume * 100)}%
+                </span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.05"
+                value={volume}
+                disabled={!soundEnabled}
+                onChange={e => setVolume(parseFloat(e.target.value))}
+                id="order-volume-slider"
+                style={{
+                  width: '100%',
+                  accentColor: '#4A0A10',
+                  cursor: soundEnabled ? 'pointer' : 'not-allowed',
+                  opacity: soundEnabled ? 1 : 0.5,
+                }}
+              />
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#888' }}>
+                <span>Mute (0%)</span>
+                <span>Balanced (50%)</span>
+                <span>Max Alert (100%)</span>
+              </div>
+            </div>
+
+            {/* Repeat Reminder & Test Sound Buttons */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', justifyContent: 'space-between' }}>
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: '#171717',
+                  cursor: 'pointer',
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={repeatReminder}
+                  onChange={e => {
+                    setRepeatReminder(e.target.checked);
+                    showToast('Repeat reminder updated');
+                  }}
+                  style={{ width: 18, height: 18, accentColor: '#4A0A10' }}
+                />
+                <span>Repeat reminder every 20s while order is PENDING</span>
+              </label>
+
+              {/* TEST SOUND BUTTON */}
+              <button
+                onClick={testSound}
+                id="test-sound-btn"
+                style={{
+                  padding: '10px 18px',
+                  borderRadius: 10,
+                  border: 'none',
+                  background: '#FFB21A',
+                  color: '#4A0A10',
+                  fontSize: 13,
+                  fontWeight: 900,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  boxShadow: '0 2px 8px rgba(255, 178, 26, 0.35)',
+                  transition: 'transform 0.15s ease',
+                }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)'; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(0)'; }}
+              >
+                <span>🔔</span>
+                <span>TEST SOUND</span>
+              </button>
+            </div>
+          </div>
+
+          {/* 2. Desktop Background Notification Card */}
+          <div
+            style={{
+              background: '#FFFFFF',
+              borderRadius: 16,
+              border: '1px solid #EAE0D0',
+              padding: '20px 24px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 16,
+            }}
+          >
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 800, color: '#171717' }}>
+                Desktop Background Notifications
+              </div>
+              <div style={{ fontSize: 12, color: '#6F6F6F', marginTop: 2 }}>
+                Receive popups with sound when the browser tab is minimized or in the background.
+              </div>
+            </div>
+            {notificationPermission === 'granted' ? (
+              <span
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: 20,
+                  background: '#E8F8F0',
+                  color: '#20A464',
+                  fontSize: 12,
+                  fontWeight: 800,
+                  border: '1px solid #BBE9D1',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                ✓ Permission Granted
+              </span>
+            ) : (
+              <button
+                onClick={async () => {
+                  const res = await requestBrowserNotificationPermission();
+                  showToast(res === 'granted' ? 'Notifications enabled!' : 'Permission status: ' + res);
+                }}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: 8,
+                  border: '1px solid #4A0A10',
+                  background: '#FFFFFF',
+                  color: '#4A0A10',
+                  fontSize: 12,
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                Enable Notifications
+              </button>
+            )}
+          </div>
+
+          {/* 3. Additional Operational Notification Preferences */}
+          <div
+            style={{
+              background: '#FFFFFF',
+              borderRadius: 16,
+              border: '1px solid #EAE0D0',
+              padding: '20px 24px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 12,
+            }}
+          >
+            <h4 style={{ fontSize: 15, fontWeight: 800, color: '#171717', margin: '0 0 4px' }}>
+              Other Partner Notifications
+            </h4>
             {[
-              { key: 'newOrders', label: 'New Order Received Sound Alert', desc: 'Loud alert tone when customer places an order' },
               { key: 'soundAlerts', label: 'Kitchen Prep Reminder Bells', desc: 'Audio beep when an order ticket approaches 15 mins' },
               { key: 'riderAssigned', label: 'Rider Arrived Notification', desc: 'Popup when assigned delivery partner reaches store' },
               { key: 'settlementAlerts', label: 'Daily Bank Settlement Summaries', desc: 'SMS and email notification after payout processing' },
@@ -394,8 +636,8 @@ export default function RestaurantSettingsPage() {
                 }}
               >
                 <div>
-                  <div style={{ fontSize: 14, fontWeight: 800, color: '#171717' }}>{item.label}</div>
-                  <div style={{ fontSize: 12, color: '#6F6F6F' }}>{item.desc}</div>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: '#171717' }}>{item.label}</div>
+                  <div style={{ fontSize: 11, color: '#6F6F6F' }}>{item.desc}</div>
                 </div>
                 <input
                   type="checkbox"

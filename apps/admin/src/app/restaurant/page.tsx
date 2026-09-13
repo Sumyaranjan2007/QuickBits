@@ -79,31 +79,47 @@ export default function RestaurantDashboard() {
       const res = await restaurantsApi.list();
       const d = res.data as any;
       const list = d.items || d || [];
-      if (list.length > 0) {
-        const rest = list[0];
+      const rest = list.length > 0 ? list[0] : null;
+      if (rest) {
         setRestaurant(rest);
         setIsPaused(rest.isOpen === false);
+      }
 
-        // Fetch live orders
-        const ordRes = await ordersApi.getRestaurantOrders(rest.id);
-        const ordData = ordRes.data as any;
-        const ordList = ordData.items || ordData || [];
-        if (ordList.length > 0) {
-          setOrders(ordList);
-        }
+      // Fetch live API orders
+      let ordList: any[] = [];
+      if (rest?.id) {
+        try {
+          const ordRes = await ordersApi.getRestaurantOrders(rest.id);
+          const ordData = ordRes.data as any;
+          ordList = ordData.items || ordData || [];
+        } catch {}
+      }
 
-        // Fetch menu to see out of stock items
-        if (rest.menuCategories) {
-          const oos: any[] = [];
-          rest.menuCategories.forEach((cat: any) => {
-            (cat.items || cat.menuItems || []).forEach((item: any) => {
-              if (item.isAvailable === false) {
-                oos.push({ id: item.id, name: item.name, category: cat.name, price: item.price });
-              }
-            });
+      // Merge local customer orders
+      let localOrders: any[] = [];
+      try {
+        const stored = localStorage.getItem('qb_customer_orders');
+        if (stored) localOrders = JSON.parse(stored);
+      } catch {}
+
+      const combinedMap = new Map();
+      [...DEMO_ORDERS, ...ordList, ...localOrders].forEach(o => {
+        if (o.id) combinedMap.set(o.id, o);
+      });
+      const combined = Array.from(combinedMap.values());
+      if (combined.length > 0) setOrders(combined);
+
+      // Fetch menu to see out of stock items
+      if (rest?.menuCategories) {
+        const oos: any[] = [];
+        rest.menuCategories.forEach((cat: any) => {
+          (cat.items || cat.menuItems || []).forEach((item: any) => {
+            if (item.isAvailable === false) {
+              oos.push({ id: item.id, name: item.name, category: cat.name, price: item.price });
+            }
           });
-          if (oos.length > 0) setOutOfStockItems(oos);
-        }
+        });
+        if (oos.length > 0) setOutOfStockItems(oos);
       }
     } catch {
       // Keep demo fallback
@@ -114,8 +130,17 @@ export default function RestaurantDashboard() {
 
   useEffect(() => {
     loadData();
-    const interval = setInterval(loadData, 10000);
-    return () => clearInterval(interval);
+    const interval = setInterval(loadData, 5000);
+
+    const handleUpdate = () => loadData();
+    window.addEventListener('qb:order_status_updated', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('qb:order_status_updated', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+    };
   }, [loadData]);
 
   // Order Accept / Reject Handlers

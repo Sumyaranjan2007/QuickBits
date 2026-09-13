@@ -131,7 +131,7 @@ export default function CustomerCheckoutPage() {
       
       const newOrder = {
         id: orderId,
-        status: 'PREPARING',
+        status: 'PENDING',
         total,
         subtotal,
         deliveryFee,
@@ -145,7 +145,7 @@ export default function CustomerCheckoutPage() {
         estimatedDeliveryTime: '20-25 mins',
         restaurant: {
           id: restaurantId || 'rest-1',
-          name: restaurantName || 'Burger & Co.',
+          name: restaurantName || 'QuickBite Bistro',
           address: '100 Feet Road, Indiranagar',
         },
         deliveryAddress: selectedLocation || {
@@ -176,6 +176,7 @@ export default function CustomerCheckoutPage() {
           const list = stored ? JSON.parse(stored) : [];
           const updated = [newOrder, ...list.filter((o: any) => o.id !== orderId)];
           localStorage.setItem('qb_customer_orders', JSON.stringify(updated));
+          localStorage.setItem('qb_trigger_new_order', String(Date.now()));
         } catch (e) {
           console.error('Failed to save order to localStorage', e);
         }

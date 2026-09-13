@@ -153,19 +153,35 @@ export default function RestaurantOrdersPage() {
 
   const fetchOrders = useCallback(async (restId: string) => {
     try {
-      const res = await ordersApi.getRestaurantOrders(restId);
-      const d = res.data as any;
-      const list = d.items || d || [];
-      if (list.length > 0) {
-        setOrders(list);
-        const newCount = list.filter((o: any) => o.status === 'PENDING').length;
+      let apiOrders: any[] = [];
+      try {
+        const res = await ordersApi.getRestaurantOrders(restId);
+        const d = res.data as any;
+        apiOrders = d.items || d || [];
+      } catch {}
+
+      let localOrders: any[] = [];
+      try {
+        const stored = localStorage.getItem('qb_customer_orders');
+        if (stored) localOrders = JSON.parse(stored);
+      } catch {}
+
+      const combinedMap = new Map();
+      [...DEMO_ORDERS, ...apiOrders, ...localOrders].forEach(o => {
+        if (o.id) combinedMap.set(o.id, o);
+      });
+      const combined = Array.from(combinedMap.values());
+
+      if (combined.length > 0) {
+        setOrders(combined);
+        const newCount = combined.filter((o: any) => o.status === 'PENDING').length;
         if (newCount > prevCount.current && prevCount.current !== 0) {
           showToast(`🔔 ${newCount - prevCount.current} New Order(s) Received!`);
         }
         prevCount.current = newCount;
       }
     } catch {
-      // Fallback to local demo data
+      setOrders(DEMO_ORDERS);
     } finally {
       setLoading(false);
     }
@@ -180,20 +196,32 @@ export default function RestaurantOrdersPage() {
         if (list.length > 0) {
           setRestaurantId(list[0].id);
           await fetchOrders(list[0].id);
+        } else {
+          await fetchOrders('rest-1');
         }
       } catch {
-        setOrders(DEMO_ORDERS);
+        await fetchOrders('rest-1');
       } finally {
         setLoading(false);
       }
     };
     init();
-  }, [fetchOrders]);
 
-  // Periodic polling every 8s
+    const handleUpdate = () => {
+      fetchOrders(restaurantId || 'rest-1');
+    };
+
+    window.addEventListener('qb:order_status_updated', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+    return () => {
+      window.removeEventListener('qb:order_status_updated', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+    };
+  }, [fetchOrders, restaurantId]);
+
+  // Periodic polling every 5s
   useEffect(() => {
-    if (!restaurantId) return;
-    const t = setInterval(() => fetchOrders(restaurantId), 8000);
+    const t = setInterval(() => fetchOrders(restaurantId || 'rest-1'), 5000);
     return () => clearInterval(t);
   }, [restaurantId, fetchOrders]);
 
