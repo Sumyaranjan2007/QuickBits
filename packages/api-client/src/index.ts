@@ -281,3 +281,26 @@ export const adminApi = {
   getRevenueReport: (days?: number) =>
     request('/admin/reports/revenue', { params: { days } }),
 };
+
+// ─── Price Requests ──────────────────────────────────────
+
+export const priceRequestsApi = {
+  create: (restaurantId: string, itemId: string, data: { requestedPrice: number; reason: string; note?: string }) =>
+    request(`/restaurants/${restaurantId}/items/${itemId}/price-request`, { method: 'POST', body: data }),
+
+  getByRestaurant: (restaurantId: string) =>
+    request(`/restaurants/${restaurantId}/price-requests`),
+
+  listAllAdmin: () =>
+    request('/restaurants/admin/price-requests'),
+
+  approve: (requestId: string) =>
+    request(`/restaurants/admin/price-requests/${requestId}/approve`, { method: 'POST' }),
+
+  reject: (requestId: string, data: { reason: string }) =>
+    request(`/restaurants/admin/price-requests/${requestId}/reject`, { method: 'POST', body: data }),
+
+  getAuditLogs: () =>
+    request('/restaurants/admin/price-requests/audit'),
+};
+

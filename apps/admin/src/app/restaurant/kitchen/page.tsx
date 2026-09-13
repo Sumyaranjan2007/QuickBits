@@ -1,249 +1,366 @@
 'use client';
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import { restaurantsApi, ordersApi } from '@quickbite/api-client';
 
-const DEMO_ORDERS = [
-  { id: 'QB-982144', status: 'PENDING', items: [{ name: 'Classic Smash Cheeseburger', qty: 1, addons: ['Extra Cheese'] }, { name: 'Peri Peri Fries', qty: 1 }], createdAt: new Date(Date.now() - 1000 * 60 * 4).toISOString(), priority: 'NORMAL' },
-  { id: 'QB-741290', status: 'ACCEPTED', items: [{ name: 'Hyderabadi Chicken Dum Biryani', qty: 1 }, { name: 'Paneer Tikka Biryani', qty: 1 }], createdAt: new Date(Date.now() - 1000 * 60 * 9).toISOString(), priority: 'NORMAL' },
-  { id: 'QB-310842', status: 'PREPARING', items: [{ name: 'Margherita Burrata Pizza', qty: 1, instructions: 'Extra spicy' }], createdAt: new Date(Date.now() - 1000 * 60 * 18).toISOString(), priority: 'HIGH' },
-  { id: 'QB-518293', status: 'READY', items: [{ name: 'Crispy Paneer Truffle Burger', qty: 2 }], createdAt: new Date(Date.now() - 1000 * 60 * 35).toISOString(), priority: 'NORMAL' },
+const DEMO_KITCHEN_ORDERS = [
+  {
+    id: 'QB1024',
+    customer: 'Rahul S.',
+    status: 'CONFIRMED',
+    createdAt: new Date(Date.now() - 1000 * 60 * 6).toISOString(),
+    prepTimeMins: 15,
+    specialInstructions: 'Less spicy, extra mint chutney',
+    items: [
+      { name: 'Chicken Dum Biryani', qty: 2 },
+      { name: 'Raita', qty: 1 },
+      { name: 'Coke (330ml)', qty: 1 },
+    ],
+  },
+  {
+    id: 'QB1023',
+    customer: 'Priya P.',
+    status: 'PREPARING',
+    createdAt: new Date(Date.now() - 1000 * 60 * 14).toISOString(),
+    prepTimeMins: 20,
+    specialInstructions: 'No garlic',
+    items: [
+      { name: 'Paneer Butter Masala', qty: 1 },
+      { name: 'Butter Naan', qty: 3 },
+      { name: 'Sweet Mango Lassi', qty: 2 },
+    ],
+  },
+  {
+    id: 'QB1020',
+    customer: 'Amit K.',
+    status: 'CONFIRMED',
+    createdAt: new Date(Date.now() - 1000 * 60 * 22).toISOString(),
+    prepTimeMins: 15,
+    specialInstructions: 'Pack gravy separately',
+    items: [
+      { name: 'Mutton Rogan Josh', qty: 1 },
+      { name: 'Jeera Rice', qty: 2 },
+    ],
+  },
 ];
 
-const KDS_COLUMNS = [
-  { key: 'PENDING', label: '🆕 New', color: '#E17055', bg: '#FFF4F2' },
-  { key: 'ACCEPTED', label: '✓ Accepted', color: '#F39C12', bg: '#FFF8E8' },
-  { key: 'PREPARING', label: '🍳 Preparing', color: '#0984E3', bg: '#EAF5FF' },
-  { key: 'READY', label: '✅ Ready', color: '#00B894', bg: '#E8FFF8' },
-];
-
-function KDSTimer({ createdAt }: { createdAt: string }) {
+function KitchenOrderTimer({ createdAt, prepMins }: { createdAt: string; prepMins: number }) {
   const [elapsed, setElapsed] = useState(0);
+
   useEffect(() => {
-    const t = setInterval(() => setElapsed(Math.floor((Date.now() - new Date(createdAt).getTime()) / 1000)), 1000);
-    return () => clearInterval(t);
+    const calc = () => {
+      setElapsed(Math.floor((Date.now() - new Date(createdAt).getTime()) / 1000));
+    };
+    calc();
+    const interval = setInterval(calc, 1000);
+    return () => clearInterval(interval);
   }, [createdAt]);
+
   const mins = Math.floor(elapsed / 60);
   const secs = elapsed % 60;
-  const isAtRisk = mins >= 20 && mins < 30;
-  const isDelayed = mins >= 30;
-  const color = isDelayed ? '#E17055' : isAtRisk ? '#F39C12' : '#00B894';
+  const timeStr = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+
+  let urgency = 'NORMAL';
+  let badgeColor = '#20A464';
+  let badgeBg = '#E8F8F0';
+
+  if (mins >= prepMins + 5) {
+    urgency = 'OVERDUE';
+    badgeColor = '#D64545';
+    badgeBg = '#FEECEC';
+  } else if (mins >= prepMins) {
+    urgency = 'URGENT';
+    badgeColor = '#F5A623';
+    badgeBg = '#FFF7E6';
+  }
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-      <div style={{ fontSize: 20, fontWeight: 900, color, fontVariantNumeric: 'tabular-nums' }}>
-        {String(mins).padStart(2, '0')}:{String(secs).padStart(2, '0')}
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ fontSize: 22, fontWeight: 900, color: badgeColor, fontVariantNumeric: 'tabular-nums' }}>
+        ⏱️ {timeStr}
       </div>
-      <div style={{ fontSize: 10, fontWeight: 800, color, padding: '2px 6px', borderRadius: 4, background: color + '18' }}>
-        {isDelayed ? '⚠ DELAYED' : isAtRisk ? '⚡ AT RISK' : '✓ ON TIME'}
-      </div>
+      <span
+        style={{
+          fontSize: 11,
+          fontWeight: 900,
+          padding: '4px 10px',
+          borderRadius: 6,
+          background: badgeBg,
+          color: badgeColor,
+          letterSpacing: 0.5,
+        }}
+      >
+        {urgency}
+      </span>
     </div>
   );
 }
 
-export default function KitchenPage() {
-  const [orders, setOrders] = useState<any[]>([]);
+export default function KitchenViewPage() {
+  const [orders, setOrders] = useState<any[]>(DEMO_KITCHEN_ORDERS);
   const [restaurantId, setRestaurantId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [newFlash, setNewFlash] = useState(false);
-  const prevCount = useRef(0);
 
-  const fetchOrders = useCallback(async (restId: string) => {
+  const loadKitchenOrders = useCallback(async (restId: string) => {
     try {
-      const r = await ordersApi.getRestaurantOrders(restId);
-      const d = r.data as any;
+      const res = await ordersApi.getRestaurantOrders(restId);
+      const d = res.data as any;
       const list = d.items || d || [];
-      const merged = list.length > 0 ? list : DEMO_ORDERS;
-      const newPending = merged.filter((o: any) => o.status === 'PENDING').length;
-      if (newPending > prevCount.current && prevCount.current !== 0) {
-        setNewFlash(true);
-        setTimeout(() => setNewFlash(false), 1500);
+      const kitchenList = list.filter((o: any) => ['CONFIRMED', 'PREPARING', 'ACCEPTED'].includes(o.status));
+      if (kitchenList.length > 0) {
+        setOrders(kitchenList);
       }
-      prevCount.current = newPending;
-      setOrders(merged);
     } catch {
-      setOrders(DEMO_ORDERS);
+      // Fallback to demo
+    } finally {
+      setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    restaurantsApi.list()
-      .then(async r => {
-        const d = r.data as any;
+    const init = async () => {
+      try {
+        const res = await restaurantsApi.list();
+        const d = res.data as any;
         const list = d.items || d || [];
         if (list.length > 0) {
           setRestaurantId(list[0].id);
-          await fetchOrders(list[0].id);
-        } else {
-          setOrders(DEMO_ORDERS);
+          await loadKitchenOrders(list[0].id);
         }
-      })
-      .catch(() => setOrders(DEMO_ORDERS))
-      .finally(() => setLoading(false));
-  }, [fetchOrders]);
+      } catch {
+        setOrders(DEMO_KITCHEN_ORDERS);
+      } finally {
+        setLoading(false);
+      }
+    };
+    init();
+  }, [loadKitchenOrders]);
 
-  useEffect(() => {
-    if (!restaurantId) return;
-    const interval = setInterval(() => fetchOrders(restaurantId), 6000);
-    return () => clearInterval(interval);
-  }, [restaurantId, fetchOrders]);
-
-  const handleStatusUpdate = async (orderId: string, newStatus: string) => {
-    try { await ordersApi.updateStatus(orderId, newStatus); } catch {}
-    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
-  };
-
-  const toggleFullscreen = () => {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen();
-      setIsFullscreen(true);
+  const updateOrderStatus = async (id: string, newStatus: string) => {
+    try {
+      await ordersApi.updateStatus(id, newStatus);
+    } catch {}
+    if (newStatus === 'READY') {
+      setOrders(prev => prev.filter(o => o.id !== id));
     } else {
-      document.exitFullscreen();
-      setIsFullscreen(false);
+      setOrders(prev => prev.map(o => (o.id === id ? { ...o, status: newStatus } : o)));
     }
   };
 
-  if (loading) return <div className="loading"><div className="spinner" /></div>;
-
   return (
-    <div style={{ background: newFlash ? '#FFF0E0' : 'transparent', transition: '0.3s' }}>
-      {/* ─── KDS Header ─── */}
-      <div className="page-header" style={{ marginBottom: 16 }}>
-        <div>
-          <h1 className="page-title">🍳 Kitchen Display System</h1>
-          <p className="page-subtitle">Real-time order pipeline · Auto-refreshes every 6 seconds</p>
-        </div>
-        <div style={{ display: 'flex', gap: 10 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 8, background: '#E8FFF8', border: '1px solid #00B894' }}>
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#00B894', animation: 'pulse 2s infinite' }} />
-            <span style={{ fontSize: 12, fontWeight: 700, color: '#00B894' }}>KITCHEN LIVE</span>
-          </div>
-          <button
-            className="btn btn-outline btn-sm"
-            onClick={toggleFullscreen}
-            style={{ borderRadius: 8 }}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      {/* ─── Header ─── */}
+      <div
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 16,
+          background: '#FFFFFF',
+          padding: '16px 20px',
+          borderRadius: 16,
+          border: '1px solid #EAE0D0',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <Link
+            href="/restaurant/orders"
+            style={{
+              padding: '8px 14px',
+              borderRadius: 8,
+              background: '#FAF6EF',
+              border: '1px solid #EAE0D0',
+              color: '#4A0A10',
+              fontWeight: 800,
+              fontSize: 13,
+              textDecoration: 'none',
+            }}
           >
-            {isFullscreen ? '⛶ Exit Fullscreen' : '⛶ Fullscreen'}
-          </button>
+            ← Back to Orders
+          </Link>
+          <div>
+            <h1 style={{ fontSize: 20, fontWeight: 900, color: '#4A0A10', margin: 0 }}>
+              🍳 Kitchen Display System (KDS)
+            </h1>
+            <div style={{ fontSize: 12, color: '#6F6F6F' }}>
+              {orders.length} tickets actively in preparation
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: 8 }}>
+          <span style={{ fontSize: 11, fontWeight: 800, padding: '4px 8px', borderRadius: 6, background: '#E8F8F0', color: '#20A464' }}>
+            NORMAL (&lt; 15m)
+          </span>
+          <span style={{ fontSize: 11, fontWeight: 800, padding: '4px 8px', borderRadius: 6, background: '#FFF7E6', color: '#F5A623' }}>
+            URGENT (15-20m)
+          </span>
+          <span style={{ fontSize: 11, fontWeight: 800, padding: '4px 8px', borderRadius: 6, background: '#FEECEC', color: '#D64545' }}>
+            OVERDUE (&gt; 20m)
+          </span>
         </div>
       </div>
 
-      {/* ─── KDS Kanban Board ─── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, minHeight: 600 }}>
-        {KDS_COLUMNS.map(col => {
-          const colOrders = orders.filter(o => o.status === col.key);
-          return (
-            <div key={col.key} style={{
-              background: col.bg, borderRadius: 16, border: `2px solid ${col.color}30`,
-              display: 'flex', flexDirection: 'column', overflow: 'hidden',
-            }}>
-              {/* Column Header */}
-              <div style={{
-                padding: '14px 16px', background: col.color, color: '#fff',
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              }}>
-                <span style={{ fontSize: 16, fontWeight: 900 }}>{col.label}</span>
-                <span style={{
-                  width: 28, height: 28, borderRadius: '50%', background: 'rgba(255,255,255,0.25)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 14, fontWeight: 900,
-                }}>
-                  {colOrders.length}
-                </span>
-              </div>
+      {/* ─── Kitchen Ticket Cards Grid ─── */}
+      {orders.length > 0 ? (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
+          {orders.map(order => {
+            const isConfirmed = order.status === 'CONFIRMED' || order.status === 'ACCEPTED';
+            const isPreparing = order.status === 'PREPARING';
 
-              {/* Order Cards */}
-              <div style={{ flex: 1, padding: 12, display: 'flex', flexDirection: 'column', gap: 12, overflowY: 'auto' }}>
-                {colOrders.length === 0 ? (
-                  <div style={{ textAlign: 'center', color: col.color, opacity: 0.5, padding: 30, fontSize: 13, fontWeight: 600 }}>
-                    No orders
+            return (
+              <div
+                key={order.id}
+                style={{
+                  background: '#FFFFFF',
+                  borderRadius: 16,
+                  border: isPreparing ? '2px solid #4A0A10' : '1px solid #EAE0D0',
+                  padding: '18px',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.04)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 14,
+                }}
+              >
+                {/* Header with ID & Timer */}
+                <div style={{ borderBottom: '1px solid #EAE0D0', paddingBottom: 12 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <span style={{ fontSize: 18, fontWeight: 900, color: '#171717' }}>
+                      #{order.id.slice(0, 8)}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 800,
+                        padding: '3px 8px',
+                        borderRadius: 6,
+                        background: isPreparing ? '#FAF0EB' : '#FFF8EB',
+                        color: isPreparing ? '#4A0A10' : '#B57400',
+                      }}
+                    >
+                      {isPreparing ? '👨‍🍳 PREPARING' : '🔔 PREPARE NOW'}
+                    </span>
                   </div>
-                ) : (
-                  colOrders.map(order => (
-                    <div key={order.id} style={{
-                      background: '#fff', borderRadius: 12, padding: 16,
-                      border: `1px solid ${col.color}30`,
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-                    }}>
-                      {/* Order Header */}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, paddingBottom: 10, borderBottom: `1px solid ${col.color}25` }}>
-                        <div>
-                          <div style={{ fontSize: 18, fontWeight: 900, color: col.color }}>#{order.id?.slice(-6)}</div>
-                          {order.priority === 'HIGH' && (
-                            <span style={{ fontSize: 10, fontWeight: 800, color: '#E17055', background: '#FFF0EE', padding: '1px 6px', borderRadius: 4 }}>⚡ PRIORITY</span>
-                          )}
-                        </div>
-                        <KDSTimer createdAt={order.createdAt} />
-                      </div>
 
-                      {/* Items */}
-                      <div style={{ marginBottom: 14 }}>
-                        {(order.items || []).map((item: any, i: number) => (
-                          <div key={i} style={{ padding: '6px 0', borderBottom: i < order.items.length - 1 ? '1px dashed #EEE' : 'none' }}>
-                            <div style={{ fontSize: 15, fontWeight: 800 }}>
-                              <span style={{ color: col.color }}>{item.qty || item.quantity || 1}×</span> {item.name}
-                            </div>
-                            {item.addons?.length > 0 && (
-                              <div style={{ fontSize: 11, color: '#636E8A', marginLeft: 20 }}>+ {item.addons.join(', ')}</div>
-                            )}
-                            {item.instructions && (
-                              <div style={{ fontSize: 11, color: '#856404', background: '#FFF8E8', borderRadius: 4, padding: '3px 6px', marginTop: 3, marginLeft: 20 }}>
-                                📝 {item.instructions}
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
+                  <KitchenOrderTimer
+                    createdAt={order.createdAt}
+                    prepMins={order.prepTimeMins || 15}
+                  />
+                </div>
 
-                      {/* KDS Action Buttons */}
-                      <div style={{ display: 'flex', gap: 8 }}>
-                        {order.status === 'PENDING' && (
-                          <button
-                            style={{ flex: 1, padding: '10px', background: col.color, color: '#fff', border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 13, cursor: 'pointer' }}
-                            onClick={() => handleStatusUpdate(order.id, 'ACCEPTED')}
-                          >
-                            ✓ Accept
-                          </button>
-                        )}
-                        {order.status === 'ACCEPTED' && (
-                          <button
-                            style={{ flex: 1, padding: '10px', background: col.color, color: '#fff', border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 13, cursor: 'pointer' }}
-                            onClick={() => handleStatusUpdate(order.id, 'PREPARING')}
-                          >
-                            🍳 Start Cooking
-                          </button>
-                        )}
-                        {order.status === 'PREPARING' && (
-                          <button
-                            style={{ flex: 1, padding: '10px', background: col.color, color: '#fff', border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 13, cursor: 'pointer' }}
-                            onClick={() => handleStatusUpdate(order.id, 'READY')}
-                          >
-                            ✅ Mark Ready
-                          </button>
-                        )}
-                        {order.status === 'READY' && (
-                          <button
-                            style={{ flex: 1, padding: '10px', background: '#00B894', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 13, cursor: 'pointer' }}
-                            onClick={() => handleStatusUpdate(order.id, 'DELIVERED')}
-                          >
-                            🚀 Complete
-                          </button>
-                        )}
-                        <button
-                          onClick={() => window.print()}
-                          style={{ padding: '10px 12px', background: '#F5F5F5', color: '#636E8A', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}
-                          title="Print ticket"
-                        >
-                          🖨️
-                        </button>
-                      </div>
+                {/* Items To Cook */}
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {(order.items || []).map((item: any, i: number) => (
+                    <div
+                      key={i}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '8px 10px',
+                        background: '#FAF6EF',
+                        borderRadius: 8,
+                        fontSize: 14,
+                        fontWeight: 700,
+                        color: '#171717',
+                      }}
+                    >
+                      <span>{item.name || item.menuItemName}</span>
+                      <span
+                        style={{
+                          background: '#4A0A10',
+                          color: '#FFFFFF',
+                          padding: '2px 8px',
+                          borderRadius: 6,
+                          fontSize: 13,
+                          fontWeight: 900,
+                        }}
+                      >
+                        {item.qty || item.quantity || 1}×
+                      </span>
                     </div>
-                  ))
+                  ))}
+                </div>
+
+                {/* Special Instructions */}
+                {order.specialInstructions && (
+                  <div
+                    style={{
+                      background: '#FFF8EB',
+                      border: '1px solid #FDDCA5',
+                      padding: '8px 10px',
+                      borderRadius: 8,
+                      fontSize: 12,
+                      color: '#9C6200',
+                      fontWeight: 600,
+                    }}
+                  >
+                    ⚠️ {order.specialInstructions}
+                  </div>
                 )}
+
+                {/* Chef Actions */}
+                <div style={{ display: 'flex', gap: 8, marginTop: 'auto' }}>
+                  {isConfirmed && (
+                    <button
+                      onClick={() => updateOrderStatus(order.id, 'PREPARING')}
+                      style={{
+                        flex: 1,
+                        padding: '12px',
+                        borderRadius: 10,
+                        border: 'none',
+                        background: '#4A0A10',
+                        color: '#FFFFFF',
+                        fontWeight: 800,
+                        fontSize: 14,
+                        cursor: 'pointer',
+                        minHeight: 44,
+                      }}
+                    >
+                      ▶️ START
+                    </button>
+                  )}
+
+                  <button
+                    onClick={() => updateOrderStatus(order.id, 'READY')}
+                    style={{
+                      flex: 1,
+                      padding: '12px',
+                      borderRadius: 10,
+                      border: 'none',
+                      background: '#FFB21A',
+                      color: '#171717',
+                      fontWeight: 900,
+                      fontSize: 14,
+                      cursor: 'pointer',
+                      minHeight: 44,
+                    }}
+                  >
+                    ✓ MARK READY
+                  </button>
+                </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div
+          style={{
+            background: '#FFFFFF',
+            borderRadius: 16,
+            border: '1px solid #EAE0D0',
+            padding: '60px 20px',
+            textAlign: 'center',
+          }}
+        >
+          <div style={{ fontSize: 44, marginBottom: 12 }}>👨‍🍳</div>
+          <div style={{ fontSize: 20, fontWeight: 900, color: '#171717' }}>Kitchen is Clear!</div>
+          <p style={{ fontSize: 13, color: '#6F6F6F', marginTop: 4 }}>
+            No incoming orders pending preparation right now.
+          </p>
+        </div>
+      )}
     </div>
   );
 }

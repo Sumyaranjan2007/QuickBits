@@ -69,29 +69,67 @@
   --info: #74B9FF;
 }
 
-/* ─── Theme: Restaurant (Emerald Green) ───────────────── */
+/* ─── Theme: Restaurant (QuickBites Deep Maroon & Golden Yellow) ─ */
 [data-theme="restaurant"] {
-  --primary: #00B894;
-  --primary-dark: #00A07F;
-  --primary-light: #E8FFF8;
-  --primary-gradient: linear-gradient(135deg, #00B894 0%, #55EFC4 100%);
-  --accent: #FDCB6E;
-  --bg: #F5FAF8;
-  --bg-alt: #E8FFF8;
+  --primary: #4A0A10;
+  --primary-dark: #35050A;
+  --primary-light: #FAF0EB;
+  --primary-gradient: linear-gradient(135deg, #4A0A10 0%, #68121B 100%);
+  --accent: #FFB21A;
+  --accent-dark: #E59D0E;
+  --accent-light: #FFF8EB;
+  --bg: #FAF6EF;
+  --bg-alt: #F4EDE1;
   --surface: #FFFFFF;
-  --surface-hover: #F0FFF8;
-  --border: #D4EDE5;
-  --text: #0D2818;
-  --text-sec: #4A7C63;
-  --text-muted: #8CB5A0;
-  --sidebar-bg: #0D2818;
-  --sidebar-text: rgba(255,255,255,0.6);
+  --surface-hover: #FFFDF9;
+  --border: #EAE0D0;
+  --text: #171717;
+  --text-sec: #6F6F6F;
+  --text-muted: #999999;
+  --sidebar-bg: #FFFFFF;
+  --sidebar-text: #2D3436;
   --sidebar-active: #FFFFFF;
-  --nav-bg: #0D2818;
-  --success: #00B894;
-  --warning: #FDCB6E;
-  --error: #E17055;
-  --info: #74B9FF;
+  --nav-bg: #FFFFFF;
+  --success: #20A464;
+  --warning: #F5A623;
+  --error: #D64545;
+  --danger: #D64545;
+  --info: #2B7A78;
+}
+
+[data-theme="restaurant"] .sidebar {
+  background: #FFFFFF;
+  border-right: 1px solid #EAE0D0;
+  color: #171717;
+  box-shadow: 2px 0 12px rgba(74, 10, 16, 0.04);
+}
+
+[data-theme="restaurant"] .sidebar-brand {
+  border-bottom: 1px solid #EAE0D0;
+  background: #FFFFFF;
+  color: #4A0A10;
+}
+
+[data-theme="restaurant"] .sidebar-link {
+  color: #4A4A4A;
+  font-weight: 500;
+  border-radius: 10px;
+}
+
+[data-theme="restaurant"] .sidebar-link:hover {
+  background: #F4EDE1;
+  color: #4A0A10;
+}
+
+[data-theme="restaurant"] .sidebar-link.active {
+  background: #4A0A10;
+  color: #FFFFFF;
+  font-weight: 700;
+}
+
+[data-theme="restaurant"] .sidebar-footer {
+  border-top: 1px solid #EAE0D0;
+  background: #FAFAFA;
 }
 
 /* ─── Theme: Delivery (Cool Blue) ─────────────────────── */

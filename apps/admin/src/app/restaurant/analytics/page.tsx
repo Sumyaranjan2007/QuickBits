@@ -1,182 +1,282 @@
 'use client';
 import React, { useState } from 'react';
+import Link from 'next/link';
 
-const WEEK_DATA = [
-  { day: 'Mon', orders: 22, revenue: 11440 },
-  { day: 'Tue', orders: 31, revenue: 16120 },
-  { day: 'Wed', orders: 18, revenue: 9360 },
-  { day: 'Thu', orders: 40, revenue: 20800 },
-  { day: 'Fri', orders: 55, revenue: 28600 },
-  { day: 'Sat', orders: 72, revenue: 37440 },
-  { day: 'Sun', orders: 64, revenue: 33280 },
-];
-
-const HOUR_DATA = Array.from({ length: 24 }, (_, h) => ({
-  hour: h,
-  label: h === 0 ? '12am' : h < 12 ? `${h}am` : h === 12 ? '12pm' : `${h - 12}pm`,
-  orders: h >= 12 && h <= 14 ? Math.floor(Math.random() * 15 + 10) :
-          h >= 19 && h <= 22 ? Math.floor(Math.random() * 20 + 12) :
-          h >= 11 && h < 12 ? Math.floor(Math.random() * 8 + 5) :
-          h >= 8 && h < 11 ? Math.floor(Math.random() * 5 + 2) : 0,
-}));
-
-const TOP_DISHES = [
-  { name: 'Classic Smash Cheeseburger', orders: 128, revenue: 36992, rating: 4.9, trend: 'up' },
-  { name: 'Hyderabadi Chicken Biryani', orders: 98, revenue: 34202, rating: 4.8, trend: 'up' },
-  { name: 'Margherita Burrata Pizza', orders: 76, revenue: 34124, rating: 4.7, trend: 'stable' },
-  { name: 'Paneer Tikka Burger', orders: 64, revenue: 15936, rating: 4.6, trend: 'down' },
-  { name: 'Peri Peri Loaded Fries', orders: 52, revenue: 8268, rating: 4.5, trend: 'up' },
-];
-
-const maxBar = Math.max(...WEEK_DATA.map(d => d.revenue));
-const maxHour = Math.max(...HOUR_DATA.map(d => d.orders));
-
-export default function AnalyticsPage() {
-  const [period, setPeriod] = useState('7DAYS');
-  const [metric, setMetric] = useState<'orders' | 'revenue'>('revenue');
-
-  const totalRevenue = WEEK_DATA.reduce((s, d) => s + d.revenue, 0);
-  const totalOrders = WEEK_DATA.reduce((s, d) => s + d.orders, 0);
-  const aov = Math.round(totalRevenue / totalOrders);
-  const commissionPaid = Math.round(totalRevenue * 0.20);
-  const netPayout = totalRevenue - commissionPaid;
+export default function RestaurantAnalyticsPage() {
+  const [timeRange, setTimeRange] = useState<'7D' | '30D' | '90D'>('7D');
 
   return (
-    <div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       {/* ─── Header ─── */}
-      <div className="page-header" style={{ marginBottom: 20 }}>
-        <div>
-          <h1 className="page-title">📈 Sales Analytics</h1>
-          <p className="page-subtitle">Business intelligence and performance metrics</p>
+      <div
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 16,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <Link
+            href="/restaurant"
+            style={{
+              padding: '8px 14px',
+              borderRadius: 8,
+              background: '#FAF6EF',
+              border: '1px solid #EAE0D0',
+              color: '#4A0A10',
+              fontWeight: 800,
+              fontSize: 13,
+              textDecoration: 'none',
+            }}
+          >
+            ← Back to Dashboard
+          </Link>
+          <div>
+            <h1 style={{ fontSize: 22, fontWeight: 900, color: '#4A0A10', margin: 0 }}>
+              📈 Detailed Sales & Performance Analytics
+            </h1>
+            <p style={{ fontSize: 12, color: '#6F6F6F', margin: '2px 0 0' }}>
+              Historical trends, peak hour distribution, and dish popularity
+            </p>
+          </div>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          {['TODAY', '7DAYS', '30DAYS', 'THIS_MONTH'].map(p => (
-            <button key={p} className={`filter-pill ${period === p ? 'active' : ''}`} onClick={() => setPeriod(p)} style={{ fontSize: 12 }}>
-              {p.replace('_', ' ')}
+
+        {/* Time Filter Pills */}
+        <div style={{ display: 'flex', gap: 6 }}>
+          {(['7D', '30D', '90D'] as const).map(t => (
+            <button
+              key={t}
+              onClick={() => setTimeRange(t)}
+              style={{
+                padding: '8px 16px',
+                borderRadius: 8,
+                border: timeRange === t ? '1px solid #4A0A10' : '1px solid #EAE0D0',
+                background: timeRange === t ? '#4A0A10' : '#FFFFFF',
+                color: timeRange === t ? '#FFFFFF' : '#171717',
+                fontWeight: 800,
+                fontSize: 12,
+                cursor: 'pointer',
+              }}
+            >
+              {t === '7D' ? 'Last 7 Days' : t === '30D' ? 'Last 30 Days' : 'Last 3 Months'}
             </button>
           ))}
         </div>
       </div>
 
-      {/* ─── KPI Summary ─── */}
-      <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 14, marginBottom: 24 }}>
-        {[
-          { icon: '💰', label: 'Gross Revenue', value: `₹${totalRevenue.toLocaleString()}`, change: '↑ +18%', up: true },
-          { icon: '📦', label: 'Total Orders', value: String(totalOrders), change: '↑ +22%', up: true },
-          { icon: '💵', label: 'Avg Order Value', value: `₹${aov}`, change: '↑ ₹34', up: true },
-          { icon: '🤝', label: 'Commission Paid', value: `₹${commissionPaid.toLocaleString()}`, change: '20% of GMV', up: false },
-          { icon: '🏦', label: 'Net Payout', value: `₹${netPayout.toLocaleString()}`, change: 'After commission', up: true },
-          { icon: '✅', label: 'Acceptance Rate', value: '94%', change: '↑ +2%', up: true },
-          { icon: '⏱️', label: 'Avg Prep Time', value: '22 min', change: '↓ 3 min faster', up: true },
-          { icon: '🔴', label: 'Cancellation Rate', value: '3.2%', change: '↓ Low', up: true },
-        ].map((k, i) => (
-          <div key={i} className="stat-card">
-            <div className="stat-icon">{k.icon}</div>
-            <div className="stat-value" style={{ fontSize: 20 }}>{k.value}</div>
-            <div className="stat-label">{k.label}</div>
-            <div className={`stat-change ${k.up ? 'up' : 'down'}`}>{k.change}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* ─── Revenue Chart ─── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
-        <div style={{ background: '#fff', borderRadius: 20, padding: 24, border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-            <div style={{ fontWeight: 800, fontSize: 16 }}>Revenue — Last 7 Days</div>
-            <div style={{ display: 'flex', gap: 6 }}>
-              <button className={`filter-pill ${metric === 'revenue' ? 'active' : ''}`} style={{ fontSize: 11 }} onClick={() => setMetric('revenue')}>Revenue</button>
-              <button className={`filter-pill ${metric === 'orders' ? 'active' : ''}`} style={{ fontSize: 11 }} onClick={() => setMetric('orders')}>Orders</button>
-            </div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10, height: 130 }}>
-            {WEEK_DATA.map(d => {
-              const val = metric === 'revenue' ? d.revenue : d.orders;
-              const max = metric === 'revenue' ? maxBar : Math.max(...WEEK_DATA.map(x => x.orders));
-              return (
-                <div key={d.day} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                  <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-sec)' }}>
-                    {metric === 'revenue' ? `₹${Math.round(val / 1000)}k` : val}
-                  </div>
-                  <div style={{
-                    width: '100%', background: 'var(--primary)', borderRadius: '5px 5px 0 0',
-                    height: `${Math.round((val / max) * 110)}px`, transition: '0.3s',
-                    opacity: d.day === 'Sat' ? 1 : 0.65,
-                  }} />
-                  <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600 }}>{d.day}</div>
-                </div>
-              );
-            })}
-          </div>
+      {/* ─── Core KPI Cards Row ─── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 14 }}>
+        <div style={kpiBoxStyle}>
+          <div style={kpiLabelStyle}>TOTAL REVENUE</div>
+          <div style={{ fontSize: 24, fontWeight: 900, color: '#4A0A10', marginTop: 4 }}>₹78,500</div>
+          <div style={{ fontSize: 11, color: '#20A464', fontWeight: 700, marginTop: 4 }}>↑ 14.2% vs previous period</div>
         </div>
 
-        {/* ─── Hourly Heatmap ─── */}
-        <div style={{ background: '#fff', borderRadius: 20, padding: 24, border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)' }}>
-          <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 20 }}>⏰ Peak Hours Heatmap</div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-            {HOUR_DATA.map(h => {
-              const intensity = maxHour > 0 ? h.orders / maxHour : 0;
-              return (
+        <div style={kpiBoxStyle}>
+          <div style={kpiLabelStyle}>TOTAL ORDERS</div>
+          <div style={{ fontSize: 24, fontWeight: 900, color: '#171717', marginTop: 4 }}>168</div>
+          <div style={{ fontSize: 11, color: '#20A464', fontWeight: 700, marginTop: 4 }}>↑ 8% growth</div>
+        </div>
+
+        <div style={kpiBoxStyle}>
+          <div style={kpiLabelStyle}>AVG ORDER VALUE (AOV)</div>
+          <div style={{ fontSize: 24, fontWeight: 900, color: '#171717', marginTop: 4 }}>₹467</div>
+          <div style={{ fontSize: 11, color: '#6F6F6F', marginTop: 4 }}>Healthy cart size</div>
+        </div>
+
+        <div style={kpiBoxStyle}>
+          <div style={kpiLabelStyle}>CANCELLATION RATE</div>
+          <div style={{ fontSize: 24, fontWeight: 900, color: '#20A464', marginTop: 4 }}>1.2%</div>
+          <div style={{ fontSize: 11, color: '#20A464', fontWeight: 700, marginTop: 4 }}>Well below 3% threshold</div>
+        </div>
+
+        <div style={kpiBoxStyle}>
+          <div style={kpiLabelStyle}>AVG PREP TIME</div>
+          <div style={{ fontSize: 24, fontWeight: 900, color: '#171717', marginTop: 4 }}>13.4 min</div>
+          <div style={{ fontSize: 11, color: '#20A464', fontWeight: 700, marginTop: 4 }}>⚡ Fast Kitchen Badge</div>
+        </div>
+      </div>
+
+      {/* ─── Revenue Trend & Peak Hours ─── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 20 }}>
+        {/* Revenue Trend Chart */}
+        <div
+          style={{
+            background: '#FFFFFF',
+            borderRadius: 16,
+            border: '1px solid #EAE0D0',
+            padding: '24px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 16,
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h3 style={{ fontSize: 16, fontWeight: 900, color: '#171717', margin: 0 }}>
+              Daily Revenue Growth
+            </h3>
+            <span style={{ fontSize: 12, color: '#6F6F6F' }}>Daily sales volume (₹)</span>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', height: 160, paddingTop: 20, borderBottom: '1px solid #EAE0D0' }}>
+            {[
+              { day: 'Mon', val: 8400, orders: 18 },
+              { day: 'Tue', val: 9200, orders: 20 },
+              { day: 'Wed', val: 7800, orders: 16 },
+              { day: 'Thu', val: 11400, orders: 24 },
+              { day: 'Fri', val: 14800, orders: 32 },
+              { day: 'Sat', val: 18200, orders: 38 },
+              { day: 'Sun', val: 15600, orders: 33 },
+            ].map(b => (
+              <div key={b.day} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, flex: 1 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: '#4A0A10' }}>₹{(b.val / 1000).toFixed(1)}k</div>
                 <div
-                  key={h.hour}
-                  title={`${h.label}: ${h.orders} orders`}
                   style={{
-                    width: 36, height: 36, borderRadius: 6, cursor: 'pointer',
-                    background: intensity > 0 ? `rgba(0,184,148,${0.15 + intensity * 0.85})` : '#F5F5F5',
-                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                    transition: '0.2s',
+                    width: '50%',
+                    maxWidth: 28,
+                    height: `${(b.val / 18200) * 110}px`,
+                    background: b.day === 'Sat' ? '#4A0A10' : '#FFB21A',
+                    borderRadius: '6px 6px 0 0',
                   }}
-                >
-                  <div style={{ fontSize: 8, color: intensity > 0.5 ? '#fff' : '#888', fontWeight: 700 }}>{h.label}</div>
-                  {h.orders > 0 && <div style={{ fontSize: 8, fontWeight: 900, color: intensity > 0.5 ? '#fff' : 'var(--primary)' }}>{h.orders}</div>}
-                </div>
-              );
-            })}
+                />
+                <span style={{ fontSize: 11, color: '#6F6F6F', fontWeight: 700 }}>{b.day}</span>
+              </div>
+            ))}
           </div>
-          <div style={{ marginTop: 12, display: 'flex', gap: 12, fontSize: 11, color: 'var(--text-muted)' }}>
-            <span>🍽️ Peak: 12pm–2pm, 7pm–10pm</span>
+        </div>
+
+        {/* Peak Hours Breakdown */}
+        <div
+          style={{
+            background: '#FFFFFF',
+            borderRadius: 16,
+            border: '1px solid #EAE0D0',
+            padding: '24px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 16,
+          }}
+        >
+          <h3 style={{ fontSize: 16, fontWeight: 900, color: '#171717', margin: 0 }}>
+            Peak Demand Hours
+          </h3>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {[
+              { slot: 'Lunch Rush (12:30 PM - 02:30 PM)', percentage: 42, color: '#4A0A10', orders: '71 orders' },
+              { slot: 'Dinner Rush (07:30 PM - 10:30 PM)', percentage: 48, color: '#FFB21A', orders: '80 orders' },
+              { slot: 'Evening Snacks (04:30 PM - 06:30 PM)', percentage: 10, color: '#BBE9D1', orders: '17 orders' },
+            ].map(slot => (
+              <div key={slot.slot} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, fontWeight: 700 }}>
+                  <span style={{ color: '#171717' }}>{slot.slot}</span>
+                  <span style={{ color: '#6F6F6F' }}>{slot.orders} ({slot.percentage}%)</span>
+                </div>
+                <div style={{ height: 8, background: '#FAF6EF', borderRadius: 4, overflow: 'hidden' }}>
+                  <div style={{ width: `${slot.percentage}%`, height: '100%', background: slot.color, borderRadius: 4 }} />
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>
 
-      {/* ─── Top Dishes Performance ─── */}
-      <div className="table-container">
-        <div className="table-header">
-          <span className="table-title">🍕 Menu Item Performance</span>
-          <span className="badge badge-primary">Last 7 Days</span>
-        </div>
-        <table>
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Dish Name</th>
-              <th>Orders</th>
-              <th>Revenue</th>
-              <th>Rating</th>
-              <th>Performance</th>
-            </tr>
-          </thead>
-          <tbody>
-            {TOP_DISHES.map((d, i) => (
-              <tr key={i}>
-                <td style={{ fontWeight: 900, color: 'var(--primary)', fontSize: 16 }}>{i + 1}</td>
-                <td style={{ fontWeight: 700 }}>{d.name}</td>
-                <td style={{ fontWeight: 700 }}>{d.orders}</td>
-                <td style={{ fontWeight: 900, color: 'var(--primary)' }}>₹{d.revenue.toLocaleString()}</td>
-                <td>
-                  <span style={{ color: '#FDCB6E' }}>★</span>
-                  <span style={{ fontWeight: 800 }}> {d.rating}</span>
-                </td>
-                <td>
-                  <span className={`badge ${d.trend === 'up' ? 'badge-success' : d.trend === 'down' ? 'badge-error' : 'badge-neutral'}`}>
-                    {d.trend === 'up' ? '↑ BESTSELLER' : d.trend === 'down' ? '↓ SLOW MOVER' : '→ STABLE'}
-                  </span>
-                </td>
-              </tr>
+      {/* ─── Best-selling vs Low-performing Dishes ─── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 20 }}>
+        {/* Top Sellers */}
+        <div
+          style={{
+            background: '#FFFFFF',
+            borderRadius: 16,
+            border: '1px solid #EAE0D0',
+            padding: '24px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 12,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 18 }}>🏆</span>
+            <h3 style={{ fontSize: 16, fontWeight: 900, color: '#20A464', margin: 0 }}>
+              Best-Selling Menu Items
+            </h3>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {[
+              { name: 'Hyderabadi Chicken Dum Biryani', count: 86, revenue: '₹21,414' },
+              { name: 'Paneer Butter Masala', count: 48, revenue: '₹10,560' },
+              { name: 'Classic Smash Cheeseburger', count: 35, revenue: '₹8,750' },
+              { name: 'Butter Naan (Per Pc)', count: 124, revenue: '₹7,440' },
+            ].map((item, i) => (
+              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 12px', background: '#FAF6EF', borderRadius: 8, fontSize: 13 }}>
+                <span style={{ fontWeight: 700, color: '#171717' }}>
+                  #{i + 1} {item.name}
+                </span>
+                <span style={{ fontWeight: 800, color: '#4A0A10' }}>
+                  {item.count} sold · {item.revenue}
+                </span>
+              </div>
             ))}
-          </tbody>
-        </table>
+          </div>
+        </div>
+
+        {/* Low-performing Items */}
+        <div
+          style={{
+            background: '#FFFFFF',
+            borderRadius: 16,
+            border: '1px solid #EAE0D0',
+            padding: '24px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 12,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 18 }}>📉</span>
+            <h3 style={{ fontSize: 16, fontWeight: 900, color: '#F5A623', margin: 0 }}>
+              Low-Performing / Opportunities
+            </h3>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {[
+              { name: 'Veg Clear Soup', count: 3, note: 'Low orders · Consider recipe tweak' },
+              { name: 'Fish Tikka Gravy', count: 4, note: 'High prep time · Review availability' },
+              { name: 'Pineapple Raita', count: 6, note: 'Bundle with Biryani combos' },
+            ].map((item, i) => (
+              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 12px', background: '#FFFDF8', border: '1px solid #FDF0D5', borderRadius: 8, fontSize: 13 }}>
+                <div>
+                  <div style={{ fontWeight: 700, color: '#171717' }}>{item.name}</div>
+                  <div style={{ fontSize: 11, color: '#6F6F6F' }}>{item.note}</div>
+                </div>
+                <span style={{ fontWeight: 800, color: '#C77700' }}>{item.count} sold</span>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );
 }
+
+const kpiBoxStyle: React.CSSProperties = {
+  background: '#FFFFFF',
+  borderRadius: 14,
+  padding: '16px 18px',
+  border: '1px solid #EAE0D0',
+  boxShadow: '0 2px 6px rgba(74, 10, 16, 0.02)',
+  display: 'flex',
+  flexDirection: 'column',
+};
+
+const kpiLabelStyle: React.CSSProperties = {
+  fontSize: 11,
+  fontWeight: 800,
+  color: '#6F6F6F',
+  textTransform: 'uppercase',
+  letterSpacing: 0.5,
+};

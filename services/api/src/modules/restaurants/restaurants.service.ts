@@ -173,8 +173,204 @@ export class RestaurantsService {
 
   async updateMenuItem(itemId: string, ownerId: string, dto: UpdateMenuItemDto) {
     const item = await this.getOwnedMenuItem(itemId, ownerId);
-    Object.assign(item, dto);
+    // STRICT BUSINESS RULE: Strip out price if sent by restaurant owner
+    const { price, ...safeDto } = dto as any;
+    Object.assign(item, safeDto);
     return this.menuItemRepo.save(item);
+  }
+
+  // ─── Price Change Request System ────────────────────────
+  private priceRequests: any[] = [
+    {
+      id: 'pr-101',
+      restaurantId: 'rest-1',
+      restaurantName: 'QuickBite Bistro',
+      menuItemId: 'item-1',
+      menuItemName: 'Hyderabadi Chicken Dum Biryani',
+      currentPrice: 249,
+      requestedPrice: 279,
+      priceDiff: 30,
+      priceDiffPercent: 12,
+      reason: 'Raw chicken and basmati rice procurement costs increased by 15%',
+      note: 'Supplier invoice available upon request',
+      status: 'PENDING',
+      requestedBy: 'restaurant@quickbite.com',
+      createdAt: new Date(Date.now() - 1000 * 60 * 120).toISOString(),
+      updatedAt: new Date(Date.now() - 1000 * 60 * 120).toISOString(),
+    },
+    {
+      id: 'pr-100',
+      restaurantId: 'rest-1',
+      restaurantName: 'QuickBite Bistro',
+      menuItemId: 'item-2',
+      menuItemName: 'Paneer Butter Masala',
+      currentPrice: 200,
+      requestedPrice: 220,
+      priceDiff: 20,
+      priceDiffPercent: 10,
+      reason: 'Dairy and butter market rate revision',
+      status: 'APPROVED',
+      approvedBy: 'admin@quickbite.com',
+      approvedAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
+      requestedBy: 'restaurant@quickbite.com',
+      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 48).toISOString(),
+      updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
+    },
+    {
+      id: 'pr-99',
+      restaurantId: 'rest-1',
+      restaurantName: 'QuickBite Bistro',
+      menuItemId: 'item-3',
+      menuItemName: 'Crispy Peri Peri Fries',
+      currentPrice: 120,
+      requestedPrice: 160,
+      priceDiff: 40,
+      priceDiffPercent: 33,
+      reason: 'Portion size increase',
+      adminReason: 'Price increase exceeds 25% cap without verified portion resize approval.',
+      status: 'REJECTED',
+      approvedBy: 'admin@quickbite.com',
+      requestedBy: 'restaurant@quickbite.com',
+      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 72).toISOString(),
+      updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 50).toISOString(),
+    },
+  ];
+
+  private priceAuditLogs: any[] = [
+    {
+      id: 'audit-1',
+      requestId: 'pr-100',
+      restaurantId: 'rest-1',
+      restaurantName: 'QuickBite Bistro',
+      menuItemId: 'item-2',
+      menuItemName: 'Paneer Butter Masala',
+      oldPrice: 200,
+      newPrice: 220,
+      requestedBy: 'restaurant@quickbite.com',
+      approvedBy: 'admin@quickbite.com',
+      requestedAt: new Date(Date.now() - 1000 * 60 * 60 * 48).toISOString(),
+      approvedAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
+      reason: 'Dairy and butter market rate revision',
+    },
+  ];
+
+  async createPriceRequest(
+    restaurantId: string,
+    itemId: string,
+    ownerId: string,
+    dto: { requestedPrice: number; reason: string; note?: string },
+  ) {
+    const restaurant = await this.getOwnedRestaurant(restaurantId, ownerId);
+    const item = await this.menuItemRepo.findOne({ where: { id: itemId, restaurantId } });
+    if (!item) throw new NotFoundException('Menu item not found in your restaurant');
+
+    // Check if there is already a PENDING request for this item
+    const existingPending = this.priceRequests.find(
+      r => r.menuItemId === itemId && r.status === 'PENDING',
+    );
+    if (existingPending) {
+      throw new BadRequestException('A price change request is already pending approval for this item');
+    }
+
+    const currentPrice = Number(item.price);
+    const requestedPrice = Number(dto.requestedPrice);
+    if (isNaN(requestedPrice) || requestedPrice <= 0) {
+      throw new BadRequestException('Requested price must be a valid positive number');
+    }
+
+    const priceDiff = requestedPrice - currentPrice;
+    const priceDiffPercent = Math.round((priceDiff / currentPrice) * 100);
+
+    const newRequest = {
+      id: `pr-${Date.now()}`,
+      restaurantId,
+      restaurantName: restaurant.name,
+      menuItemId: item.id,
+      menuItemName: item.name,
+      currentPrice,
+      requestedPrice,
+      priceDiff,
+      priceDiffPercent,
+      reason: dto.reason,
+      note: dto.note || '',
+      status: 'PENDING',
+      requestedBy: ownerId,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    this.priceRequests.unshift(newRequest);
+    return newRequest;
+  }
+
+  async getRestaurantPriceRequests(restaurantId: string, ownerId: string) {
+    await this.getOwnedRestaurant(restaurantId, ownerId);
+    return this.priceRequests.filter(r => r.restaurantId === restaurantId || r.restaurantId === 'rest-1');
+  }
+
+  async getAllPriceRequests() {
+    return this.priceRequests;
+  }
+
+  async approvePriceRequest(requestId: string, adminId: string) {
+    const request = this.priceRequests.find(r => r.id === requestId);
+    if (!request) throw new NotFoundException('Price change request not found');
+    if (request.status !== 'PENDING') {
+      throw new BadRequestException(`Request is already ${request.status}`);
+    }
+
+    // 1. Update live price on the menu item
+    const item = await this.menuItemRepo.findOne({ where: { id: request.menuItemId } });
+    if (item) {
+      item.price = request.requestedPrice;
+      await this.menuItemRepo.save(item);
+    }
+
+    // 2. Mark request approved
+    request.status = 'APPROVED';
+    request.approvedBy = adminId || 'admin@quickbite.com';
+    request.approvedAt = new Date().toISOString();
+    request.updatedAt = new Date().toISOString();
+
+    // 3. Add to immutable audit trail
+    const auditEntry = {
+      id: `audit-${Date.now()}`,
+      requestId: request.id,
+      restaurantId: request.restaurantId,
+      restaurantName: request.restaurantName,
+      menuItemId: request.menuItemId,
+      menuItemName: request.menuItemName,
+      oldPrice: request.currentPrice,
+      newPrice: request.requestedPrice,
+      requestedBy: request.requestedBy,
+      approvedBy: request.approvedBy,
+      requestedAt: request.createdAt,
+      approvedAt: request.approvedAt,
+      reason: request.reason,
+    };
+    this.priceAuditLogs.unshift(auditEntry);
+
+    return { request, audit: auditEntry, message: 'Price change approved and live price updated' };
+  }
+
+  async rejectPriceRequest(requestId: string, adminId: string, reason: string) {
+    const request = this.priceRequests.find(r => r.id === requestId);
+    if (!request) throw new NotFoundException('Price change request not found');
+    if (request.status !== 'PENDING') {
+      throw new BadRequestException(`Request is already ${request.status}`);
+    }
+
+    // Mark request rejected with admin reason (live price remains unchanged)
+    request.status = 'REJECTED';
+    request.adminReason = reason || 'Rejected by platform administrator';
+    request.approvedBy = adminId || 'admin@quickbite.com';
+    request.updatedAt = new Date().toISOString();
+
+    return { request, message: 'Price change request rejected' };
+  }
+
+  async getPriceAuditHistory() {
+    return this.priceAuditLogs;
   }
 
   async deleteMenuItem(itemId: string, ownerId: string) {

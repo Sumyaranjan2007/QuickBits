@@ -22,6 +22,7 @@ const NAV_GROUPS: NavGroup[] = [
     group: 'MARKETPLACE',
     items: [
       { icon: '🍽️', label: 'Restaurants', href: '/admin/restaurants' },
+      { icon: '🏷️', label: 'Menu Price Requests', href: '/admin/price-requests', badge: 'NEW' },
       { icon: '👥', label: 'Customers', href: '/admin/customers' },
       { icon: '🛵', label: 'Delivery Partners', href: '/admin/delivery' },
       { icon: '📦', label: 'Orders & Dispatch', href: '/admin/orders' },

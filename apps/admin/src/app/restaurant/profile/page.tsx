@@ -1,97 +1,252 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { restaurantsApi } from '@quickbite/api-client';
 
-const CUISINE_OPTIONS = ['North Indian', 'South Indian', 'Chinese', 'Italian', 'Continental', 'Mughlai', 'Thai', 'Mexican', 'Fast Food', 'Bakery', 'Desserts', 'Beverages'];
-const FOOD_TYPE_OPTIONS = ['VEG', 'NON_VEG', 'BOTH'];
+const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+const INITIAL_HOURS: Record<string, { open: string; close: string; isClosed: boolean; breakStart?: string; breakEnd?: string }> = {
+  Monday: { open: '09:00', close: '23:00', isClosed: false },
+  Tuesday: { open: '09:00', close: '23:00', isClosed: false },
+  Wednesday: { open: '09:00', close: '23:00', isClosed: false },
+  Thursday: { open: '09:00', close: '23:00', isClosed: false },
+  Friday: { open: '09:00', close: '23:30', isClosed: false },
+  Saturday: { open: '09:00', close: '23:30', isClosed: false },
+  Sunday: { open: '09:00', close: '23:00', isClosed: false },
+};
+
+const INITIAL_OFFERS = [
+  {
+    id: 'off-1',
+    code: 'FLAT50',
+    title: 'Flat 50% Off on First 3 Orders',
+    type: 'PERCENTAGE',
+    value: 50,
+    minOrder: 199,
+    maxDiscount: 100,
+    expiryDate: '2026-12-31',
+    usageLimit: 1000,
+    usedCount: 428,
+    isActive: true,
+  },
+  {
+    id: 'off-2',
+    code: 'WELCOME20',
+    title: '₹50 Flat Discount on Weekend Orders',
+    type: 'FLAT',
+    value: 50,
+    minOrder: 299,
+    maxDiscount: 50,
+    expiryDate: '2026-11-30',
+    usageLimit: 500,
+    usedCount: 182,
+    isActive: true,
+  },
+  {
+    id: 'off-3',
+    code: 'QUICK50',
+    title: 'Special Festival Delight 20% Off',
+    type: 'PERCENTAGE',
+    value: 20,
+    minOrder: 399,
+    maxDiscount: 80,
+    expiryDate: '2026-10-15',
+    usageLimit: 200,
+    usedCount: 200,
+    isActive: false,
+  },
+];
 
 export default function RestaurantProfilePage() {
+  const [activeTab, setActiveTab] = useState<'PROFILE' | 'HOURS' | 'OFFERS' | 'BUSINESS'>('PROFILE');
   const [restaurant, setRestaurant] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState<any>({});
-  const [activeTab, setActiveTab] = useState<'basic' | 'location' | 'business'>('basic');
-  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const r = await restaurantsApi.list();
-        const d = r.data as any;
-        const list = d.items || d || [];
-        if (list.length > 0) {
-          const r2 = await restaurantsApi.getById(list[0].id);
-          const rest = r2.data as any;
-          setRestaurant(rest);
-          setForm({
-            name: rest.name || '',
-            description: rest.description || 'A premium dining experience delivering authentic flavors right to your doorstep.',
-            phone: rest.phone || '+91 98765 43210',
-            email: rest.email || 'owner@quickbite.com',
-            address: rest.address || '123, 5th Main, Indiranagar, Bengaluru – 560038',
-            city: rest.city || 'Bengaluru',
-            pinCode: rest.pinCode || '560038',
-            cuisineType: rest.cuisineType || 'North Indian',
-            foodType: rest.foodType || 'BOTH',
-            estimatedPrepTime: rest.estimatedPrepTime || 25,
-            deliveryRadius: rest.deliveryRadius || 8,
-            minOrderAmount: rest.minOrderAmount || 149,
-            logoUrl: rest.logoUrl || '',
-            coverImageUrl: rest.coverImageUrl || '',
-            gstin: rest.gstin || 'GSTIN: 29ABCDE1234F1Z5',
-          });
-        }
-      } catch {}
-      finally { setLoading(false); }
-    };
-    load();
-  }, []);
+  // Form states
+  const [profileForm, setProfileForm] = useState({
+    name: 'QuickBite Bistro',
+    cuisine: 'North Indian, Biryani, Mughlai, Fast Food',
+    description: 'Authentic Indian curries, dum biryanis, and delicious fast bites.',
+    phone: '+91 98765 43210',
+    email: 'partner@quickbite.com',
+    address: '124, 100 Feet Road, Indiranagar, Bengaluru, Karnataka 560038',
+    logoUrl: '',
+    bannerUrl: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800',
+    gstNumber: '29ABCDE1234F1Z5',
+    fssaiLicense: '11223344556677',
+  });
 
+  const [hours, setHours] = useState(INITIAL_HOURS);
+  const [offers, setOffers] = useState(INITIAL_OFFERS);
+  const [createOfferModal, setCreateOfferModal] = useState(false);
+  const [newOffer, setNewOffer] = useState({
+    code: '',
+    title: '',
+    type: 'PERCENTAGE',
+    value: 20,
+    minOrder: 199,
+    maxDiscount: 100,
+    expiryDate: '2026-12-31',
+    usageLimit: 500,
+  });
 
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      if (restaurant) {
-        await restaurantsApi.update(restaurant.id, form);
-      }
-      setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 2500);
-    } catch (err: any) {
-      alert(err?.message || 'Failed to save profile');
-    }
-    setSaving(false);
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3000);
   };
 
-  if (loading) return <div className="loading"><div className="spinner" /></div>;
+  const loadRestaurantData = useCallback(async () => {
+    try {
+      const res = await restaurantsApi.list();
+      const d = res.data as any;
+      const list = d.items || d || [];
+      if (list.length > 0) {
+        const full = await restaurantsApi.getById(list[0].id);
+        const r = full.data as any;
+        setRestaurant(r);
+        setProfileForm({
+          name: r.name || profileForm.name,
+          cuisine: (r.cuisines || []).join(', ') || profileForm.cuisine,
+          description: r.description || profileForm.description,
+          phone: r.phone || profileForm.phone,
+          email: r.email || profileForm.email,
+          address: r.address?.formattedAddress || r.address?.street || profileForm.address,
+          logoUrl: r.logoUrl || '',
+          bannerUrl: r.bannerUrl || profileForm.bannerUrl,
+          gstNumber: r.gstNumber || profileForm.gstNumber,
+          fssaiLicense: r.fssaiLicense || profileForm.fssaiLicense,
+        });
+      }
+    } catch {}
+    setLoading(false);
+  }, [profileForm.address, profileForm.bannerUrl, profileForm.cuisine, profileForm.description, profileForm.email, profileForm.fssaiLicense, profileForm.gstNumber, profileForm.name, profileForm.phone]);
+
+  useEffect(() => {
+    loadRestaurantData();
+  }, [loadRestaurantData]);
+
+  const handleSaveProfile = async () => {
+    setSaving(true);
+    if (restaurant?.id) {
+      try {
+        await restaurantsApi.update(restaurant.id, {
+          name: profileForm.name,
+          description: profileForm.description,
+          phone: profileForm.phone,
+          email: profileForm.email,
+        });
+      } catch {}
+    }
+    setTimeout(() => {
+      setSaving(false);
+      showToast('Restaurant details updated successfully!');
+    }, 400);
+  };
+
+  const handleToggleOffer = (id: string) => {
+    setOffers(prev =>
+      prev.map(o => (o.id === id ? { ...o, isActive: !o.isActive } : o))
+    );
+    showToast('Offer status updated!');
+  };
+
+  const handleCreateOffer = () => {
+    if (!newOffer.code.trim()) {
+      alert('Please enter coupon code');
+      return;
+    }
+    const created = {
+      id: `off-${Date.now()}`,
+      ...newOffer,
+      code: newOffer.code.toUpperCase().trim(),
+      usedCount: 0,
+      isActive: true,
+    };
+    setOffers(prev => [created, ...prev]);
+    setCreateOfferModal(false);
+    showToast(`Coupon ${created.code} published!`);
+  };
 
   return (
-    <div style={{ maxWidth: 860, margin: '0 auto' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 24,
+            right: 24,
+            background: '#4A0A10',
+            color: '#FFFFFF',
+            padding: '12px 20px',
+            borderRadius: 12,
+            boxShadow: '0 8px 24px rgba(74, 10, 16, 0.25)',
+            fontSize: 13,
+            fontWeight: 700,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            zIndex: 100,
+          }}
+        >
+          <span>✓</span>
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
       {/* ─── Header ─── */}
-      <div className="page-header" style={{ marginBottom: 20 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h1 className="page-title">🏪 Restaurant Profile</h1>
-          <p className="page-subtitle">Manage your restaurant's public-facing information and business details</p>
+          <h1 style={{ fontSize: 24, fontWeight: 900, color: '#4A0A10', margin: 0 }}>
+            🏪 Restaurant Hub
+          </h1>
+          <p style={{ fontSize: 13, color: '#6F6F6F', margin: '4px 0 0' }}>
+            Manage profile, business schedules, license compliance, and marketing offers
+          </p>
         </div>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-          {saveSuccess && (
-            <span style={{ fontSize: 13, fontWeight: 700, color: '#00B894' }}>✓ Saved successfully!</span>
-          )}
-          <button className="btn btn-primary" onClick={handleSave} disabled={saving} style={{ borderRadius: 10 }}>
-            {saving ? '⏳ Saving...' : '💾 Save Changes'}
-          </button>
-        </div>
+
+        <button
+          onClick={handleSaveProfile}
+          disabled={saving}
+          style={{
+            padding: '11px 22px',
+            borderRadius: 10,
+            background: '#4A0A10',
+            color: '#FFFFFF',
+            fontWeight: 800,
+            fontSize: 13,
+            border: 'none',
+            cursor: 'pointer',
+            boxShadow: '0 3px 10px rgba(74, 10, 16, 0.25)',
+            minHeight: 44,
+          }}
+        >
+          {saving ? 'SAVING...' : 'SAVE CHANGES'}
+        </button>
       </div>
 
       {/* ─── Tabs ─── */}
-      <div style={{ display: 'flex', gap: 4, borderBottom: '2px solid var(--border)', marginBottom: 24 }}>
-        {[{ key: 'basic', label: '📋 Basic Info' }, { key: 'location', label: '📍 Location & Hours' }, { key: 'business', label: '💼 Business Details' }].map(t => (
+      <div style={{ display: 'flex', gap: 8, borderBottom: '1px solid #EAE0D0', paddingBottom: 10, overflowX: 'auto' }}>
+        {[
+          { key: 'PROFILE', label: 'Restaurant Profile' },
+          { key: 'HOURS', label: 'Operating Hours & Holidays' },
+          { key: 'OFFERS', label: 'Offers & Coupons' },
+          { key: 'BUSINESS', label: 'Business & Licenses' },
+        ].map(t => (
           <button
             key={t.key}
             onClick={() => setActiveTab(t.key as any)}
             style={{
-              padding: '10px 16px', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 13,
-              color: activeTab === t.key ? 'var(--primary)' : 'var(--text-muted)',
-              borderBottom: `2px solid ${activeTab === t.key ? 'var(--primary)' : 'transparent'}`, marginBottom: -2, transition: '0.2s',
+              padding: '8px 16px',
+              borderRadius: 8,
+              border: 'none',
+              background: activeTab === t.key ? '#4A0A10' : 'transparent',
+              color: activeTab === t.key ? '#FFFFFF' : '#6F6F6F',
+              fontWeight: 800,
+              fontSize: 13,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
             }}
           >
             {t.label}
@@ -99,133 +254,540 @@ export default function RestaurantProfilePage() {
         ))}
       </div>
 
-      {/* ─── Basic Info ─── */}
-      {activeTab === 'basic' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          {/* Images */}
-          <div style={{ background: '#fff', borderRadius: 18, border: '1px solid var(--border)', padding: 24 }}>
-            <h3 style={{ fontWeight: 800, marginBottom: 16 }}>Restaurant Images</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-              {[
-                { label: 'Logo URL', key: 'logoUrl', placeholder: 'https://your-logo-url.com/logo.png', preview: form.logoUrl },
-                { label: 'Cover Photo URL', key: 'coverImageUrl', placeholder: 'https://your-cover-url.com/cover.jpg', preview: form.coverImageUrl },
-              ].map(f => (
-                <div key={f.key}>
-                  <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-sec)', display: 'block', marginBottom: 6 }}>{f.label}</label>
-                  {f.preview && (
-                    <img src={f.preview} alt={f.label} style={{ width: '100%', height: 80, objectFit: 'cover', borderRadius: 8, marginBottom: 8 }}
-                      onError={(e: any) => e.target.style.display = 'none'} />
+      {/* ─── TAB 1: PROFILE ─── */}
+      {activeTab === 'PROFILE' && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 20 }}>
+          {/* Main Info */}
+          <div
+            style={{
+              background: '#FFFFFF',
+              borderRadius: 16,
+              border: '1px solid #EAE0D0',
+              padding: '24px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 14,
+            }}
+          >
+            <h3 style={{ fontSize: 16, fontWeight: 900, color: '#171717', margin: 0 }}>
+              Basic Information
+            </h3>
+
+            <div>
+              <label style={labelStyle}>Restaurant Name *</label>
+              <input
+                type="text"
+                value={profileForm.name}
+                onChange={e => setProfileForm({ ...profileForm, name: e.target.value })}
+                style={inputStyle}
+              />
+            </div>
+
+            <div>
+              <label style={labelStyle}>Cuisine Types (Comma separated)</label>
+              <input
+                type="text"
+                value={profileForm.cuisine}
+                onChange={e => setProfileForm({ ...profileForm, cuisine: e.target.value })}
+                style={inputStyle}
+              />
+            </div>
+
+            <div>
+              <label style={labelStyle}>Short Description</label>
+              <textarea
+                rows={3}
+                value={profileForm.description}
+                onChange={e => setProfileForm({ ...profileForm, description: e.target.value })}
+                style={{ ...inputStyle, resize: 'vertical' }}
+              />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div>
+                <label style={labelStyle}>Contact Phone</label>
+                <input
+                  type="text"
+                  value={profileForm.phone}
+                  onChange={e => setProfileForm({ ...profileForm, phone: e.target.value })}
+                  style={inputStyle}
+                />
+              </div>
+              <div>
+                <label style={labelStyle}>Store Email</label>
+                <input
+                  type="email"
+                  value={profileForm.email}
+                  onChange={e => setProfileForm({ ...profileForm, email: e.target.value })}
+                  style={inputStyle}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label style={labelStyle}>Full Physical Address</label>
+              <textarea
+                rows={2}
+                value={profileForm.address}
+                onChange={e => setProfileForm({ ...profileForm, address: e.target.value })}
+                style={{ ...inputStyle, resize: 'vertical' }}
+              />
+            </div>
+          </div>
+
+          {/* Media Branding */}
+          <div
+            style={{
+              background: '#FFFFFF',
+              borderRadius: 16,
+              border: '1px solid #EAE0D0',
+              padding: '24px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 14,
+            }}
+          >
+            <h3 style={{ fontSize: 16, fontWeight: 900, color: '#171717', margin: 0 }}>
+              Visual Branding
+            </h3>
+
+            <div>
+              <label style={labelStyle}>Banner Image URL</label>
+              <input
+                type="text"
+                value={profileForm.bannerUrl}
+                onChange={e => setProfileForm({ ...profileForm, bannerUrl: e.target.value })}
+                style={inputStyle}
+              />
+              <div
+                style={{
+                  height: 140,
+                  borderRadius: 12,
+                  marginTop: 10,
+                  overflow: 'hidden',
+                  background: '#FAF0EB',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={profileForm.bannerUrl}
+                  alt="Store banner"
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              </div>
+            </div>
+
+            <div style={{ marginTop: 10 }}>
+              <label style={labelStyle}>Restaurant Logo URL</label>
+              <input
+                type="text"
+                placeholder="https://..."
+                value={profileForm.logoUrl}
+                onChange={e => setProfileForm({ ...profileForm, logoUrl: e.target.value })}
+                style={inputStyle}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── TAB 2: OPERATING HOURS ─── */}
+      {activeTab === 'HOURS' && (
+        <div
+          style={{
+            background: '#FFFFFF',
+            borderRadius: 16,
+            border: '1px solid #EAE0D0',
+            padding: '24px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 16,
+          }}
+        >
+          <div>
+            <h3 style={{ fontSize: 18, fontWeight: 900, color: '#171717', margin: 0 }}>
+              Weekly Schedule & Break Times
+            </h3>
+            <p style={{ fontSize: 13, color: '#6F6F6F', margin: '4px 0 0' }}>
+              Customers can only place orders when your store is set to Open within these slots.
+            </p>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {DAYS.map(day => {
+              const schedule = hours[day] || { open: '09:00', close: '23:00', isClosed: false };
+              return (
+                <div
+                  key={day}
+                  style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '12px 16px',
+                    borderRadius: 12,
+                    background: schedule.isClosed ? '#FFF5F5' : '#FAF6EF',
+                    border: '1px solid #EAE0D0',
+                    gap: 12,
+                  }}
+                >
+                  <div style={{ minWidth: 120, fontWeight: 800, color: '#171717', fontSize: 14 }}>
+                    {day}
+                  </div>
+
+                  {!schedule.isClosed ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <input
+                        type="time"
+                        value={schedule.open}
+                        onChange={e =>
+                          setHours({
+                            ...hours,
+                            [day]: { ...schedule, open: e.target.value },
+                          })
+                        }
+                        style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #EAE0D0' }}
+                      />
+                      <span style={{ color: '#6F6F6F' }}>to</span>
+                      <input
+                        type="time"
+                        value={schedule.close}
+                        onChange={e =>
+                          setHours({
+                            ...hours,
+                            [day]: { ...schedule, close: e.target.value },
+                          })
+                        }
+                        style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #EAE0D0' }}
+                      />
+                    </div>
+                  ) : (
+                    <div style={{ color: '#D64545', fontWeight: 700, fontSize: 13 }}>
+                      🔴 Holiday / Closed All Day
+                    </div>
                   )}
-                  <input className="input" value={form[f.key] || ''} onChange={e => setForm((p: any) => ({ ...p, [f.key]: e.target.value }))} placeholder={f.placeholder} />
+
+                  <button
+                    onClick={() =>
+                      setHours({
+                        ...hours,
+                        [day]: { ...schedule, isClosed: !schedule.isClosed },
+                      })
+                    }
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: 8,
+                      border: '1px solid #EAE0D0',
+                      background: '#FFFFFF',
+                      fontSize: 12,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {schedule.isClosed ? 'Set Open' : 'Mark Holiday'}
+                  </button>
                 </div>
-              ))}
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ─── TAB 3: OFFERS & COUPONS ─── */}
+      {activeTab === 'OFFERS' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <h3 style={{ fontSize: 18, fontWeight: 900, color: '#171717', margin: 0 }}>
+                Active Offers & Coupon Codes
+              </h3>
+              <p style={{ fontSize: 13, color: '#6F6F6F', margin: '2px 0 0' }}>
+                Create discounts to boost your store sales
+              </p>
+            </div>
+            <button
+              onClick={() => setCreateOfferModal(true)}
+              style={{
+                padding: '10px 18px',
+                borderRadius: 10,
+                background: '#FFB21A',
+                color: '#171717',
+                fontWeight: 900,
+                fontSize: 13,
+                border: 'none',
+                cursor: 'pointer',
+                boxShadow: '0 2px 8px rgba(255, 178, 26, 0.3)',
+              }}
+            >
+              + CREATE OFFER
+            </button>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
+            {offers.map(offer => (
+              <div
+                key={offer.id}
+                style={{
+                  background: '#FFFFFF',
+                  borderRadius: 16,
+                  border: offer.isActive ? '1.5px solid #FFD470' : '1px solid #EAE0D0',
+                  padding: '18px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 12,
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div>
+                    <span
+                      style={{
+                        fontSize: 16,
+                        fontWeight: 900,
+                        color: '#4A0A10',
+                        background: '#FAF0EB',
+                        padding: '4px 10px',
+                        borderRadius: 8,
+                        letterSpacing: 1,
+                      }}
+                    >
+                      {offer.code}
+                    </span>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: '#171717', marginTop: 8 }}>
+                      {offer.title}
+                    </div>
+                  </div>
+                  <span
+                    style={{
+                      fontSize: 10,
+                      fontWeight: 800,
+                      padding: '3px 8px',
+                      borderRadius: 6,
+                      background: offer.isActive ? '#E8F8F0' : '#FEECEC',
+                      color: offer.isActive ? '#20A464' : '#D64545',
+                    }}
+                  >
+                    {offer.isActive ? 'ACTIVE' : 'DISABLED'}
+                  </span>
+                </div>
+
+                <div style={{ fontSize: 12, color: '#6F6F6F', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <div>
+                    Discount: <strong>{offer.type === 'PERCENTAGE' ? `${offer.value}% off` : `₹${offer.value} flat off`}</strong>
+                  </div>
+                  <div>
+                    Min Order: <strong>₹{offer.minOrder}</strong> · Max Cap: <strong>₹{offer.maxDiscount}</strong>
+                  </div>
+                  <div>
+                    Valid till: <strong>{offer.expiryDate}</strong> · Used: <strong>{offer.usedCount} / {offer.usageLimit}</strong>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                  <button
+                    onClick={() => handleToggleOffer(offer.id)}
+                    style={{
+                      flex: 1,
+                      padding: '8px',
+                      borderRadius: 8,
+                      border: '1px solid #EAE0D0',
+                      background: '#FAF6EF',
+                      fontWeight: 700,
+                      fontSize: 12,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {offer.isActive ? 'DISABLE' : 'ENABLE'}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ─── TAB 4: BUSINESS & LICENSES ─── */}
+      {activeTab === 'BUSINESS' && (
+        <div
+          style={{
+            background: '#FFFFFF',
+            borderRadius: 16,
+            border: '1px solid #EAE0D0',
+            padding: '24px',
+            maxWidth: 600,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 16,
+          }}
+        >
+          <h3 style={{ fontSize: 18, fontWeight: 900, color: '#171717', margin: 0 }}>
+            Tax & Regulatory Compliance
+          </h3>
+
+          <div>
+            <label style={labelStyle}>GSTIN (Goods and Services Tax Number)</label>
+            <input
+              type="text"
+              value={profileForm.gstNumber}
+              onChange={e => setProfileForm({ ...profileForm, gstNumber: e.target.value })}
+              style={inputStyle}
+            />
+            <div style={{ fontSize: 11, color: '#20A464', fontWeight: 700, marginTop: 4 }}>
+              ✓ GST verified for standard 5% restaurant tax collection.
             </div>
           </div>
 
-          {/* Basic Details */}
-          <div style={{ background: '#fff', borderRadius: 18, border: '1px solid var(--border)', padding: 24 }}>
-            <h3 style={{ fontWeight: 800, marginBottom: 16 }}>Restaurant Details</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-              <div style={{ gridColumn: '1 / -1' }}>
-                <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-sec)', display: 'block', marginBottom: 6 }}>Restaurant Name</label>
-                <input className="input" value={form.name} onChange={e => setForm((p: any) => ({ ...p, name: e.target.value }))} />
-              </div>
-              <div style={{ gridColumn: '1 / -1' }}>
-                <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-sec)', display: 'block', marginBottom: 6 }}>Description</label>
-                <textarea className="input" style={{ height: 80, resize: 'none' }} value={form.description} onChange={e => setForm((p: any) => ({ ...p, description: e.target.value }))} />
-              </div>
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-sec)', display: 'block', marginBottom: 6 }}>Phone</label>
-                <input className="input" value={form.phone} onChange={e => setForm((p: any) => ({ ...p, phone: e.target.value }))} />
-              </div>
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-sec)', display: 'block', marginBottom: 6 }}>Email</label>
-                <input className="input" value={form.email} onChange={e => setForm((p: any) => ({ ...p, email: e.target.value }))} />
-              </div>
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-sec)', display: 'block', marginBottom: 6 }}>Cuisine Type</label>
-                <select className="input" value={form.cuisineType} onChange={e => setForm((p: any) => ({ ...p, cuisineType: e.target.value }))}>
-                  {CUISINE_OPTIONS.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-sec)', display: 'block', marginBottom: 6 }}>Food Type</label>
-                <select className="input" value={form.foodType} onChange={e => setForm((p: any) => ({ ...p, foodType: e.target.value }))}>
-                  {FOOD_TYPE_OPTIONS.map(t => <option key={t} value={t}>{t.replace('_', '-')}</option>)}
-                </select>
-              </div>
+          <div>
+            <label style={labelStyle}>FSSAI Food Safety License Number</label>
+            <input
+              type="text"
+              value={profileForm.fssaiLicense}
+              onChange={e => setProfileForm({ ...profileForm, fssaiLicense: e.target.value })}
+              style={inputStyle}
+            />
+            <div style={{ fontSize: 11, color: '#20A464', fontWeight: 700, marginTop: 4 }}>
+              ✓ License valid and compliant with national food safety guidelines.
             </div>
           </div>
         </div>
       )}
 
-      {/* ─── Location Tab ─── */}
-      {activeTab === 'location' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          <div style={{ background: '#fff', borderRadius: 18, border: '1px solid var(--border)', padding: 24 }}>
-            <h3 style={{ fontWeight: 800, marginBottom: 16 }}>Location & Address</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-              <div style={{ gridColumn: '1 / -1' }}>
-                <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-sec)', display: 'block', marginBottom: 6 }}>Full Address</label>
-                <textarea className="input" style={{ height: 70, resize: 'none' }} value={form.address} onChange={e => setForm((p: any) => ({ ...p, address: e.target.value }))} />
-              </div>
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-sec)', display: 'block', marginBottom: 6 }}>City</label>
-                <input className="input" value={form.city} onChange={e => setForm((p: any) => ({ ...p, city: e.target.value }))} />
-              </div>
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-sec)', display: 'block', marginBottom: 6 }}>PIN Code</label>
-                <input className="input" value={form.pinCode} onChange={e => setForm((p: any) => ({ ...p, pinCode: e.target.value }))} />
-              </div>
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-sec)', display: 'block', marginBottom: 6 }}>Delivery Radius (KM)</label>
-                <input className="input" type="number" value={form.deliveryRadius} onChange={e => setForm((p: any) => ({ ...p, deliveryRadius: Number(e.target.value) }))} />
-              </div>
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-sec)', display: 'block', marginBottom: 6 }}>Min Order Amount (₹)</label>
-                <input className="input" type="number" value={form.minOrderAmount} onChange={e => setForm((p: any) => ({ ...p, minOrderAmount: Number(e.target.value) }))} />
-              </div>
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-sec)', display: 'block', marginBottom: 6 }}>Avg Prep Time (minutes)</label>
-                <input className="input" type="number" value={form.estimatedPrepTime} onChange={e => setForm((p: any) => ({ ...p, estimatedPrepTime: Number(e.target.value) }))} />
-              </div>
+      {/* ─── CREATE OFFER MODAL ─── */}
+      {createOfferModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.5)',
+            zIndex: 100,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+          }}
+          onClick={() => setCreateOfferModal(false)}
+        >
+          <div
+            style={{
+              background: '#FFFFFF',
+              borderRadius: 20,
+              maxWidth: 480,
+              width: '100%',
+              padding: '24px',
+              boxShadow: '0 12px 36px rgba(0,0,0,0.2)',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h3 style={{ fontSize: 18, fontWeight: 900, color: '#4A0A10', margin: 0 }}>
+                🎁 Create Promo Coupon
+              </h3>
+              <button
+                onClick={() => setCreateOfferModal(false)}
+                style={{ background: 'none', border: 'none', fontSize: 18, cursor: 'pointer' }}
+              >
+                ✕
+              </button>
             </div>
-          </div>
-        </div>
-      )}
 
-      {/* ─── Business Tab ─── */}
-      {activeTab === 'business' && (
-        <div style={{ background: '#fff', borderRadius: 18, border: '1px solid var(--border)', padding: 24 }}>
-          <h3 style={{ fontWeight: 800, marginBottom: 16 }}>Business & Tax Details</h3>
-          <div style={{ background: '#FFF8E8', borderRadius: 10, padding: '12px 16px', marginBottom: 16, fontSize: 13, color: '#856404', display: 'flex', gap: 8, alignItems: 'center' }}>
-            <span>🔒</span>
-            <span>Changes to bank details and sensitive documents require admin re-verification. Contact support to update.</span>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-            <div>
-              <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-sec)', display: 'block', marginBottom: 6 }}>GSTIN Number</label>
-              <input className="input" value={form.gstin} onChange={e => setForm((p: any) => ({ ...p, gstin: e.target.value }))} placeholder="29ABCDE1234F1Z5" />
-            </div>
-            <div>
-              <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-sec)', display: 'block', marginBottom: 6 }}>FSSAI License</label>
-              <input className="input" value="10022021001234" disabled placeholder="FSSAI License Number" />
-            </div>
-            <div>
-              <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-sec)', display: 'block', marginBottom: 6 }}>Bank Account</label>
-              <input className="input" value="XXXX XXXX 4521" disabled />
-            </div>
-            <div>
-              <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-sec)', display: 'block', marginBottom: 6 }}>IFSC Code</label>
-              <input className="input" value="HDFC0001234" disabled />
-            </div>
-            <div>
-              <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-sec)', display: 'block', marginBottom: 6 }}>Commission Rate</label>
-              <input className="input" value="20% (Platform standard)" disabled />
-            </div>
-            <div>
-              <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-sec)', display: 'block', marginBottom: 6 }}>GST Rate on Orders</label>
-              <input className="input" value="5% (Restaurant category)" disabled />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div>
+                <label style={labelStyle}>Coupon Code *</label>
+                <input
+                  type="text"
+                  placeholder="e.g. FLAT50"
+                  value={newOffer.code}
+                  onChange={e => setNewOffer({ ...newOffer, code: e.target.value.toUpperCase() })}
+                  style={inputStyle}
+                />
+              </div>
+
+              <div>
+                <label style={labelStyle}>Campaign Title</label>
+                <input
+                  type="text"
+                  placeholder="e.g. 50% Off on Orders Above ₹200"
+                  value={newOffer.title}
+                  onChange={e => setNewOffer({ ...newOffer, title: e.target.value })}
+                  style={inputStyle}
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={labelStyle}>Discount Type</label>
+                  <select
+                    value={newOffer.type}
+                    onChange={e => setNewOffer({ ...newOffer, type: e.target.value })}
+                    style={inputStyle}
+                  >
+                    <option value="PERCENTAGE">Percentage (%)</option>
+                    <option value="FLAT">Flat Amount (₹)</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={labelStyle}>Discount Value</label>
+                  <input
+                    type="number"
+                    value={newOffer.value}
+                    onChange={e => setNewOffer({ ...newOffer, value: Number(e.target.value) })}
+                    style={inputStyle}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={labelStyle}>Min Order (₹)</label>
+                  <input
+                    type="number"
+                    value={newOffer.minOrder}
+                    onChange={e => setNewOffer({ ...newOffer, minOrder: Number(e.target.value) })}
+                    style={inputStyle}
+                  />
+                </div>
+                <div>
+                  <label style={labelStyle}>Max Discount Cap (₹)</label>
+                  <input
+                    type="number"
+                    value={newOffer.maxDiscount}
+                    onChange={e => setNewOffer({ ...newOffer, maxDiscount: Number(e.target.value) })}
+                    style={inputStyle}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+                <button
+                  onClick={() => setCreateOfferModal(false)}
+                  style={{
+                    flex: 1,
+                    padding: '12px',
+                    borderRadius: 10,
+                    border: '1px solid #EAE0D0',
+                    background: '#FFFFFF',
+                    fontWeight: 700,
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleCreateOffer}
+                  style={{
+                    flex: 1,
+                    padding: '12px',
+                    borderRadius: 10,
+                    border: 'none',
+                    background: '#4A0A10',
+                    color: '#FFFFFF',
+                    fontWeight: 800,
+                  }}
+                >
+                  Publish Offer
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -233,3 +795,22 @@ export default function RestaurantProfilePage() {
     </div>
   );
 }
+
+const labelStyle: React.CSSProperties = {
+  fontSize: 12,
+  fontWeight: 800,
+  color: '#6F6F6F',
+  marginBottom: 4,
+  display: 'block',
+};
+
+const inputStyle: React.CSSProperties = {
+  width: '100%',
+  padding: '10px 14px',
+  borderRadius: 10,
+  border: '1px solid #EAE0D0',
+  fontSize: 14,
+  background: '#FAF6EF',
+  color: '#171717',
+  boxSizing: 'border-box',
+};

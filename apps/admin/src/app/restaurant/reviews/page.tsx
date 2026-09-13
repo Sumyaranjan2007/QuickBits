@@ -1,207 +1,377 @@
 'use client';
-import React, { useState, useEffect } from 'react';
-import { restaurantsApi, reviewsApi } from '@quickbite/api-client';
+import React, { useState } from 'react';
 
-const DEMO_REVIEWS = [
-  { id: 'r1', customerName: 'Rahul Sharma', rating: 5, foodRating: 5, comment: 'Amazing burgers! The smash burger was perfectly crispy and juicy. Delivery was super fast too. Will definitely order again!', orderedItems: 'Classic Smash Burger, Peri Peri Fries', createdAt: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(), reply: null },
-  { id: 'r2', customerName: 'Priya Patel', rating: 4, foodRating: 4, comment: 'Really good biryani, very authentic. Packaging was great. Could have been a bit warmer on arrival.', orderedItems: 'Chicken Dum Biryani', createdAt: new Date(Date.now() - 1000 * 60 * 60 * 8).toISOString(), reply: 'Thank you Priya! We use insulated packaging. We\'ll note your feedback.' },
-  { id: 'r3', customerName: 'Vikram Mehta', rating: 5, foodRating: 5, comment: 'Best pizza in Bengaluru! The burrata is fresh and delicious. 10/10 would recommend.', orderedItems: 'Margherita Burrata Pizza', createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(), reply: null },
-  { id: 'r4', customerName: 'Sneha Reddy', rating: 3, foodRating: 3, comment: 'Food was decent but took longer than expected. Would prefer if the preparation was faster.', orderedItems: 'Paneer Tikka Burger', createdAt: new Date(Date.now() - 1000 * 60 * 60 * 36).toISOString(), reply: null },
-  { id: 'r5', customerName: 'Arjun Nair', rating: 5, foodRating: 5, comment: 'Absolutely loved it! Perfect for family orders. The garlic bread was phenomenal.', orderedItems: 'BBQ Chicken Pizza, Garlic Bread', createdAt: new Date(Date.now() - 1000 * 60 * 60 * 48).toISOString(), reply: 'Thank you Arjun! Really appreciate your kind words. Come back soon!' },
+interface Review {
+  id: string;
+  customerName: string;
+  rating: number;
+  comment: string;
+  date: string;
+  orderedItems: string[];
+  reply?: string;
+  replyDate?: string;
+}
+
+const DEMO_REVIEWS: Review[] = [
+  {
+    id: 'rev-1',
+    customerName: 'Rahul Sharma',
+    rating: 5,
+    comment: 'The Hyderabadi Dum Biryani was exceptionally flavorful and arrived piping hot! Best delivery packaging I have seen in Bengaluru.',
+    date: 'Today, 01:15 PM',
+    orderedItems: ['2 × Chicken Dum Biryani', '1 × Coke'],
+    reply: 'Thank you so much Rahul! We prepare each handi fresh on order. Looking forward to serving you again soon! — Team QuickBite',
+    replyDate: 'Today, 01:45 PM',
+  },
+  {
+    id: 'rev-2',
+    customerName: 'Priya Patel',
+    rating: 5,
+    comment: 'Paneer Butter Masala was very rich and creamy. Loved the soft butter naans.',
+    date: 'Yesterday, 08:30 PM',
+    orderedItems: ['1 × Paneer Butter Masala', '3 × Butter Naan'],
+  },
+  {
+    id: 'rev-3',
+    customerName: 'Vikram Mehta',
+    rating: 4,
+    comment: 'Burger was super juicy and tasty. Peri peri fries could be slightly crispier but overall great experience.',
+    date: '10 Sep 2026',
+    orderedItems: ['1 × Classic Smash Burger', '1 × Peri Peri Fries'],
+  },
+  {
+    id: 'rev-4',
+    customerName: 'Sneha Reddy',
+    rating: 3,
+    comment: 'Food was delicious but delivery took around 40 minutes during the rain.',
+    date: '08 Sep 2026',
+    orderedItems: ['1 × Veg Supreme Pizza'],
+  },
 ];
 
-function Stars({ rating }: { rating: number }) {
-  return (
-    <div style={{ display: 'flex', gap: 2 }}>
-      {[1, 2, 3, 4, 5].map(s => (
-        <span key={s} style={{ fontSize: 14, color: s <= rating ? '#FDCB6E' : '#DDD' }}>★</span>
-      ))}
-    </div>
-  );
-}
+const RATING_DISTRIBUTION = [
+  { stars: 5, count: 980, percentage: 78 },
+  { stars: 4, count: 180, percentage: 14 },
+  { stars: 3, count: 52, percentage: 4 },
+  { stars: 2, count: 24, percentage: 2 },
+  { stars: 1, count: 12, percentage: 1 },
+];
 
-function timeAgo(iso: string) {
-  const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-  return `${Math.floor(diff / 86400)}d ago`;
-}
-
-export default function ReviewsPage() {
-  const [reviews, setReviews] = useState(DEMO_REVIEWS);
-  const [loading, setLoading] = useState(true);
-  const [replyModal, setReplyModal] = useState<any>(null);
+export default function RestaurantReviewsPage() {
+  const [reviews, setReviews] = useState<Review[]>(DEMO_REVIEWS);
+  const [replyingId, setReplyingId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
-  const [filterRating, setFilterRating] = useState(0);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const r = await restaurantsApi.list();
-        const d = r.data as any;
-        const list = d.items || d || [];
-        if (list.length > 0) {
-          const r2 = await reviewsApi.getByRestaurant(list[0].id);
-          const d2 = r2.data as any;
-          const list2 = d2.items || d2 || [];
-          if (list2.length > 0) {
-            setReviews(list2.map((rv: any) => ({
-              ...rv,
-              customerName: rv.customer?.profile?.firstName || 'Customer',
-              orderedItems: 'Order items',
-            })));
-            return;
-          }
-        }
-        setReviews(DEMO_REVIEWS);
-      } catch {
-        setReviews(DEMO_REVIEWS);
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
-  }, []);
-
-  const handleReply = (reviewId: string) => {
-    if (!replyText.trim()) return;
-    setReviews(prev => prev.map(r => r.id === reviewId ? { ...r, reply: replyText } : r));
-    setReplyModal(null);
-    setReplyText('');
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3000);
   };
 
-  const avgRating = reviews.reduce((s, r) => s + r.rating, 0) / reviews.length;
-  const ratingDist = [5, 4, 3, 2, 1].map(n => ({
-    rating: n,
-    count: reviews.filter(r => r.rating === n).length,
-    pct: Math.round((reviews.filter(r => r.rating === n).length / reviews.length) * 100),
-  }));
-  const filtered = filterRating > 0 ? reviews.filter(r => r.rating === filterRating) : reviews;
-
-  if (loading) return <div className="loading"><div className="spinner" /></div>;
+  const handleSendReply = (reviewId: string) => {
+    if (!replyText.trim()) return;
+    setReviews(prev =>
+      prev.map(r =>
+        r.id === reviewId
+          ? {
+              ...r,
+              reply: replyText.trim(),
+              replyDate: 'Just now',
+            }
+          : r
+      )
+    );
+    setReplyingId(null);
+    setReplyText('');
+    showToast('Reply published successfully!');
+  };
 
   return (
-    <div>
-      {/* ─── Header ─── */}
-      <div className="page-header" style={{ marginBottom: 20 }}>
-        <div>
-          <h1 className="page-title">⭐ Customer Reviews</h1>
-          <p className="page-subtitle">{reviews.length} total reviews · {avgRating.toFixed(1)} average rating</p>
-        </div>
-      </div>
-
-      {/* ─── Rating Overview ─── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 20, marginBottom: 24 }}>
-        {/* Score Card */}
-        <div style={{ background: 'linear-gradient(135deg, #FDCB6E, #F39C12)', borderRadius: 20, padding: 28, color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
-          <div style={{ fontSize: 56, fontWeight: 900, lineHeight: 1 }}>{avgRating.toFixed(1)}</div>
-          <div style={{ display: 'flex', gap: 4, marginTop: 8 }}>
-            {[1, 2, 3, 4, 5].map(s => (
-              <span key={s} style={{ fontSize: 22, color: s <= Math.round(avgRating) ? '#fff' : 'rgba(255,255,255,0.4)' }}>★</span>
-            ))}
-          </div>
-          <div style={{ marginTop: 10, fontSize: 14, opacity: 0.9 }}>{reviews.length} reviews</div>
-          <div style={{ marginTop: 4, fontSize: 12, opacity: 0.8 }}>🏆 Top 10% in your area!</div>
-        </div>
-
-        {/* Distribution */}
-        <div style={{ background: '#fff', borderRadius: 20, padding: 24, border: '1px solid var(--border)' }}>
-          <div style={{ fontWeight: 800, marginBottom: 16 }}>Rating Distribution</div>
-          {ratingDist.map(d => (
-            <div key={d.rating} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-              <button
-                onClick={() => setFilterRating(filterRating === d.rating ? 0 : d.rating)}
-                style={{ display: 'flex', gap: 4, alignItems: 'center', background: 'none', border: 'none', cursor: 'pointer', width: 70 }}
-              >
-                <span style={{ color: '#FDCB6E', fontSize: 14 }}>★</span>
-                <span style={{ fontWeight: 700, fontSize: 14 }}>{d.rating}</span>
-              </button>
-              <div style={{ flex: 1, height: 8, background: '#F0F0F0', borderRadius: 4, overflow: 'hidden' }}>
-                <div style={{ height: '100%', background: '#FDCB6E', borderRadius: 4, width: `${d.pct}%`, transition: '0.4s' }} />
-              </div>
-              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-sec)', width: 50, textAlign: 'right' }}>{d.count} ({d.pct}%)</span>
-            </div>
-          ))}
-          {filterRating > 0 && (
-            <button onClick={() => setFilterRating(0)} style={{ fontSize: 12, color: 'var(--primary)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700, marginTop: 4 }}>
-              ✕ Clear filter
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* ─── Reviews List ─── */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-        {filtered.map(review => (
-          <div key={review.id} style={{
-            background: '#fff', borderRadius: 16, border: '1px solid var(--border)', padding: 20,
-            boxShadow: 'var(--shadow-sm)', borderLeft: `4px solid ${review.rating >= 4 ? '#00B894' : review.rating === 3 ? '#FDCB6E' : '#E17055'}`,
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
-              <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                <div style={{ width: 42, height: 42, borderRadius: '50%', background: 'var(--primary-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 18, color: 'var(--primary)' }}>
-                  {review.customerName[0]}
-                </div>
-                <div>
-                  <div style={{ fontWeight: 800, fontSize: 15 }}>{review.customerName}</div>
-                  <Stars rating={review.rating} />
-                </div>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{timeAgo(review.createdAt)}</div>
-                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>📦 {review.orderedItems}</div>
-              </div>
-            </div>
-
-            <p style={{ fontSize: 14, lineHeight: 1.6, color: 'var(--text-sec)', margin: '8px 0' }}>
-              "{review.comment}"
-            </p>
-
-            {review.reply && (
-              <div style={{ background: 'var(--primary-light)', borderRadius: 10, padding: '10px 14px', marginTop: 10, borderLeft: '3px solid var(--primary)' }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--primary)', marginBottom: 3 }}>🍽️ Restaurant Reply:</div>
-                <div style={{ fontSize: 13, color: 'var(--text)' }}>{review.reply}</div>
-              </div>
-            )}
-
-            <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-              {!review.reply && (
-                <button
-                  className="btn btn-primary btn-sm"
-                  onClick={() => { setReplyModal(review); setReplyText(''); }}
-                  style={{ fontSize: 12, borderRadius: 8 }}
-                >
-                  💬 Reply to Review
-                </button>
-              )}
-              <button className="btn btn-outline btn-sm" style={{ fontSize: 12, borderRadius: 8 }}>
-                🚩 Flag Review
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* ─── Reply Modal ─── */}
-      {replyModal && (
-        <div className="modal-backdrop" onClick={() => setReplyModal(null)}>
-          <div className="modal-sheet" onClick={e => e.stopPropagation()}>
-            <h3 style={{ fontWeight: 900, marginBottom: 8 }}>💬 Reply to {replyModal.customerName}</h3>
-            <p style={{ fontSize: 13, color: 'var(--text-sec)', marginBottom: 12 }}>"{replyModal.comment}"</p>
-            <textarea
-              className="input"
-              style={{ height: 100, resize: 'none' }}
-              placeholder="Write a professional, friendly response..."
-              value={replyText}
-              onChange={e => setReplyText(e.target.value)}
-            />
-            <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-              <button className="btn btn-outline" style={{ flex: 1 }} onClick={() => setReplyModal(null)}>Cancel</button>
-              <button className="btn btn-primary" style={{ flex: 1 }} onClick={() => handleReply(replyModal.id)}>Post Reply</button>
-            </div>
-          </div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 24,
+            right: 24,
+            background: '#4A0A10',
+            color: '#FFFFFF',
+            padding: '12px 20px',
+            borderRadius: 12,
+            boxShadow: '0 8px 24px rgba(74, 10, 16, 0.25)',
+            fontSize: 13,
+            fontWeight: 700,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            zIndex: 100,
+          }}
+        >
+          <span>✓</span>
+          <span>{toastMessage}</span>
         </div>
       )}
+
+      {/* ─── Header ─── */}
+      <div>
+        <h1 style={{ fontSize: 24, fontWeight: 900, color: '#4A0A10', margin: 0 }}>
+          ⭐ Customer Reviews & Reputation
+        </h1>
+        <p style={{ fontSize: 13, color: '#6F6F6F', margin: '4px 0 0' }}>
+          Monitor verified customer ratings and engage with diner feedback
+        </p>
+      </div>
+
+      {/* ─── Rating Overview & Distribution ─── */}
+      <div
+        style={{
+          background: '#FFFFFF',
+          borderRadius: 16,
+          border: '1px solid #EAE0D0',
+          padding: '24px',
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+          gap: 24,
+          alignItems: 'center',
+        }}
+      >
+        {/* Score */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+          <div
+            style={{
+              width: 90,
+              height: 90,
+              borderRadius: 20,
+              background: '#4A0A10',
+              color: '#FFB21A',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 4px 14px rgba(74, 10, 16, 0.2)',
+            }}
+          >
+            <span style={{ fontSize: 32, fontWeight: 900, lineHeight: 1 }}>4.6</span>
+            <span style={{ fontSize: 14 }}>★★★★★</span>
+          </div>
+          <div>
+            <div style={{ fontSize: 18, fontWeight: 900, color: '#171717' }}>1,248 Reviews</div>
+            <div style={{ fontSize: 13, color: '#20A464', fontWeight: 700, marginTop: 4 }}>
+              94% positive customer sentiment
+            </div>
+          </div>
+        </div>
+
+        {/* 5-Star Distribution Bars */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {RATING_DISTRIBUTION.map(d => (
+            <div key={d.stars} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12 }}>
+              <span style={{ width: 32, fontWeight: 700, color: '#171717' }}>{d.stars} ★</span>
+              <div style={{ flex: 1, height: 8, background: '#FAF6EF', borderRadius: 4, overflow: 'hidden' }}>
+                <div
+                  style={{
+                    width: `${d.percentage}%`,
+                    height: '100%',
+                    background: d.stars >= 4 ? '#20A464' : d.stars === 3 ? '#F5A623' : '#D64545',
+                    borderRadius: 4,
+                  }}
+                />
+              </div>
+              <span style={{ width: 36, color: '#6F6F6F', textAlign: 'right' }}>{d.count}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ─── Recent Reviews Feed ─── */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <h3 style={{ fontSize: 18, fontWeight: 900, color: '#171717', margin: 0 }}>
+          Recent Customer Reviews
+        </h3>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {reviews.map(review => (
+            <div
+              key={review.id}
+              style={{
+                background: '#FFFFFF',
+                borderRadius: 16,
+                border: '1px solid #EAE0D0',
+                padding: '20px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 12,
+              }}
+            >
+              {/* Customer Header */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div
+                    style={{
+                      width: 38,
+                      height: 38,
+                      borderRadius: '50%',
+                      background: '#FAF0EB',
+                      color: '#4A0A10',
+                      fontWeight: 800,
+                      fontSize: 14,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    {review.customerName[0]}
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 800, fontSize: 15, color: '#171717' }}>
+                      {review.customerName}
+                    </div>
+                    <div style={{ fontSize: 11, color: '#6F6F6F' }}>{review.date}</div>
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    background: '#FFF8EB',
+                    border: '1px solid #FDDCA5',
+                    color: '#B57400',
+                    fontWeight: 900,
+                    fontSize: 13,
+                    padding: '4px 10px',
+                    borderRadius: 8,
+                  }}
+                >
+                  {'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}
+                </div>
+              </div>
+
+              {/* Items Tag */}
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {review.orderedItems.map((item, i) => (
+                  <span
+                    key={i}
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 600,
+                      background: '#FAF6EF',
+                      padding: '3px 8px',
+                      borderRadius: 6,
+                      color: '#6F6F6F',
+                    }}
+                  >
+                    🍲 {item}
+                  </span>
+                ))}
+              </div>
+
+              {/* Comment */}
+              <div style={{ fontSize: 14, color: '#171717', lineHeight: 1.5 }}>
+                &ldquo;{review.comment}&rdquo;
+              </div>
+
+              {/* Restaurant Response (if exists) */}
+              {review.reply && (
+                <div
+                  style={{
+                    background: '#FAF0EB',
+                    borderRadius: 12,
+                    padding: '12px 14px',
+                    borderLeft: '4px solid #4A0A10',
+                    marginTop: 4,
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, fontWeight: 800, color: '#4A0A10', marginBottom: 4 }}>
+                    <span>OFFICIAL RESTAURANT RESPONSE</span>
+                    <span style={{ color: '#888' }}>{review.replyDate}</span>
+                  </div>
+                  <div style={{ fontSize: 13, color: '#4A0A10', lineHeight: 1.4 }}>
+                    {review.reply}
+                  </div>
+                </div>
+              )}
+
+              {/* In-line Reply Box / Trigger */}
+              {!review.reply && (
+                <div>
+                  {replyingId === review.id ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
+                      <textarea
+                        rows={2}
+                        placeholder="Write a polite response to this review..."
+                        value={replyText}
+                        onChange={e => setReplyText(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '10px 12px',
+                          borderRadius: 10,
+                          border: '1px solid #EAE0D0',
+                          fontSize: 13,
+                          background: '#FAF6EF',
+                        }}
+                      />
+                      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                        <button
+                          onClick={() => {
+                            setReplyingId(null);
+                            setReplyText('');
+                          }}
+                          style={{
+                            padding: '6px 12px',
+                            borderRadius: 6,
+                            border: '1px solid #EAE0D0',
+                            background: '#FFFFFF',
+                            fontSize: 12,
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={() => handleSendReply(review.id)}
+                          style={{
+                            padding: '6px 14px',
+                            borderRadius: 6,
+                            border: 'none',
+                            background: '#4A0A10',
+                            color: '#FFFFFF',
+                            fontSize: 12,
+                            fontWeight: 800,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          Post Reply
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        setReplyingId(review.id);
+                        setReplyText('');
+                      }}
+                      style={{
+                        padding: '6px 14px',
+                        borderRadius: 8,
+                        border: '1px solid #EAE0D0',
+                        background: '#FAF6EF',
+                        color: '#4A0A10',
+                        fontWeight: 700,
+                        fontSize: 12,
+                        cursor: 'pointer',
+                        width: 'fit-content',
+                      }}
+                    >
+                      💬 REPLY
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

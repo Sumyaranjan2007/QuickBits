@@ -1,257 +1,284 @@
 'use client';
 import React, { useState } from 'react';
 
-interface Ticket {
-  id: string;
-  subject: string;
-  category: string;
-  status: 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED';
-  priority: 'LOW' | 'MEDIUM' | 'HIGH';
-  createdAt: string;
-  messages: { sender: string; text: string; ts: string }[];
-}
-
-const DEMO_TICKETS: Ticket[] = [
-  {
-    id: 'TKT-1201', subject: 'Settlement delayed for last week', category: 'PAYMENTS',
-    status: 'IN_PROGRESS', priority: 'HIGH', createdAt: '21 Aug 2026',
-    messages: [
-      { sender: 'Restaurant', text: 'My settlement for Aug 8-15 has not been credited to my bank account yet. Expected on Aug 18.', ts: '21 Aug, 14:00' },
-      { sender: 'Support', text: 'We\'ve escalated this to our finance team. Please allow 24 more hours for resolution. Ticket reference: FNCE-8821.', ts: '21 Aug, 16:30' },
-    ],
-  },
-  {
-    id: 'TKT-1189', subject: 'Customer reported missing item', category: 'ORDERS',
-    status: 'RESOLVED', priority: 'MEDIUM', createdAt: '19 Aug 2026',
-    messages: [
-      { sender: 'Restaurant', text: 'Customer order QB-741290 claims garlic bread was missing. We did include it in the packaging.', ts: '19 Aug, 20:00' },
-      { sender: 'Support', text: 'Reviewed CCTV and photos from our delivery partner. Confirmed item was included. Customer refund declined. Case closed.', ts: '20 Aug, 11:00' },
-    ],
-  },
+const SUPPORT_CATEGORIES = [
+  { key: 'ORDER', label: 'Order Issues', icon: '📦', desc: 'Cancellations, item disputes, customer refunds' },
+  { key: 'PAYMENT', label: 'Payment Issues', icon: '💳', desc: 'UPI failures, gateway sync, customer payment errors' },
+  { key: 'DELIVERY', label: 'Delivery Issues', icon: '🛵', desc: 'Rider delayed, wrong delivery location, pickup disputes' },
+  { key: 'SETTLEMENT', label: 'Settlement Issues', icon: '💰', desc: 'Bank payout delays, commission calculations, tax invoice' },
+  { key: 'ACCOUNT', label: 'Account Issues', icon: '⚙️', desc: 'Login troubles, branch transfer, staff access' },
 ];
 
-const CATEGORIES = ['ORDERS', 'PAYMENTS', 'SETTLEMENTS', 'MENU', 'DELIVERY', 'CUSTOMER_ISSUE', 'TECHNICAL', 'ACCOUNT', 'OTHER'];
 const FAQS = [
-  { q: 'How are settlement amounts calculated?', a: 'Settlement = Gross Sales - Platform Commission (20%) - GST (5%) - Any coupon discounts funded by QuickBite. Refunds and adjustments are applied separately.' },
-  { q: 'When will I receive my weekly payout?', a: 'Payouts are processed every Monday for the previous week (Mon-Sun). Bank transfer takes 1-2 business days. You can track this in Finance > Settlements.' },
-  { q: 'How do I temporarily pause orders?', a: 'Use the restaurant status toggle at the top of your sidebar. Select "Pause 30 min" or "Close Today". Orders will not be accepted during the pause period.' },
-  { q: 'A customer claims their order was wrong. What do I do?', a: 'Navigate to the specific order, then click "Report Issue". Our team will review the complaint and decide on refund eligibility based on evidence.' },
-  { q: 'How do I update my bank account for payouts?', a: 'Bank account changes require identity verification. Contact support via a ticket with category "Account" and our KYC team will guide you through the process.' },
+  {
+    q: 'How do daily payouts work?',
+    a: 'Settlements for completed orders are processed daily by 6:00 AM directly into your verified bank account after standard commission and tax deductions.',
+  },
+  {
+    q: 'What should I do if a delivery partner does not arrive on time?',
+    a: 'If food is marked Ready and the rider has not arrived within 10 minutes, our automated dispatch algorithm automatically reassigns the order to the nearest active rider.',
+  },
+  {
+    q: 'How do I temporarily pause orders during a heavy rush?',
+    a: 'Click the Status pill in the top header or the Pause button on your dashboard to pause orders for 15, 30, or 60 minutes.',
+  },
+  {
+    q: 'What are the required packing standards for hot gravy items?',
+    a: 'Use tamper-evident spill-proof containers with securely taped lids and QuickBite branded delivery bags to ensure temperature retention.',
+  },
 ];
 
-export default function SupportPage() {
-  const [tickets, setTickets] = useState<Ticket[]>(DEMO_TICKETS);
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
-  const [replyText, setReplyText] = useState('');
-  const [openFaq, setOpenFaq] = useState<number | null>(null);
-  const [form, setForm] = useState({ subject: '', category: 'ORDERS', description: '', priority: 'MEDIUM' as 'LOW' | 'MEDIUM' | 'HIGH' });
-  const [creating, setCreating] = useState(false);
+const GUIDELINES = [
+  { title: 'Packing & Hygiene Standards', desc: 'Always double-seal hot curries and attach thermal stickers to beverages.' },
+  { title: 'Average Prep Time Target', desc: 'Maintain an average food preparation time under 15 minutes to earn the Fast Prep Badge.' },
+  { title: 'Cancellation Policy', desc: 'Order rejections without valid inventory reasons increase merchant cancellation rates and affect store ranking.' },
+];
 
-  const handleCreate = async () => {
-    if (!form.subject || !form.description) { alert('Subject and description are required'); return; }
-    setCreating(true);
-    await new Promise(r => setTimeout(r, 600));
-    const newTicket: Ticket = {
-      id: `TKT-${1200 + tickets.length + 1}`,
-      subject: form.subject,
-      category: form.category,
-      status: 'OPEN',
-      priority: form.priority,
-      createdAt: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
-      messages: [{ sender: 'Restaurant', text: form.description, ts: new Date().toLocaleTimeString() }],
-    };
-    setTickets(prev => [newTicket, ...prev]);
-    setShowCreateModal(false);
-    setForm({ subject: '', category: 'ORDERS', description: '', priority: 'MEDIUM' });
-    setCreating(false);
-    alert(`Support ticket ${newTicket.id} created. Our team will respond within 4 hours.`);
+export default function RestaurantSupportPage() {
+  const [ticketModal, setTicketModal] = useState(false);
+  const [selectedCat, setSelectedCat] = useState('ORDER');
+  const [ticketSubject, setTicketSubject] = useState('');
+  const [ticketDetails, setTicketDetails] = useState('');
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3000);
   };
 
-  const handleReply = (ticketId: string) => {
-    if (!replyText.trim()) return;
-    setTickets(prev => prev.map(t => t.id === ticketId ? {
-      ...t,
-      messages: [...t.messages, { sender: 'Restaurant', text: replyText, ts: new Date().toLocaleTimeString() }],
-    } : t));
-    if (selectedTicket?.id === ticketId) {
-      setSelectedTicket(prev => prev ? {
-        ...prev,
-        messages: [...prev.messages, { sender: 'Restaurant', text: replyText, ts: new Date().toLocaleTimeString() }],
-      } : null);
+  const handleCreateTicket = () => {
+    if (!ticketSubject.trim() || !ticketDetails.trim()) {
+      alert('Please provide a subject and details for your ticket');
+      return;
     }
-    setReplyText('');
-  };
-
-  const statusColors: Record<string, string> = {
-    OPEN: 'badge-warning',
-    IN_PROGRESS: 'badge-info',
-    RESOLVED: 'badge-success',
-    CLOSED: 'badge-neutral',
+    setTicketModal(false);
+    setTicketSubject('');
+    setTicketDetails('');
+    showToast('Support ticket #TKT-88412 created! Priority team will respond within 15 mins.');
   };
 
   return (
-    <div>
-      {/* ─── Header ─── */}
-      <div className="page-header" style={{ marginBottom: 20 }}>
-        <div>
-          <h1 className="page-title">🎧 Support Center</h1>
-          <p className="page-subtitle">{tickets.filter(t => t.status === 'OPEN' || t.status === 'IN_PROGRESS').length} open tickets · Avg response time: 4 hours</p>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 24,
+            right: 24,
+            background: '#4A0A10',
+            color: '#FFFFFF',
+            padding: '12px 20px',
+            borderRadius: 12,
+            boxShadow: '0 8px 24px rgba(74, 10, 16, 0.25)',
+            fontSize: 13,
+            fontWeight: 700,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            zIndex: 100,
+          }}
+        >
+          <span>✓</span>
+          <span>{toastMessage}</span>
         </div>
-        <button className="btn btn-primary" onClick={() => setShowCreateModal(true)} style={{ borderRadius: 10 }}>
-          + New Support Ticket
+      )}
+
+      {/* ─── Header ─── */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <h1 style={{ fontSize: 24, fontWeight: 900, color: '#4A0A10', margin: 0 }}>
+            🎧 Partner Help & Support Desk
+          </h1>
+          <p style={{ fontSize: 13, color: '#6F6F6F', margin: '4px 0 0' }}>
+            24/7 dedicated merchant assistance and operational guides
+          </p>
+        </div>
+
+        <button
+          onClick={() => setTicketModal(true)}
+          style={{
+            padding: '11px 20px',
+            borderRadius: 10,
+            background: '#FFB21A',
+            color: '#171717',
+            fontWeight: 900,
+            fontSize: 13,
+            border: 'none',
+            cursor: 'pointer',
+            boxShadow: '0 2px 8px rgba(255, 178, 26, 0.3)',
+            minHeight: 44,
+          }}
+        >
+          + CREATE SUPPORT TICKET
         </button>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-        {/* ─── Tickets List ─── */}
-        <div>
-          <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 14 }}>📋 My Tickets</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {tickets.map(t => (
-              <div
-                key={t.id}
-                onClick={() => setSelectedTicket(t)}
-                style={{
-                  background: '#fff', borderRadius: 14, padding: 16, border: `2px solid ${selectedTicket?.id === t.id ? 'var(--primary)' : 'var(--border)'}`,
-                  cursor: 'pointer', transition: '0.2s', boxShadow: 'var(--shadow-sm)',
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <span style={{ fontWeight: 900, fontSize: 13, color: 'var(--primary)' }}>{t.id}</span>
-                  <span className={`badge ${statusColors[t.status]}`} style={{ fontSize: 10 }}>{t.status.replace('_', ' ')}</span>
-                </div>
-                <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>{t.subject}</div>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <span className="badge badge-neutral" style={{ fontSize: 9 }}>{t.category}</span>
-                  <span className={`badge ${t.priority === 'HIGH' ? 'badge-error' : t.priority === 'MEDIUM' ? 'badge-warning' : 'badge-neutral'}`} style={{ fontSize: 9 }}>{t.priority}</span>
-                  <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 'auto' }}>{t.createdAt}</span>
-                </div>
+      {/* ─── Support Categories ─── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
+        {SUPPORT_CATEGORIES.map(cat => (
+          <div
+            key={cat.key}
+            onClick={() => {
+              setSelectedCat(cat.key);
+              setTicketModal(true);
+            }}
+            style={{
+              background: '#FFFFFF',
+              borderRadius: 14,
+              border: '1px solid #EAE0D0',
+              padding: '18px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 8,
+              cursor: 'pointer',
+              transition: 'transform 0.15s',
+            }}
+          >
+            <div style={{ fontSize: 28 }}>{cat.icon}</div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: '#171717' }}>{cat.label}</div>
+            <div style={{ fontSize: 12, color: '#6F6F6F', lineHeight: 1.3 }}>{cat.desc}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* ─── Grid: Guidelines & FAQs ─── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 20 }}>
+        {/* Guidelines */}
+        <div
+          style={{
+            background: '#FFFFFF',
+            borderRadius: 16,
+            border: '1px solid #EAE0D0',
+            padding: '24px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 14,
+          }}
+        >
+          <h3 style={{ fontSize: 18, fontWeight: 900, color: '#171717', margin: 0 }}>
+            📖 Merchant Guidelines & Packing Standards
+          </h3>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {GUIDELINES.map((g, i) => (
+              <div key={i} style={{ background: '#FAF6EF', padding: '12px 14px', borderRadius: 10, border: '1px solid #EAE0D0' }}>
+                <div style={{ fontSize: 14, fontWeight: 800, color: '#4A0A10' }}>{g.title}</div>
+                <div style={{ fontSize: 12, color: '#555', marginTop: 3 }}>{g.desc}</div>
               </div>
             ))}
-
-            {tickets.length === 0 && (
-              <div className="empty-state" style={{ padding: 40 }}>
-                <div className="empty-state-icon">🎧</div>
-                <div className="empty-state-title">No support tickets</div>
-                <div className="empty-state-text">Need help? Create a new support ticket.</div>
-              </div>
-            )}
           </div>
         </div>
 
-        {/* ─── Right Panel: Thread or FAQs ─── */}
-        <div>
-          {selectedTicket ? (
-            <div style={{ background: '#fff', borderRadius: 16, border: '1px solid var(--border)', overflow: 'hidden', height: 'fit-content' }}>
-              <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)', background: 'var(--surface-hover)' }}>
-                <div style={{ fontWeight: 900, fontSize: 15 }}>{selectedTicket.subject}</div>
-                <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
-                  <span className={`badge ${statusColors[selectedTicket.status]}`} style={{ fontSize: 10 }}>{selectedTicket.status}</span>
-                  <span className="badge badge-neutral" style={{ fontSize: 10 }}>{selectedTicket.category}</span>
-                  <button onClick={() => setSelectedTicket(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 16 }}>✕</button>
-                </div>
-              </div>
+        {/* FAQs */}
+        <div
+          style={{
+            background: '#FFFFFF',
+            borderRadius: 16,
+            border: '1px solid #EAE0D0',
+            padding: '24px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 14,
+          }}
+        >
+          <h3 style={{ fontSize: 18, fontWeight: 900, color: '#171717', margin: 0 }}>
+            ❓ Frequently Asked Questions
+          </h3>
 
-              <div style={{ padding: '16px 18px', maxHeight: 300, overflowY: 'auto' }}>
-                {selectedTicket.messages.map((m, i) => (
-                  <div key={i} style={{ marginBottom: 12 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                      <span style={{ fontWeight: 800, fontSize: 12, color: m.sender === 'Support' ? '#0984E3' : 'var(--primary)' }}>
-                        {m.sender === 'Support' ? '🎧 QuickBite Support' : '🍽️ Your Restaurant'}
-                      </span>
-                      <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{m.ts}</span>
-                    </div>
-                    <div style={{
-                      background: m.sender === 'Support' ? '#EAF5FF' : 'var(--surface-hover)',
-                      borderRadius: 10, padding: '10px 14px', fontSize: 13, lineHeight: 1.5,
-                    }}>
-                      {m.text}
-                    </div>
-                  </div>
-                ))}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {FAQS.map((faq, i) => (
+              <div key={i} style={{ borderBottom: '1px solid #F0E8DC', paddingBottom: 10 }}>
+                <div style={{ fontSize: 14, fontWeight: 800, color: '#171717' }}>{faq.q}</div>
+                <div style={{ fontSize: 12, color: '#6F6F6F', marginTop: 4, lineHeight: 1.4 }}>{faq.a}</div>
               </div>
-
-              {selectedTicket.status !== 'CLOSED' && selectedTicket.status !== 'RESOLVED' && (
-                <div style={{ padding: '12px 18px', borderTop: '1px solid var(--border)' }}>
-                  <textarea
-                    className="input"
-                    style={{ height: 70, resize: 'none', marginBottom: 8 }}
-                    placeholder="Type your reply..."
-                    value={replyText}
-                    onChange={e => setReplyText(e.target.value)}
-                  />
-                  <button className="btn btn-primary btn-sm" onClick={() => handleReply(selectedTicket.id)} disabled={!replyText.trim()}>
-                    📤 Send Reply
-                  </button>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div>
-              <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 14 }}>❓ Frequently Asked Questions</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {FAQS.map((faq, i) => (
-                  <div key={i} style={{ background: '#fff', borderRadius: 12, border: '1px solid var(--border)', overflow: 'hidden' }}>
-                    <button
-                      onClick={() => setOpenFaq(openFaq === i ? null : i)}
-                      style={{ width: '100%', padding: '14px 16px', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', textAlign: 'left' }}
-                    >
-                      <span style={{ fontWeight: 700, fontSize: 13 }}>{faq.q}</span>
-                      <span style={{ fontSize: 16, color: 'var(--primary)' }}>{openFaq === i ? '▲' : '▼'}</span>
-                    </button>
-                    {openFaq === i && (
-                      <div style={{ padding: '0 16px 14px', fontSize: 13, color: 'var(--text-sec)', lineHeight: 1.6 }}>
-                        {faq.a}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+            ))}
+          </div>
         </div>
       </div>
 
       {/* ─── Create Ticket Modal ─── */}
-      {showCreateModal && (
-        <div className="modal-backdrop" onClick={() => setShowCreateModal(false)}>
-          <div className="modal-sheet" style={{ maxWidth: 520 }} onClick={e => e.stopPropagation()}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <h3 style={{ fontWeight: 900, fontSize: 18 }}>🎧 New Support Ticket</h3>
-              <button onClick={() => setShowCreateModal(false)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer' }}>✕</button>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {ticketModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.5)',
+            zIndex: 100,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+          }}
+          onClick={() => setTicketModal(false)}
+        >
+          <div
+            style={{
+              background: '#FFFFFF',
+              borderRadius: 20,
+              maxWidth: 480,
+              width: '100%',
+              padding: '24px',
+              boxShadow: '0 12px 36px rgba(0,0,0,0.2)',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <h3 style={{ fontSize: 18, fontWeight: 900, color: '#4A0A10', margin: '0 0 16px' }}>
+              Create Partner Support Ticket
+            </h3>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div>
-                <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-sec)', display: 'block', marginBottom: 6 }}>Subject *</label>
-                <input className="input" value={form.subject} onChange={e => setForm(p => ({ ...p, subject: e.target.value }))} placeholder="Brief description of your issue" />
+                <label style={{ fontSize: 12, fontWeight: 700, color: '#6F6F6F' }}>Category</label>
+                <select
+                  value={selectedCat}
+                  onChange={e => setSelectedCat(e.target.value)}
+                  style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #EAE0D0', marginTop: 4 }}
+                >
+                  {SUPPORT_CATEGORIES.map(c => (
+                    <option key={c.key} value={c.key}>
+                      {c.label}
+                    </option>
+                  ))}
+                </select>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <div>
-                  <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-sec)', display: 'block', marginBottom: 6 }}>Category</label>
-                  <select className="input" value={form.category} onChange={e => setForm(p => ({ ...p, category: e.target.value }))}>
-                    {CATEGORIES.map(c => <option key={c} value={c}>{c.replace('_', ' ')}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-sec)', display: 'block', marginBottom: 6 }}>Priority</label>
-                  <select className="input" value={form.priority} onChange={e => setForm(p => ({ ...p, priority: e.target.value as any }))}>
-                    <option value="LOW">Low</option>
-                    <option value="MEDIUM">Medium</option>
-                    <option value="HIGH">High — Urgent</option>
-                  </select>
-                </div>
-              </div>
+
               <div>
-                <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-sec)', display: 'block', marginBottom: 6 }}>Detailed Description *</label>
-                <textarea className="input" style={{ height: 100, resize: 'none' }} value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} placeholder="Please provide as much detail as possible including order IDs, dates, amounts..." />
+                <label style={{ fontSize: 12, fontWeight: 700, color: '#6F6F6F' }}>Subject *</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Order #QB1024 rider dispute"
+                  value={ticketSubject}
+                  onChange={e => setTicketSubject(e.target.value)}
+                  style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #EAE0D0', marginTop: 4 }}
+                />
               </div>
-            </div>
-            <div style={{ display: 'flex', gap: 10, marginTop: 20, borderTop: '1px solid var(--border)', paddingTop: 16 }}>
-              <button className="btn btn-outline" style={{ flex: 1 }} onClick={() => setShowCreateModal(false)}>Cancel</button>
-              <button className="btn btn-primary" style={{ flex: 1 }} onClick={handleCreate} disabled={creating}>
-                {creating ? 'Creating...' : '📤 Submit Ticket'}
-              </button>
+
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 700, color: '#6F6F6F' }}>Description & Details *</label>
+                <textarea
+                  rows={4}
+                  placeholder="Describe your issue with order ID, date, or specific amount..."
+                  value={ticketDetails}
+                  onChange={e => setTicketDetails(e.target.value)}
+                  style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #EAE0D0', marginTop: 4, resize: 'vertical' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+                <button
+                  onClick={() => setTicketModal(false)}
+                  style={{ flex: 1, padding: '10px', borderRadius: 8, border: '1px solid #EAE0D0', background: '#FFFFFF' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleCreateTicket}
+                  style={{ flex: 1, padding: '10px', borderRadius: 8, border: 'none', background: '#4A0A10', color: '#FFFFFF', fontWeight: 800 }}
+                >
+                  Submit Ticket
+                </button>
+              </div>
             </div>
           </div>
         </div>

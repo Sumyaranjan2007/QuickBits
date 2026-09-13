@@ -216,4 +216,81 @@ export class RestaurantsController {
     const data = await this.restaurantsService.deleteAddon(addonId, ownerId);
     return { success: true, data, message: data.message };
   }
+
+  // ─── Price Change Request Endpoints ────────────────────
+
+  @Post(':restaurantId/items/:itemId/price-request')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.RESTAURANT_OWNER)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Submit price change request (owner)' })
+  async createPriceRequest(
+    @Param('restaurantId') restaurantId: string,
+    @Param('itemId') itemId: string,
+    @CurrentUser('id') ownerId: string,
+    @Body() dto: { requestedPrice: number; reason: string; note?: string },
+  ): Promise<IApiResponse> {
+    const data = await this.restaurantsService.createPriceRequest(restaurantId, itemId, ownerId, dto);
+    return { success: true, data, message: 'Price change request submitted for admin approval' };
+  }
+
+  @Get(':restaurantId/price-requests')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.RESTAURANT_OWNER)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Get price change requests for restaurant (owner)' })
+  async getRestaurantPriceRequests(
+    @Param('restaurantId') restaurantId: string,
+    @CurrentUser('id') ownerId: string,
+  ): Promise<IApiResponse> {
+    const data = await this.restaurantsService.getRestaurantPriceRequests(restaurantId, ownerId);
+    return { success: true, data, message: 'Price requests retrieved' };
+  }
+
+  @Get('admin/price-requests')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Get all price change requests (admin)' })
+  async getAllPriceRequests(): Promise<IApiResponse> {
+    const data = await this.restaurantsService.getAllPriceRequests();
+    return { success: true, data, message: 'All price change requests retrieved' };
+  }
+
+  @Post('admin/price-requests/:id/approve')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Approve price change request and update live menu price (admin)' })
+  async approvePriceRequest(
+    @Param('id') id: string,
+    @CurrentUser('id') adminId: string,
+  ): Promise<IApiResponse> {
+    const data = await this.restaurantsService.approvePriceRequest(id, adminId);
+    return { success: true, data: data.request, message: data.message };
+  }
+
+  @Post('admin/price-requests/:id/reject')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Reject price change request (admin)' })
+  async rejectPriceRequest(
+    @Param('id') id: string,
+    @CurrentUser('id') adminId: string,
+    @Body() body: { reason: string },
+  ): Promise<IApiResponse> {
+    const data = await this.restaurantsService.rejectPriceRequest(id, adminId, body?.reason);
+    return { success: true, data: data.request, message: data.message };
+  }
+
+  @Get('admin/price-requests/audit')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Get price change audit trail (admin)' })
+  async getPriceAuditHistory(): Promise<IApiResponse> {
+    const data = await this.restaurantsService.getPriceAuditHistory();
+    return { success: true, data, message: 'Price change audit history retrieved' };
+  }
 }
