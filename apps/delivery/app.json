@@ -6,8 +6,18 @@
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "scheme": "quickbite-delivery",
-    "ios": { "bundleIdentifier": "com.quickbite.delivery" },
-    "android": { "package": "com.quickbite.delivery" },
-    "web": { "bundler": "metro" }
+    "ios": {
+      "bundleIdentifier": "com.quickbite.delivery"
+    },
+    "android": {
+      "package": "com.quickbite.delivery"
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-asset",
+      "expo-font"
+    ]
   }
 }

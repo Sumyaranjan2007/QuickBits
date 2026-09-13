@@ -1,433 +1,295 @@
 'use client';
-import React, { useState } from 'react';
-import Link from 'next/link';
+import React, { useState, useEffect } from 'react';
+import { deliveryApi } from '@quickbite/api-client';
 
-interface DeliveryOrder {
+interface DeliveryHistoryItem {
   id: string;
   orderNumber: string;
   restaurantName: string;
   restaurantArea: string;
   customerName: string;
   customerArea: string;
-  deliveredAt: string;
+  date: string;
+  status: 'COMPLETED' | 'CANCELLED';
+  earnings: number;
   distance: string;
-  duration: string;
-  earnings: {
-    base: number;
-    distance: number;
-    surge: number;
-    tip: number;
-    total: number;
-  };
-  status: 'DELIVERED' | 'ACTIVE' | 'CANCELLED';
-  paymentMode: 'COD' | 'PAID_ONLINE';
-  ratingGiven?: number;
+  itemsSummary: string;
 }
 
-const DEMO_ORDERS: DeliveryOrder[] = [
+const DEFAULT_ORDERS: DeliveryHistoryItem[] = [
   {
     id: 'ord-101',
-    orderNumber: 'QB-982144',
-    restaurantName: 'Biryani Blues & Charcoal Grill',
-    restaurantArea: 'Indiranagar',
-    customerName: 'Ananya Deshmukh',
-    customerArea: 'Domlur, Bangalore',
-    deliveredAt: 'Today, 20:15 PM',
-    distance: '3.4 km',
-    duration: '18 mins',
-    earnings: { base: 45, distance: 24, surge: 15, tip: 20, total: 104 },
-    status: 'ACTIVE',
-    paymentMode: 'COD',
-  },
-  {
-    id: 'ord-102',
     orderNumber: 'QB-881290',
     restaurantName: 'Truffles Burgers & Shakes',
     restaurantArea: 'St. Marks Road',
     customerName: 'Sanjay Hegde',
     customerArea: 'Richmond Town',
-    deliveredAt: 'Today, 18:40 PM',
+    date: '14 Sep, 18:40',
+    status: 'COMPLETED',
+    earnings: 78,
     distance: '2.8 km',
-    duration: '14 mins',
-    earnings: { base: 40, distance: 18, surge: 10, tip: 30, total: 98 },
-    status: 'DELIVERED',
-    paymentMode: 'PAID_ONLINE',
-    ratingGiven: 5,
+    itemsSummary: '2× All-American Cheese Burger, 1× Peri Peri Fries',
+  },
+  {
+    id: 'ord-102',
+    orderNumber: 'QB-879012',
+    restaurantName: 'Corner House Ice Creams',
+    restaurantArea: 'Residency Rd',
+    customerName: 'Pooja Varma',
+    customerArea: 'Ulsoor',
+    date: '14 Sep, 16:15',
+    status: 'COMPLETED',
+    earnings: 62,
+    distance: '2.1 km',
+    itemsSummary: '1× Death By Chocolate, 1× Vanilla Tub',
   },
   {
     id: 'ord-103',
-    orderNumber: 'QB-773192',
+    orderNumber: 'QB-864119',
     restaurantName: 'Meghana Foods',
     restaurantArea: 'Koramangala 5th Block',
-    customerName: 'Rohan Varma',
-    customerArea: 'HSR Layout Sector 2',
-    deliveredAt: 'Today, 14:15 PM',
+    customerName: 'Dev Malhotra',
+    customerArea: 'HSR Layout Sector 1',
+    date: '13 Sep, 21:10',
+    status: 'COMPLETED',
+    earnings: 112,
     distance: '4.6 km',
-    duration: '26 mins',
-    earnings: { base: 50, distance: 32, surge: 25, tip: 0, total: 107 },
-    status: 'DELIVERED',
-    paymentMode: 'PAID_ONLINE',
-    ratingGiven: 5,
+    itemsSummary: '1× Meghana Special Chicken Biryani, 1× Paneer 65',
   },
   {
     id: 'ord-104',
-    orderNumber: 'QB-654901',
-    restaurantName: 'Leon Grill',
-    restaurantArea: 'Frazer Town',
-    customerName: 'Farhan Ali',
-    customerArea: 'Cox Town',
-    deliveredAt: 'Today, 13:02 PM',
-    distance: '1.9 km',
-    duration: '12 mins',
-    earnings: { base: 35, distance: 12, surge: 0, tip: 10, total: 57 },
-    status: 'DELIVERED',
-    paymentMode: 'PAID_ONLINE',
-    ratingGiven: 4,
+    orderNumber: 'QB-851900',
+    restaurantName: 'Leon Grill Burgers',
+    restaurantArea: 'Indiranagar',
+    customerName: 'Vikram Joshi',
+    customerArea: 'HAL 2nd Stage',
+    date: '13 Sep, 19:25',
+    status: 'CANCELLED',
+    earnings: 0,
+    distance: '1.8 km',
+    itemsSummary: 'Customer cancelled before pickup',
   },
   {
     id: 'ord-105',
-    orderNumber: 'QB-542198',
-    restaurantName: 'Corner House Ice Cream',
-    restaurantArea: 'Indiranagar',
-    customerName: 'Pooja Nair',
-    customerArea: 'HAL 2nd Stage',
-    deliveredAt: 'Yesterday, 21:30 PM',
-    distance: '2.2 km',
-    duration: '15 mins',
-    earnings: { base: 35, distance: 15, surge: 20, tip: 15, total: 85 },
-    status: 'DELIVERED',
-    paymentMode: 'PAID_ONLINE',
-    ratingGiven: 5,
-  },
-  {
-    id: 'ord-106',
-    orderNumber: 'QB-431980',
-    restaurantName: 'Imperio Restaurant',
-    restaurantArea: 'Shivajinagar',
-    customerName: 'Vikram Sethi',
-    customerArea: 'Ulsoor',
-    deliveredAt: 'Yesterday, 19:10 PM',
-    distance: '3.1 km',
-    duration: '22 mins',
-    earnings: { base: 40, distance: 20, surge: 0, tip: 0, total: 60 },
-    status: 'DELIVERED',
-    paymentMode: 'COD',
-    ratingGiven: 4,
-  },
-  {
-    id: 'ord-107',
-    orderNumber: 'QB-329811',
-    restaurantName: 'A2B - Adyar Ananda Bhavan',
-    restaurantArea: 'MG Road',
-    customerName: 'Swathi Rao',
-    customerArea: 'Victoria Layout',
-    deliveredAt: '20 Aug, 12:45 PM',
-    distance: '2.5 km',
-    duration: '—',
-    earnings: { base: 20, distance: 0, surge: 0, tip: 0, total: 20 },
-    status: 'CANCELLED',
-    paymentMode: 'PAID_ONLINE',
+    orderNumber: 'QB-849102',
+    restaurantName: 'Chai Point',
+    restaurantArea: 'Embassy Golf Links',
+    customerName: 'Meera Nair',
+    customerArea: 'Domlur Inner Ring Rd',
+    date: '13 Sep, 15:40',
+    status: 'COMPLETED',
+    earnings: 54,
+    distance: '1.9 km',
+    itemsSummary: '1× Ginger Tea Flask (500ml), 2× Samosa',
   },
 ];
 
-export default function DeliveryOrdersPage() {
-  const [tab, setTab] = useState<'ALL' | 'DELIVERED' | 'ACTIVE' | 'CANCELLED'>('ALL');
-  const [search, setSearch] = useState('');
-  const [dateFilter, setDateFilter] = useState<'TODAY' | 'YESTERDAY' | 'WEEK' | 'MONTH'>('TODAY');
-  const [selectedOrder, setSelectedOrder] = useState<DeliveryOrder | null>(null);
+export default function DeliveryOrdersHistoryPage() {
+  const [filter, setFilter] = useState<'ALL' | 'COMPLETED' | 'CANCELLED'>('ALL');
+  const [orders, setOrders] = useState<DeliveryHistoryItem[]>(DEFAULT_ORDERS);
+  const [selectedOrder, setSelectedOrder] = useState<DeliveryHistoryItem | null>(null);
 
-  const filteredOrders = DEMO_ORDERS.filter((o) => {
-    const matchesTab = tab === 'ALL' || o.status === tab;
-    const matchesSearch =
-      o.orderNumber.toLowerCase().includes(search.toLowerCase()) ||
-      o.restaurantName.toLowerCase().includes(search.toLowerCase()) ||
-      o.customerName.toLowerCase().includes(search.toLowerCase());
-    return matchesTab && matchesSearch;
+  useEffect(() => {
+    deliveryApi.getHistory()
+      .then(res => {
+        const d = res.data as any;
+        const list = Array.isArray(d) ? d : d?.items || [];
+        if (list.length > 0) {
+          const mapped: DeliveryHistoryItem[] = list.map((item: any) => ({
+            id: item.id,
+            orderNumber: `QB-${(item.orderId || item.id).slice(-6).toUpperCase()}`,
+            restaurantName: item.order?.restaurant?.name || 'Partner Restaurant',
+            restaurantArea: item.order?.restaurant?.address?.split(',')[0] || 'Bangalore',
+            customerName: item.order?.customer?.name || 'Customer',
+            customerArea: item.order?.deliveryAddress?.area || 'Delivery Address',
+            date: new Date(item.completedAt || item.createdAt).toLocaleDateString('en-IN', {
+              day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+            }),
+            status: item.status === 'CANCELLED' ? 'CANCELLED' : 'COMPLETED',
+            earnings: Number(item.earnings || item.deliveryFee || 65),
+            distance: `${item.distance || 3.1} km`,
+            itemsSummary: item.order?.items?.map((it: any) => `${it.quantity}× ${it.name}`).join(', ') || 'Delivered order',
+          }));
+          setOrders(mapped);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const filteredOrders = orders.filter(o => {
+    if (filter === 'ALL') return true;
+    return o.status === filter;
   });
 
-  const totalDelivered = DEMO_ORDERS.filter((o) => o.status === 'DELIVERED').length;
-  const totalEarnings = DEMO_ORDERS.reduce((acc, o) => acc + o.earnings.total, 0);
-
   return (
-    <div style={{ maxWidth: 1000, margin: '0 auto' }}>
-      {/* ─── Top Header ─── */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
+    <>
+      {/* ─── Screen Title & Stats ─── */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 900, color: '#0C2340' }}>📦 Delivery History</h1>
-          <p style={{ fontSize: 13, color: '#4A6FA5', marginTop: 2 }}>
-            Track completed trips, active assignments, and individual trip earnings
+          <h1 style={{ fontSize: 20, fontWeight: 900, color: '#4A0A10', margin: 0 }}>
+            Delivery History
+          </h1>
+          <p style={{ fontSize: 11, color: '#7A6A5E', margin: '2px 0 0' }}>
+            Past trips & completed delivery log
           </p>
         </div>
-
-        <div style={{ display: 'flex', gap: 8 }}>
-          {(['TODAY', 'YESTERDAY', 'WEEK', 'MONTH'] as const).map((d) => (
-            <button
-              key={d}
-              onClick={() => setDateFilter(d)}
-              style={{
-                padding: '6px 12px',
-                borderRadius: 8,
-                border: 'none',
-                background: dateFilter === d ? '#0984E3' : '#fff',
-                color: dateFilter === d ? '#fff' : '#636E72',
-                fontSize: 12,
-                fontWeight: 700,
-                cursor: 'pointer',
-                boxShadow: '0 1px 4px rgba(0,0,0,0.05)'
-              }}
-            >
-              {d === 'WEEK' ? 'This Week' : d === 'MONTH' ? 'This Month' : d}
-            </button>
-          ))}
-        </div>
+        <span style={{ fontSize: 12, fontWeight: 800, color: '#4A0A10' }}>
+          {filteredOrders.length} Trips
+        </span>
       </div>
 
-      {/* ─── Summary Quick Stats ─── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14, marginBottom: 20 }}>
-        <div style={{ background: '#fff', borderRadius: 14, padding: '16px', border: '1px solid #E2ECF5' }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: '#4A6FA5' }}>COMPLETED TRIPS</div>
-          <div style={{ fontSize: 24, fontWeight: 900, color: '#0C2340', marginTop: 4 }}>{totalDelivered} Orders</div>
-          <div style={{ fontSize: 11, color: '#00B894', marginTop: 2 }}>100% On-time completion</div>
-        </div>
-
-        <div style={{ background: '#fff', borderRadius: 14, padding: '16px', border: '1px solid #E2ECF5' }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: '#4A6FA5' }}>TOTAL TRIP EARNINGS</div>
-          <div style={{ fontSize: 24, fontWeight: 900, color: '#00B894', marginTop: 4 }}>₹{totalEarnings}</div>
-          <div style={{ fontSize: 11, color: '#4A6FA5', marginTop: 2 }}>Includes ₹85 customer tips</div>
-        </div>
-
-        <div style={{ background: '#fff', borderRadius: 14, padding: '16px', border: '1px solid #E2ECF5' }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: '#4A6FA5' }}>AVG DISTANCE PER TRIP</div>
-          <div style={{ fontSize: 24, fontWeight: 900, color: '#0C2340', marginTop: 4 }}>2.9 km</div>
-          <div style={{ fontSize: 11, color: '#636E72', marginTop: 2 }}>Total: 20.3 km travelled</div>
-        </div>
+      {/* ─── Filter Pills (Matches Customer App Categories) ─── */}
+      <div className="delivery-filter-pills" style={{ margin: '4px 0 2px' }}>
+        <button
+          type="button"
+          className={`delivery-filter-pill ${filter === 'ALL' ? 'active' : ''}`}
+          onClick={() => setFilter('ALL')}
+        >
+          All Trips
+        </button>
+        <button
+          type="button"
+          className={`delivery-filter-pill ${filter === 'COMPLETED' ? 'active' : ''}`}
+          onClick={() => setFilter('COMPLETED')}
+        >
+          ✓ Completed
+        </button>
+        <button
+          type="button"
+          className={`delivery-filter-pill ${filter === 'CANCELLED' ? 'active' : ''}`}
+          onClick={() => setFilter('CANCELLED')}
+        >
+          ✕ Cancelled
+        </button>
       </div>
 
-      {/* ─── Tabs & Search Bar ─── */}
-      <div style={{ background: '#fff', borderRadius: 16, padding: '14px 18px', border: '1px solid #E2ECF5', marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
-        <div style={{ display: 'flex', gap: 6 }}>
-          {(['ALL', 'ACTIVE', 'DELIVERED', 'CANCELLED'] as const).map((t) => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              style={{
-                padding: '7px 14px',
-                borderRadius: 8,
-                border: 'none',
-                background: tab === t ? '#E8F4FD' : 'transparent',
-                color: tab === t ? '#0984E3' : '#636E72',
-                fontSize: 12,
-                fontWeight: 800,
-                cursor: 'pointer',
-              }}
-            >
-              {t}
-            </button>
-          ))}
-        </div>
-
-        <input
-          type="text"
-          placeholder="Search by order ID, restaurant or customer..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          style={{
-            padding: '8px 14px',
-            borderRadius: 10,
-            border: '1px solid #E2ECF5',
-            fontSize: 13,
-            width: '100%',
-            maxWidth: 320,
-            outline: 'none',
-          }}
-        />
-      </div>
-
-      {/* ─── Orders List ─── */}
+      {/* ─── Order Cards List (Customer App Styling) ─── */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {filteredOrders.map((ord) => (
+        {filteredOrders.map(ord => (
           <div
             key={ord.id}
+            className="delivery-card"
             onClick={() => setSelectedOrder(ord)}
-            style={{
-              background: '#fff',
-              borderRadius: 16,
-              padding: '18px 20px',
-              border: `1.5px solid ${ord.status === 'ACTIVE' ? '#0984E3' : '#E2ECF5'}`,
-              boxShadow: '0 2px 8px rgba(0,0,0,0.02)',
+            style={{ cursor: 'pointer' }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+              <div>
+                <span style={{ fontSize: 15, fontWeight: 900, color: '#4A0A10' }}>
+                  {ord.orderNumber}
+                </span>
+                <div style={{ fontSize: 11, color: '#7A6A5E', marginTop: 1 }}>
+                  {ord.date}
+                </div>
+              </div>
+
+              <span style={{
+                fontSize: 10,
+                fontWeight: 800,
+                padding: '3px 8px',
+                borderRadius: 8,
+                border: '1px solid',
+                color: ord.status === 'COMPLETED' ? '#047857' : '#B91C1C',
+                background: ord.status === 'COMPLETED' ? '#F0FDF4' : '#FEF2F2',
+                borderColor: ord.status === 'COMPLETED' ? '#A7F3D0' : '#FECACA',
+              }}>
+                {ord.status}
+              </span>
+            </div>
+
+            <div style={{ fontSize: 14, fontWeight: 800, color: '#1A1A1A', marginBottom: 4 }}>
+              🏪 {ord.restaurantName}
+            </div>
+
+            <div style={{ fontSize: 12, color: '#7A6A5E', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+              <span>📍 Drop:</span>
+              <span style={{ fontWeight: 600, color: '#1A1A1A' }}>{ord.customerArea}</span>
+              <span>•</span>
+              <span>{ord.distance}</span>
+            </div>
+
+            <div style={{
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
-              cursor: 'pointer',
-              flexWrap: 'wrap',
-              gap: 12,
-              transition: 'transform 0.15s ease, border-color 0.15s ease',
-            }}
-          >
-            <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-              <div style={{
-                width: 44,
-                height: 44,
-                borderRadius: 12,
-                background: ord.status === 'ACTIVE' ? '#E8F4FD' : ord.status === 'DELIVERED' ? '#E8FFF8' : '#FFF5F0',
-                color: ord.status === 'ACTIVE' ? '#0984E3' : ord.status === 'DELIVERED' ? '#00B894' : '#E17055',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 20,
+              paddingTop: 10,
+              borderTop: '1px dashed #EADBCE',
+            }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: '#7A6A5E' }}>
+                Earnings
+              </span>
+              <span style={{
+                fontSize: 16,
+                fontWeight: 900,
+                color: ord.status === 'COMPLETED' ? '#047857' : '#9CA3AF',
               }}>
-                {ord.status === 'ACTIVE' ? '🛵' : ord.status === 'DELIVERED' ? '✓' : '✕'}
-              </div>
-
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontWeight: 900, fontSize: 15, color: '#0C2340' }}>{ord.orderNumber}</span>
-                  <span style={{
-                    fontSize: 10,
-                    fontWeight: 800,
-                    padding: '2px 6px',
-                    borderRadius: 4,
-                    background: ord.status === 'ACTIVE' ? '#0984E3' : ord.status === 'DELIVERED' ? '#00B894' : '#E17055',
-                    color: '#fff'
-                  }}>
-                    {ord.status}
-                  </span>
-                  <span style={{ fontSize: 11, color: '#636E72' }}>• {ord.deliveredAt}</span>
-                </div>
-
-                <div style={{ fontSize: 13, fontWeight: 700, color: '#4A6FA5', marginTop: 4 }}>
-                  🍽️ {ord.restaurantName} ({ord.restaurantArea}) ➔ 🏠 {ord.customerName} ({ord.customerArea})
-                </div>
-
-                <div style={{ fontSize: 12, color: '#636E72', marginTop: 3 }}>
-                  Trip: {ord.distance} • {ord.duration} • {ord.paymentMode === 'COD' ? '💵 COD' : '💳 Online Paid'}
-                </div>
-              </div>
-            </div>
-
-            <div style={{ textAlign: 'right', display: 'flex', alignItems: 'center', gap: 16 }}>
-              <div>
-                <div style={{ fontSize: 18, fontWeight: 900, color: '#00B894' }}>
-                  +₹{ord.earnings.total}
-                </div>
-                <div style={{ fontSize: 11, color: '#636E72' }}>
-                  {ord.earnings.tip > 0 ? `Incl. ₹${ord.earnings.tip} tip` : 'Base + Surge'}
-                </div>
-              </div>
-
-              <span style={{ fontSize: 18, color: '#A0A8C0' }}>➔</span>
+                {ord.status === 'COMPLETED' ? `₹${ord.earnings}` : '₹0'}
+              </span>
             </div>
           </div>
         ))}
-
-        {filteredOrders.length === 0 && (
-          <div style={{ background: '#fff', padding: 40, borderRadius: 16, textAlign: 'center', border: '1px solid #E2ECF5' }}>
-            <div style={{ fontSize: 32 }}>📦</div>
-            <div style={{ fontSize: 16, fontWeight: 800, color: '#0C2340', marginTop: 8 }}>No deliveries found</div>
-            <div style={{ fontSize: 13, color: '#636E72', marginTop: 4 }}>Try adjusting your filters or search keyword</div>
-          </div>
-        )}
       </div>
 
-      {/* ─── Detailed Trip Receipt Modal ─── */}
+      {/* ─── Order Detail Modal Sheet ─── */}
       {selectedOrder && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(12,35,64,0.75)',
-          backdropFilter: 'blur(4px)',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          zIndex: 9999,
-          padding: 16
-        }}>
-          <div style={{ background: '#fff', borderRadius: 20, width: '100%', maxWidth: 460, padding: '24px' }}>
+        <div className="delivery-modal-backdrop" onClick={() => setSelectedOrder(null)}>
+          <div className="delivery-modal-sheet" onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <div>
-                <div style={{ fontSize: 12, fontWeight: 800, color: '#0984E3' }}>TRIP BREAKDOWN</div>
-                <div style={{ fontSize: 18, fontWeight: 900, color: '#0C2340' }}>{selectedOrder.orderNumber}</div>
+                <h3 style={{ fontSize: 18, fontWeight: 900, color: '#4A0A10', margin: 0 }}>
+                  Order Details
+                </h3>
+                <span style={{ fontSize: 12, color: '#7A6A5E' }}>
+                  {selectedOrder.orderNumber} • {selectedOrder.date}
+                </span>
               </div>
               <button
+                type="button"
                 onClick={() => setSelectedOrder(null)}
-                style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#636E72' }}
+                style={{ background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: '#7A6A5E' }}
               >
                 ✕
               </button>
             </div>
 
-            <div style={{ background: '#F8FAFD', padding: 16, borderRadius: 14, border: '1px solid #E2ECF5', marginBottom: 16 }}>
-              <div style={{ fontSize: 12, color: '#4A6FA5', fontWeight: 700 }}>EARNINGS BREAKDOWN</div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginTop: 8, color: '#0C2340' }}>
-                <span>Base Delivery Fee</span>
-                <span>₹{selectedOrder.earnings.base}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginTop: 4, color: '#0C2340' }}>
-                <span>Distance Pay ({selectedOrder.distance})</span>
-                <span>₹{selectedOrder.earnings.distance}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginTop: 4, color: '#0C2340' }}>
-                <span>Surge / Peak Bonus</span>
-                <span>₹{selectedOrder.earnings.surge}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginTop: 4, color: '#00B894', fontWeight: 700 }}>
-                <span>Customer Tip</span>
-                <span>₹{selectedOrder.earnings.tip}</span>
+            <div style={{ background: '#FFFFFF', border: '1px solid #EADBCE', borderRadius: 16, padding: '16px', marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 800, color: '#7A6A5E', textTransform: 'uppercase' }}>Pickup Location</div>
+                <div style={{ fontSize: 14, fontWeight: 800, color: '#1A1A1A', marginTop: 2 }}>{selectedOrder.restaurantName}</div>
+                <div style={{ fontSize: 12, color: '#7A6A5E' }}>{selectedOrder.restaurantArea}</div>
               </div>
 
-              <div style={{ height: 1, background: '#E2ECF5', margin: '10px 0' }} />
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 800, color: '#7A6A5E', textTransform: 'uppercase' }}>Drop Location</div>
+                <div style={{ fontSize: 14, fontWeight: 800, color: '#1A1A1A', marginTop: 2 }}>{selectedOrder.customerName}</div>
+                <div style={{ fontSize: 12, color: '#7A6A5E' }}>{selectedOrder.customerArea}</div>
+              </div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 16, fontWeight: 900, color: '#0C2340' }}>
-                <span>Total Trip Payout</span>
-                <span style={{ color: '#00B894' }}>₹{selectedOrder.earnings.total}</span>
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 800, color: '#7A6A5E', textTransform: 'uppercase' }}>Order Items</div>
+                <div style={{ fontSize: 13, color: '#1A1A1A', marginTop: 2 }}>{selectedOrder.itemsSummary}</div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 10, borderTop: '1px solid #EADBCE' }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: '#7A6A5E' }}>Trip Distance</span>
+                <span style={{ fontSize: 14, fontWeight: 800, color: '#1A1A1A' }}>{selectedOrder.distance}</span>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: '#7A6A5E' }}>Trip Earnings</span>
+                <span style={{ fontSize: 18, fontWeight: 900, color: '#047857' }}>₹{selectedOrder.earnings}</span>
               </div>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13, color: '#636E72', marginBottom: 20 }}>
-              <div>📍 <strong>Pickup:</strong> {selectedOrder.restaurantName}, {selectedOrder.restaurantArea}</div>
-              <div>🏠 <strong>Drop:</strong> {selectedOrder.customerName}, {selectedOrder.customerArea}</div>
-              <div>⏱️ <strong>Completed:</strong> {selectedOrder.deliveredAt} ({selectedOrder.duration})</div>
-              {selectedOrder.ratingGiven && (
-                <div>⭐ <strong>Customer Rating:</strong> {selectedOrder.ratingGiven} / 5 Stars</div>
-              )}
-            </div>
-
-            {selectedOrder.status === 'ACTIVE' ? (
-              <Link
-                href="/delivery/active"
-                style={{
-                  display: 'block',
-                  textAlign: 'center',
-                  background: '#0984E3',
-                  color: '#fff',
-                  padding: '12px',
-                  borderRadius: 10,
-                  fontWeight: 800,
-                  textDecoration: 'none',
-                }}
-              >
-                Go to Active Trip Navigation ➔
-              </Link>
-            ) : (
-              <button
-                onClick={() => setSelectedOrder(null)}
-                style={{
-                  width: '100%',
-                  background: '#0C2340',
-                  color: '#fff',
-                  border: 'none',
-                  padding: '12px',
-                  borderRadius: 10,
-                  fontWeight: 800,
-                  cursor: 'pointer'
-                }}
-              >
-                Close Receipt
-              </button>
-            )}
+            <button
+              type="button"
+              className="delivery-primary-btn"
+              onClick={() => setSelectedOrder(null)}
+            >
+              CLOSE
+            </button>
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }

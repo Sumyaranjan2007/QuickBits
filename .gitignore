@@ -62,5 +62,7 @@ coverage/
 # Local helper scripts
 git.cmd
 push-to-github.bat
+scratch/
+
 
 

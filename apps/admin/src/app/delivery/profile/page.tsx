@@ -31,6 +31,8 @@ export default function DeliveryProfilePage() {
     address: 'No 42, 3rd Cross, Old Airport Road, Kodihalli, Bengaluru',
     city: 'Bengaluru',
     pincode: '560008',
+    emergencyContactName: 'Suman Kumar (Brother)',
+    emergencyContactPhone: '+91 98765 44332',
     emergencyContact: 'Suman Kumar (Brother) — +91 98765 44332',
   });
 
@@ -57,12 +59,12 @@ export default function DeliveryProfilePage() {
   };
 
   return (
-    <div style={{ maxWidth: 1000, margin: '0 auto' }}>
+    <div style={{ maxWidth: 1000, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
       {/* ─── Top Header ─── */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 900, color: '#0C2340' }}>👤 Partner Profile & Verification</h1>
-          <p style={{ fontSize: 13, color: '#4A6FA5', marginTop: 2 }}>
+          <h1 style={{ fontSize: 20, fontWeight: 900, color: '#0C2340', margin: 0 }}>👤 Partner Profile & Verification</h1>
+          <p style={{ fontSize: 13, color: '#4A6FA5', marginTop: 4, marginBottom: 0 }}>
             Manage KYC credentials, vehicle registration, compliance documents, and bank payout details
           </p>
         </div>
@@ -77,63 +79,76 @@ export default function DeliveryProfilePage() {
       {/* ─── Profile Header Badge Card ─── */}
       <div style={{
         background: '#fff',
-        borderRadius: 20,
-        padding: '24px',
+        borderRadius: 18,
+        padding: '18px 16px',
         border: '1px solid #E2ECF5',
-        marginBottom: 24,
+        marginBottom: 20,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
         flexWrap: 'wrap',
-        gap: 16
+        gap: 16,
+        boxSizing: 'border-box',
+        width: '100%'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 0, flex: '1 1 240px' }}>
           <div style={{
-            width: 70,
-            height: 70,
+            width: 58,
+            height: 58,
             borderRadius: '50%',
             background: 'linear-gradient(135deg, #0984E3, #00CEC9)',
             color: '#fff',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: 28,
+            fontSize: 22,
             fontWeight: 900,
+            flexShrink: 0
           }}>
             RK
           </div>
 
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ fontSize: 20, fontWeight: 900, color: '#0C2340' }}>{personal.name}</div>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <div style={{ fontSize: 18, fontWeight: 900, color: '#0C2340' }}>{personal.name}</div>
               <span style={{ fontSize: 10, fontWeight: 800, padding: '2px 6px', borderRadius: 4, background: '#E8FFF8', color: '#00B894' }}>
-                ✓ VERIFIED PARTNER
+                ✓ VERIFIED
               </span>
             </div>
-            <div style={{ fontSize: 13, color: '#4A6FA5', marginTop: 2 }}>
-              Partner ID: <strong>DLV-882194</strong> • Joined March 2024 • Indiranagar Fleet
+            <div style={{ fontSize: 12, color: '#4A6FA5', marginTop: 2 }}>
+              ID: <strong>DLV-882194</strong> • Indiranagar Fleet
             </div>
-            <div style={{ fontSize: 12, color: '#636E72', marginTop: 2 }}>
-              ⭐ 4.89 Rating • 418 Total Deliveries Completed
+            <div style={{ fontSize: 11, color: '#636E72', marginTop: 2 }}>
+              ⭐ 4.89 Rating • 418 Completed
             </div>
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: 10 }}>
-          <div style={{ background: '#F8FAFD', padding: '10px 16px', borderRadius: 12, border: '1px solid #E2ECF5', textAlign: 'center' }}>
-            <div style={{ fontSize: 11, color: '#4A6FA5', fontWeight: 700 }}>VEHICLE</div>
-            <div style={{ fontSize: 13, fontWeight: 900, color: '#0C2340', marginTop: 2 }}>{vehicle.registrationNumber}</div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <div style={{ background: '#F8FAFD', padding: '8px 12px', borderRadius: 10, border: '1px solid #E2ECF5', textAlign: 'center', minWidth: 80 }}>
+            <div style={{ fontSize: 10, color: '#4A6FA5', fontWeight: 700 }}>VEHICLE</div>
+            <div style={{ fontSize: 12, fontWeight: 900, color: '#0C2340', marginTop: 2 }}>{vehicle.registrationNumber}</div>
           </div>
 
-          <div style={{ background: '#F8FAFD', padding: '10px 16px', borderRadius: 12, border: '1px solid #E2ECF5', textAlign: 'center' }}>
-            <div style={{ fontSize: 11, color: '#4A6FA5', fontWeight: 700 }}>KYC STATUS</div>
-            <div style={{ fontSize: 13, fontWeight: 900, color: '#00B894', marginTop: 2 }}>100% Approved</div>
+          <div style={{ background: '#F8FAFD', padding: '8px 12px', borderRadius: 10, border: '1px solid #E2ECF5', textAlign: 'center', minWidth: 80 }}>
+            <div style={{ fontSize: 10, color: '#4A6FA5', fontWeight: 700 }}>KYC STATUS</div>
+            <div style={{ fontSize: 12, fontWeight: 900, color: '#00B894', marginTop: 2 }}>Approved</div>
           </div>
         </div>
       </div>
 
       {/* ─── Tabs Switcher ─── */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 20, flexWrap: 'wrap' }}>
+      <div style={{
+        display: 'flex',
+        gap: 8,
+        marginBottom: 20,
+        overflowX: 'auto',
+        paddingBottom: 4,
+        WebkitOverflowScrolling: 'touch',
+        scrollbarWidth: 'none',
+        width: '100%',
+        boxSizing: 'border-box'
+      }}>
         {[
           { key: 'PERSONAL', label: '👤 Personal Info' },
           { key: 'VEHICLE', label: '🛵 Vehicle Details' },
@@ -144,15 +159,17 @@ export default function DeliveryProfilePage() {
             key={t.key}
             onClick={() => setActiveTab(t.key as any)}
             style={{
-              padding: '10px 18px',
+              padding: '9px 14px',
               borderRadius: 10,
               border: 'none',
               background: activeTab === t.key ? '#0C2340' : '#fff',
               color: activeTab === t.key ? '#fff' : '#636E72',
-              fontSize: 13,
+              fontSize: 12,
               fontWeight: 800,
               cursor: 'pointer',
-              boxShadow: '0 1px 4px rgba(0,0,0,0.05)'
+              boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
+              whiteSpace: 'nowrap',
+              flexShrink: 0
             }}
           >
             {t.label}
@@ -160,71 +177,95 @@ export default function DeliveryProfilePage() {
         ))}
       </div>
 
-      {/* ─── Tab 1: Personal Info Form ─── */}
+      {/* ─── Tab 1: Personal Info Form (Mobile Vertical 1-Column Layout) ─── */}
       {activeTab === 'PERSONAL' && (
-        <form onSubmit={handleSave} style={{ background: '#fff', borderRadius: 18, padding: '24px', border: '1px solid #E2ECF5' }}>
-          <div style={{ fontWeight: 800, fontSize: 16, color: '#0C2340', marginBottom: 16 }}>
+        <form onSubmit={handleSave} className="delivery-form-card">
+          <div className="delivery-form-title">
             Personal & Emergency Contact Details
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16, marginBottom: 20 }}>
-            <div>
-              <label style={{ fontSize: 12, fontWeight: 700, color: '#4A6FA5', display: 'block', marginBottom: 6 }}>Full Legal Name</label>
+          <div className="delivery-form-grid desktop-two-col">
+            <div className="delivery-form-field">
+              <label>Full Legal Name</label>
               <input
                 type="text"
                 value={personal.name}
                 onChange={(e) => setPersonal({ ...personal, name: e.target.value })}
-                style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid #E2ECF5', fontSize: 13, outline: 'none' }}
+                placeholder="Full Legal Name"
               />
             </div>
 
-            <div>
-              <label style={{ fontSize: 12, fontWeight: 700, color: '#4A6FA5', display: 'block', marginBottom: 6 }}>Email Address</label>
+            <div className="delivery-form-field">
+              <label>Email Address</label>
               <input
                 type="email"
                 value={personal.email}
                 onChange={(e) => setPersonal({ ...personal, email: e.target.value })}
-                style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid #E2ECF5', fontSize: 13, outline: 'none' }}
+                placeholder="example@email.com"
               />
             </div>
 
-            <div>
-              <label style={{ fontSize: 12, fontWeight: 700, color: '#4A6FA5', display: 'block', marginBottom: 6 }}>Phone Number (OTP Verification)</label>
+            <div className="delivery-form-field">
+              <label>Phone Number (OTP Verification)</label>
               <input
-                type="text"
+                type="tel"
                 value={personal.phone}
                 onChange={(e) => setPersonal({ ...personal, phone: e.target.value })}
-                style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid #E2ECF5', fontSize: 13, outline: 'none' }}
+                placeholder="+91 98450 99881"
               />
             </div>
 
-            <div>
-              <label style={{ fontSize: 12, fontWeight: 700, color: '#4A6FA5', display: 'block', marginBottom: 6 }}>Date of Birth</label>
+            <div className="delivery-form-field">
+              <label>Date of Birth</label>
               <input
                 type="text"
+                placeholder="DD/MM/YYYY"
                 value={personal.dob}
                 onChange={(e) => setPersonal({ ...personal, dob: e.target.value })}
-                style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid #E2ECF5', fontSize: 13, outline: 'none' }}
               />
             </div>
 
-            <div style={{ gridColumn: 'span 2' }}>
-              <label style={{ fontSize: 12, fontWeight: 700, color: '#4A6FA5', display: 'block', marginBottom: 6 }}>Permanent Residential Address</label>
-              <input
-                type="text"
+            <div className="delivery-form-field form-col-full">
+              <label>Permanent Residential Address</label>
+              <textarea
+                rows={3}
                 value={personal.address}
                 onChange={(e) => setPersonal({ ...personal, address: e.target.value })}
-                style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid #E2ECF5', fontSize: 13, outline: 'none' }}
+                placeholder="House / Flat No, Street, Landmark, Area, City, Pincode"
               />
             </div>
 
-            <div style={{ gridColumn: 'span 2' }}>
-              <label style={{ fontSize: 12, fontWeight: 700, color: '#E17055', display: 'block', marginBottom: 6 }}>🚨 SOS Emergency Contact (Name, Relation & Phone)</label>
+            <div className="delivery-form-field">
+              <label>Emergency Contact Name</label>
               <input
                 type="text"
-                value={personal.emergencyContact}
-                onChange={(e) => setPersonal({ ...personal, emergencyContact: e.target.value })}
-                style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1.5px solid #FAB1A0', background: '#FFF5F0', fontSize: 13, outline: 'none' }}
+                placeholder="e.g. Suman Kumar (Brother)"
+                value={personal.emergencyContactName}
+                onChange={(e) => {
+                  const newName = e.target.value;
+                  setPersonal({
+                    ...personal,
+                    emergencyContactName: newName,
+                    emergencyContact: `${newName} — ${personal.emergencyContactPhone}`
+                  });
+                }}
+              />
+            </div>
+
+            <div className="delivery-form-field">
+              <label>Emergency Contact Phone</label>
+              <input
+                type="tel"
+                placeholder="+91 98765 44332"
+                value={personal.emergencyContactPhone}
+                onChange={(e) => {
+                  const newPhone = e.target.value;
+                  setPersonal({
+                    ...personal,
+                    emergencyContactPhone: newPhone,
+                    emergencyContact: `${personal.emergencyContactName} — ${newPhone}`
+                  });
+                }}
               />
             </div>
           </div>
@@ -239,7 +280,9 @@ export default function DeliveryProfilePage() {
               padding: '12px 24px',
               fontSize: 14,
               fontWeight: 800,
-              cursor: 'pointer'
+              cursor: 'pointer',
+              width: '100%',
+              maxWidth: 240
             }}
           >
             Save Personal Details
@@ -249,18 +292,17 @@ export default function DeliveryProfilePage() {
 
       {/* ─── Tab 2: Vehicle Info Form ─── */}
       {activeTab === 'VEHICLE' && (
-        <form onSubmit={handleSave} style={{ background: '#fff', borderRadius: 18, padding: '24px', border: '1px solid #E2ECF5' }}>
-          <div style={{ fontWeight: 800, fontSize: 16, color: '#0C2340', marginBottom: 16 }}>
+        <form onSubmit={handleSave} className="delivery-form-card">
+          <div className="delivery-form-title">
             Registered Delivery Vehicle
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16, marginBottom: 20 }}>
-            <div>
-              <label style={{ fontSize: 12, fontWeight: 700, color: '#4A6FA5', display: 'block', marginBottom: 6 }}>Vehicle Category</label>
+          <div className="delivery-form-grid desktop-two-col">
+            <div className="delivery-form-field">
+              <label>Vehicle Category</label>
               <select
                 value={vehicle.type}
                 onChange={(e) => setVehicle({ ...vehicle, type: e.target.value })}
-                style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid #E2ECF5', fontSize: 13, outline: 'none' }}
               >
                 <option value="Electric Scooter (EV)">Electric Scooter (EV)</option>
                 <option value="Petrol Motorcycle / Bike">Petrol Motorcycle / Bike</option>
@@ -269,33 +311,30 @@ export default function DeliveryProfilePage() {
               </select>
             </div>
 
-            <div>
-              <label style={{ fontSize: 12, fontWeight: 700, color: '#4A6FA5', display: 'block', marginBottom: 6 }}>Make & Model</label>
+            <div className="delivery-form-field">
+              <label>Make & Model</label>
               <input
                 type="text"
                 value={vehicle.model}
                 onChange={(e) => setVehicle({ ...vehicle, model: e.target.value })}
-                style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid #E2ECF5', fontSize: 13, outline: 'none' }}
               />
             </div>
 
-            <div>
-              <label style={{ fontSize: 12, fontWeight: 700, color: '#4A6FA5', display: 'block', marginBottom: 6 }}>Vehicle Registration Plate (RC Number)</label>
+            <div className="delivery-form-field">
+              <label>Vehicle Registration Plate (RC Number)</label>
               <input
                 type="text"
                 value={vehicle.registrationNumber}
                 onChange={(e) => setVehicle({ ...vehicle, registrationNumber: e.target.value })}
-                style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid #E2ECF5', fontSize: 13, outline: 'none' }}
               />
             </div>
 
-            <div>
-              <label style={{ fontSize: 12, fontWeight: 700, color: '#4A6FA5', display: 'block', marginBottom: 6 }}>Fuel / Battery Range</label>
+            <div className="delivery-form-field">
+              <label>Fuel / Battery Range</label>
               <input
                 type="text"
                 value={vehicle.batteryRange}
                 onChange={(e) => setVehicle({ ...vehicle, batteryRange: e.target.value })}
-                style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid #E2ECF5', fontSize: 13, outline: 'none' }}
               />
             </div>
           </div>
@@ -310,7 +349,9 @@ export default function DeliveryProfilePage() {
               padding: '12px 24px',
               fontSize: 14,
               fontWeight: 800,
-              cursor: 'pointer'
+              cursor: 'pointer',
+              width: '100%',
+              maxWidth: 240
             }}
           >
             Update Vehicle Information
@@ -320,10 +361,10 @@ export default function DeliveryProfilePage() {
 
       {/* ─── Tab 3: Documents Compliance ─── */}
       {activeTab === 'DOCUMENTS' && (
-        <div style={{ background: '#fff', borderRadius: 18, padding: '24px', border: '1px solid #E2ECF5' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <div className="delivery-form-card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
             <div>
-              <div style={{ fontWeight: 800, fontSize: 16, color: '#0C2340' }}>
+              <div className="delivery-form-title" style={{ margin: 0 }}>
                 Compliance & KYC Document Vault
               </div>
               <div style={{ fontSize: 12, color: '#4A6FA5', marginTop: 2 }}>
@@ -348,30 +389,32 @@ export default function DeliveryProfilePage() {
             </button>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%' }}>
             {DOCUMENTS.map((doc) => (
               <div key={doc.id} style={{
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                padding: '14px 18px',
+                padding: '14px 16px',
                 background: '#F8FAFD',
                 borderRadius: 12,
                 border: `1.5px solid ${doc.status === 'EXPIRING_SOON' ? '#FAB1A0' : '#E2ECF5'}`,
                 flexWrap: 'wrap',
-                gap: 10
+                gap: 10,
+                boxSizing: 'border-box',
+                width: '100%'
               }}>
-                <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
-                  <span style={{ fontSize: 24 }}>{doc.icon}</span>
-                  <div>
-                    <div style={{ fontWeight: 800, fontSize: 14, color: '#0C2340' }}>{doc.name}</div>
-                    <div style={{ fontSize: 12, color: '#636E72', marginTop: 2 }}>
-                      No: <strong>{doc.docNumber}</strong> • Valid Until: {doc.expiryDate}
+                <div style={{ display: 'flex', gap: 12, alignItems: 'center', minWidth: 0 }}>
+                  <span style={{ fontSize: 24, flexShrink: 0 }}>{doc.icon}</span>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontWeight: 800, fontSize: 13, color: '#0C2340' }}>{doc.name}</div>
+                    <div style={{ fontSize: 11, color: '#636E72', marginTop: 2, wordBreak: 'break-word' }}>
+                      No: <strong>{doc.docNumber}</strong> • Until: {doc.expiryDate}
                     </div>
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                   <span style={{
                     fontSize: 10,
                     fontWeight: 800,
@@ -381,7 +424,7 @@ export default function DeliveryProfilePage() {
                     color: doc.status === 'VERIFIED' ? '#00B894' : '#E17055',
                     border: `1px solid ${doc.status === 'VERIFIED' ? '#A3E4D7' : '#FAB1A0'}`
                   }}>
-                    {doc.status === 'EXPIRING_SOON' ? '⚠️ EXPIRES IN 24 DAYS' : '✓ VERIFIED & APPROVED'}
+                    {doc.status === 'EXPIRING_SOON' ? '⚠️ EXPIRES SOON' : '✓ VERIFIED'}
                   </span>
 
                   <button
@@ -389,8 +432,8 @@ export default function DeliveryProfilePage() {
                     style={{
                       background: '#fff',
                       border: '1px solid #E2ECF5',
-                      padding: '6px 12px',
-                      borderRadius: 8,
+                      padding: '5px 10px',
+                      borderRadius: 6,
                       fontSize: 11,
                       fontWeight: 700,
                       cursor: 'pointer'
@@ -407,49 +450,45 @@ export default function DeliveryProfilePage() {
 
       {/* ─── Tab 4: Bank Details Form ─── */}
       {activeTab === 'BANK' && (
-        <form onSubmit={handleSave} style={{ background: '#fff', borderRadius: 18, padding: '24px', border: '1px solid #E2ECF5' }}>
-          <div style={{ fontWeight: 800, fontSize: 16, color: '#0C2340', marginBottom: 16 }}>
+        <form onSubmit={handleSave} className="delivery-form-card">
+          <div className="delivery-form-title">
             Bank Account for Weekly Payouts
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16, marginBottom: 20 }}>
-            <div>
-              <label style={{ fontSize: 12, fontWeight: 700, color: '#4A6FA5', display: 'block', marginBottom: 6 }}>Account Holder Name</label>
+          <div className="delivery-form-grid desktop-two-col">
+            <div className="delivery-form-field">
+              <label>Account Holder Name</label>
               <input
                 type="text"
                 value={bank.accountHolder}
                 onChange={(e) => setBank({ ...bank, accountHolder: e.target.value })}
-                style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid #E2ECF5', fontSize: 13, outline: 'none' }}
               />
             </div>
 
-            <div>
-              <label style={{ fontSize: 12, fontWeight: 700, color: '#4A6FA5', display: 'block', marginBottom: 6 }}>Bank Name</label>
+            <div className="delivery-form-field">
+              <label>Bank Name</label>
               <input
                 type="text"
                 value={bank.bankName}
                 onChange={(e) => setBank({ ...bank, bankName: e.target.value })}
-                style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid #E2ECF5', fontSize: 13, outline: 'none' }}
               />
             </div>
 
-            <div>
-              <label style={{ fontSize: 12, fontWeight: 700, color: '#4A6FA5', display: 'block', marginBottom: 6 }}>Account Number</label>
+            <div className="delivery-form-field">
+              <label>Account Number</label>
               <input
                 type="text"
                 value={bank.accountNumber}
                 onChange={(e) => setBank({ ...bank, accountNumber: e.target.value })}
-                style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid #E2ECF5', fontSize: 13, outline: 'none' }}
               />
             </div>
 
-            <div>
-              <label style={{ fontSize: 12, fontWeight: 700, color: '#4A6FA5', display: 'block', marginBottom: 6 }}>IFSC Code</label>
+            <div className="delivery-form-field">
+              <label>IFSC Code</label>
               <input
                 type="text"
                 value={bank.ifsc}
                 onChange={(e) => setBank({ ...bank, ifsc: e.target.value })}
-                style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid #E2ECF5', fontSize: 13, outline: 'none' }}
               />
             </div>
           </div>
@@ -464,7 +503,9 @@ export default function DeliveryProfilePage() {
               padding: '12px 24px',
               fontSize: 14,
               fontWeight: 800,
-              cursor: 'pointer'
+              cursor: 'pointer',
+              width: '100%',
+              maxWidth: 240
             }}
           >
             Update Bank Details
