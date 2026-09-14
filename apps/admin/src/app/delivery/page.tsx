@@ -43,17 +43,53 @@ export default function DeliveryHomePage() {
         // Active Order
         const ad = activeRes?.data as any;
         if (ad) {
-          setActiveOrder({
+          const customerAddr = [
+            ad.order?.deliveryAddress?.addressLine1,
+            ad.order?.deliveryAddress?.addressLine2,
+            ad.order?.deliveryAddress?.city,
+            ad.order?.deliveryAddress?.state,
+            ad.order?.deliveryAddress?.postalCode,
+          ].filter(Boolean).join(', ') || ad.order?.deliveryAddress?.area || 'Indiranagar, Bengaluru';
+
+          const activeData = {
             id: ad.id || 'ord-qb1024',
             orderNumber: ad.order?.orderNumber || (ad.orderId ? `QB-${ad.orderId.slice(-4)}` : 'QB1024'),
-            restaurantName: ad.order?.restaurant?.name || 'Spice Garden',
-            restaurantAddress: ad.order?.restaurant?.address || '100 Feet Rd, Indiranagar',
-            customerName: ad.order?.customer?.name || 'Aarav Sharma',
+            restaurantName: ad.order?.restaurant?.name || 'Burger & Co.',
+            restaurantAddress: ad.order?.restaurant?.address || '100 Feet Road, Indiranagar, Bengaluru',
+            restaurantLatitude: ad.order?.restaurant?.latitude ?? 12.9784,
+            restaurantLongitude: ad.order?.restaurant?.longitude ?? 77.6408,
+            customerName: ad.order?.customer?.name || 'Rahul Sharma',
             customerArea: ad.order?.deliveryAddress?.area || ad.order?.deliveryAddress?.city || 'Indiranagar',
-            distance: `${ad.distance || 3.2} km`,
+            customerAddress: customerAddr,
+            customerLatitude: ad.order?.deliveryAddress?.latitude ?? 12.9716,
+            customerLongitude: ad.order?.deliveryAddress?.longitude ?? 77.5946,
+            distance: `${ad.distance || 2.4} km`,
             estimatedEarnings: ad.earnings || ad.deliveryFee || 85,
             status: ad.status || 'OUT_FOR_DELIVERY',
-          });
+          };
+
+          setActiveOrder(activeData);
+          try {
+            localStorage.setItem('quickbite_active_delivery', JSON.stringify({
+              id: activeData.id,
+              orderNumber: activeData.orderNumber,
+              restaurant: {
+                name: activeData.restaurantName,
+                address: activeData.restaurantAddress,
+                latitude: activeData.restaurantLatitude,
+                longitude: activeData.restaurantLongitude,
+              },
+              customer: {
+                name: activeData.customerName,
+                address: activeData.customerAddress,
+                latitude: activeData.customerLatitude,
+                longitude: activeData.customerLongitude,
+              },
+              distance: activeData.distance,
+              estimatedEarnings: activeData.estimatedEarnings,
+              status: activeData.status,
+            }));
+          } catch {}
         } else {
           // Check if there is a pending assignment
           const pd = pendingRes?.data as any;
@@ -63,11 +99,11 @@ export default function DeliveryHomePage() {
             setIncomingRequest({
               id: first.id,
               orderNumber: `QB${(first.orderId || first.id).slice(-4).toUpperCase()}`,
-              restaurantName: first.order?.restaurant?.name || 'Royal Biryani Bistro',
-              restaurantAddress: first.order?.restaurant?.address || 'Indiranagar 12th Main',
-              customerName: first.order?.customer?.name || 'Priya Patel',
-              customerArea: first.order?.deliveryAddress?.area || 'Koramangala 5th Block',
-              distance: `${first.distance || 3.2} km`,
+              restaurantName: first.order?.restaurant?.name || 'Burger & Co.',
+              restaurantAddress: first.order?.restaurant?.address || '100 Feet Road, Indiranagar, Bengaluru',
+              customerName: first.order?.customer?.name || 'Rahul Sharma',
+              customerArea: first.order?.deliveryAddress?.area || 'Indiranagar, Bengaluru',
+              distance: `${first.distance || 2.4} km`,
               estimatedEarnings: first.earnings || 85,
             });
           }
@@ -83,18 +119,24 @@ export default function DeliveryHomePage() {
           });
         }
       } catch {
-        // Fallback default mock for UI display
-        setActiveOrder({
+        // Fallback default with real seeded restaurant and customer coordinates
+        const defaultData = {
           id: 'ord-qb1024',
           orderNumber: 'QB1024',
-          restaurantName: 'Spice Garden Bistro',
-          restaurantAddress: '100 Feet Rd, Indiranagar',
-          customerName: 'Aarav Sharma',
-          customerArea: 'Indiranagar 4th Cross',
-          distance: '3.2 km',
+          restaurantName: 'Burger & Co.',
+          restaurantAddress: '100 Feet Road, Indiranagar, Bengaluru',
+          restaurantLatitude: 12.9784,
+          restaurantLongitude: 77.6408,
+          customerName: 'Rahul Sharma',
+          customerArea: 'Indiranagar, Bengaluru',
+          customerAddress: '402, Skyline Residency, Indiranagar, Bengaluru, 560038',
+          customerLatitude: 12.9716,
+          customerLongitude: 77.5946,
+          distance: '2.4 km',
           estimatedEarnings: 85,
-          status: 'OUT_FOR_DELIVERY',
-        });
+          status: 'ACCEPTED',
+        };
+        setActiveOrder(defaultData);
       } finally {
         if (mounted) setLoading(false);
       }
@@ -113,11 +155,11 @@ export default function DeliveryHomePage() {
     setIncomingRequest({
       id: `ord-qb${Math.floor(1000 + Math.random() * 9000)}`,
       orderNumber: `QB${Math.floor(1000 + Math.random() * 9000)}`,
-      restaurantName: 'The Biryani House',
-      restaurantAddress: '42 MG Road, Bengaluru',
-      customerName: 'Rohan Gupta',
-      customerArea: 'Domlur Layout',
-      distance: '3.2 km',
+      restaurantName: 'Burger & Co.',
+      restaurantAddress: '100 Feet Road, Indiranagar, Bengaluru',
+      customerName: 'Rahul Sharma',
+      customerArea: 'Indiranagar, Bengaluru',
+      distance: '2.4 km',
       estimatedEarnings: 85,
     });
   };
@@ -129,17 +171,44 @@ export default function DeliveryHomePage() {
     } catch {
       // simulate acceptance
     }
-    setActiveOrder({
+    const acceptedData = {
       id: incomingRequest.id,
       orderNumber: incomingRequest.orderNumber,
       restaurantName: incomingRequest.restaurantName,
       restaurantAddress: incomingRequest.restaurantAddress,
+      restaurantLatitude: 12.9784,
+      restaurantLongitude: 77.6408,
       customerName: incomingRequest.customerName,
       customerArea: incomingRequest.customerArea,
+      customerAddress: '402, Skyline Residency, Indiranagar, Bengaluru, 560038',
+      customerLatitude: 12.9716,
+      customerLongitude: 77.5946,
       distance: incomingRequest.distance,
       estimatedEarnings: incomingRequest.estimatedEarnings,
       status: 'ACCEPTED',
-    });
+    };
+    setActiveOrder(acceptedData);
+    try {
+      localStorage.setItem('quickbite_active_delivery', JSON.stringify({
+        id: acceptedData.id,
+        orderNumber: acceptedData.orderNumber,
+        restaurant: {
+          name: acceptedData.restaurantName,
+          address: acceptedData.restaurantAddress,
+          latitude: acceptedData.restaurantLatitude,
+          longitude: acceptedData.restaurantLongitude,
+        },
+        customer: {
+          name: acceptedData.customerName,
+          address: acceptedData.customerAddress,
+          latitude: acceptedData.customerLatitude,
+          longitude: acceptedData.customerLongitude,
+        },
+        distance: acceptedData.distance,
+        estimatedEarnings: acceptedData.estimatedEarnings,
+        status: acceptedData.status,
+      }));
+    } catch {}
     setIncomingRequest(null);
   };
 
