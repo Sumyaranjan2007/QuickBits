@@ -189,13 +189,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsOtpModalOpen,
       }}
     >
-      {loading ? (
-        <div className="loading" style={{ minHeight: '100vh' }}>
-          <div className="spinner" />
-        </div>
-      ) : (
-        children
-      )}
+      {children}
     </AuthContext.Provider>
   );
 }
