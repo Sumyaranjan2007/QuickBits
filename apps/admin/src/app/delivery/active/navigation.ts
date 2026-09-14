@@ -32,6 +32,21 @@ export interface NavigationModalState {
 }
 
 /**
+ * Validates whether latitude and longitude are valid non-zero geographical numbers.
+ * Latitude must be between -90 and 90.
+ * Longitude must be between -180 and 180.
+ * Coordinates 0,0 are treated as uninitialized/invalid.
+ */
+export function isValidCoordinate(lat: any, lng: any): boolean {
+  if (typeof lat !== 'number' || typeof lng !== 'number') return false;
+  if (isNaN(lat) || isNaN(lng)) return false;
+  if (lat === 0 && lng === 0) return false;
+  if (lat < -90 || lat > 90) return false;
+  if (lng < -180 || lng > 180) return false;
+  return true;
+}
+
+/**
  * Builds direct Google Maps Turn-by-Turn Navigation for delivery partner.
  *
  * REQUIREMENTS:
@@ -41,19 +56,12 @@ export interface NavigationModalState {
  *    - Uses device GPS automatically as starting point (NO "Choose starting point", NO preview)
  * 2. Explicitly targets package: com.google.android.apps.maps
  * 3. Priority:
- *    - 1st: Exact latitude + longitude
+ *    - 1st: Exact latitude + longitude (validated: -90..90, -180..180, non-zero)
  *    - 2nd: Full delivery address
- *    - 3rd: Missing error ("Destination location is unavailable for this order.")
+ *    - 3rd: Missing error ("Location unavailable for this order.")
  */
 export function buildGoogleNavigation(target: LocationTarget): NavigationResult {
-  const hasCoords =
-    typeof target.latitude === 'number' &&
-    !isNaN(target.latitude) &&
-    typeof target.longitude === 'number' &&
-    !isNaN(target.longitude) &&
-    target.latitude !== 0 &&
-    target.longitude !== 0;
-
+  const hasCoords = isValidCoordinate(target.latitude, target.longitude);
   const address = (target.address || '').trim();
 
   if (hasCoords) {
@@ -94,8 +102,8 @@ export function buildGoogleNavigation(target: LocationTarget): NavigationResult 
 
   return {
     success: false,
-    errorTitle: 'Location unavailable',
-    errorMessage: 'Destination location is unavailable for this order.',
+    errorTitle: 'Location unavailable for this order.',
+    errorMessage: 'This delivery does not have valid destination coordinates or a delivery address.',
   };
 }
 

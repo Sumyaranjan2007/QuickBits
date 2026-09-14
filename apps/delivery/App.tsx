@@ -640,18 +640,28 @@ const launchGoogleMapsNavigation = async (target: {
   longitude?: number | null;
   address?: string | null;
 }) => {
-  const hasCoords =
+  const isCoordValid =
     typeof target.latitude === 'number' &&
+    typeof target.longitude === 'number' &&
     !isNaN(target.latitude) &&
-    target.latitude !== 0;
+    !isNaN(target.longitude) &&
+    !(target.latitude === 0 && target.longitude === 0) &&
+    target.latitude >= -90 &&
+    target.latitude <= 90 &&
+    target.longitude >= -180 &&
+    target.longitude <= 180;
+
   const address = (target.address || '').trim();
 
-  if (!hasCoords && !address) {
-    Alert.alert('Location unavailable', 'Destination location is unavailable for this order.');
+  if (!isCoordValid && !address) {
+    Alert.alert(
+      'Location unavailable for this order.',
+      'This delivery does not have valid destination coordinates or a delivery address.'
+    );
     return;
   }
 
-  const query = hasCoords
+  const query = isCoordValid
     ? `${target.latitude},${target.longitude}`
     : encodeURIComponent(address);
 
@@ -659,31 +669,20 @@ const launchGoogleMapsNavigation = async (target: {
   const navUrl = `google.navigation:q=${query}&mode=l`;
   const webFallback = `https://www.google.com/maps/search/?api=1&query=${query}`;
 
+  // Direct dispatch: Launch native Google Maps navigation intent
+  // This circumvents Android 11+ package visibility restrictions of canOpenURL
   try {
-    const supported = await Linking.canOpenURL(navUrl);
-    if (supported) {
-      await Linking.openURL(navUrl);
-      return;
-    }
-  } catch {}
-
-  // Fallback if google.navigation intent cannot be opened
-  try {
-    const webSupported = await Linking.canOpenURL(webFallback);
-    if (webSupported) {
-      Alert.alert(
-        'Google Maps is not installed.',
-        'Would you like to open the destination in your browser?',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Open in Browser', onPress: () => Linking.openURL(webFallback) },
-        ]
-      );
-    } else {
-      Alert.alert('Google Maps is not installed.', 'Please install Google Maps on your device.');
-    }
+    await Linking.openURL(navUrl);
   } catch {
-    Alert.alert('Google Maps is not installed.', 'Please install Google Maps on your device.');
+    // Only if the native intent fails (e.g. Google Maps app genuinely not installed), open browser fallback
+    try {
+      await Linking.openURL(webFallback);
+    } catch {
+      Alert.alert(
+        'Unable to open navigation',
+        'Could not open Google Maps app or browser navigation.'
+      );
+    }
   }
 };
 

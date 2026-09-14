@@ -200,19 +200,18 @@ export default function ActiveDeliveryPage() {
    * google.navigation:q=LATITUDE,LONGITUDE&mode=l (two-wheeler)
    * Explicitly targets com.google.android.apps.maps
    * Device GPS automatically serves as the starting point.
-   * If Google Maps is not installed, displays informative error with browser fallback.
    */
   const handleNavigate = (targetType: 'RESTAURANT' | 'CUSTOMER', e?: React.MouseEvent) => {
     const nav = targetType === 'RESTAURANT' ? restaurantNav : customerNav;
-    const destName = targetType === 'RESTAURANT' ? order.restaurant.name : order.customer.name;
 
+    // Validate location data before attempting to launch
     if (!nav.success || (!nav.googleNavUri && !nav.androidIntentUri)) {
       if (e) e.preventDefault();
       setNavModal({
         isOpen: true,
         type: 'UNAVAILABLE',
-        title: nav.errorTitle || 'Location unavailable',
-        message: nav.errorMessage || 'Destination location is unavailable for this order.',
+        title: nav.errorTitle || 'Location unavailable for this order.',
+        message: nav.errorMessage || 'This delivery does not have valid coordinates or a delivery address.',
       });
       return;
     }
@@ -220,48 +219,18 @@ export default function ActiveDeliveryPage() {
     const isAndroid = typeof navigator !== 'undefined' && /android/i.test(navigator.userAgent);
 
     if (isAndroid) {
-      // Primary Android Action:
-      // Launch Google Maps app directly targeting com.google.android.apps.maps with google.navigation
-      const intentUrl = nav.androidIntentUri || nav.googleNavUri;
-
-      // Track if app launch succeeded
-      let appLaunched = false;
-      const onBlur = () => {
-        appLaunched = true;
-      };
-      window.addEventListener('blur', onBlur, { once: true });
-
-      // If the app fails to open after 1500ms and window is still visible:
-      setTimeout(() => {
-        window.removeEventListener('blur', onBlur);
-        if (!appLaunched && !document.hidden) {
-          setNavModal({
-            isOpen: true,
-            type: 'FALLBACK',
-            title: 'Google Maps is not installed.',
-            message: `Could not launch Google Maps app for ${destName}. Tap below to view destination in your browser.`,
-            fallbackUrl: nav.webFallbackUrl,
-          });
-        }
-      }, 1500);
-
-      // Trigger the intent
-      const targetUrl = intentUrl || nav.googleNavUri;
-      if (targetUrl) {
-        try {
-          window.location.href = targetUrl;
-        } catch {
-          if (nav.googleNavUri) {
-            window.location.href = nav.googleNavUri;
-          }
-        }
-      } else if (nav.webFallbackUrl) {
-        window.location.href = nav.webFallbackUrl;
+      // On Android:
+      // When tapping an <a> with href="intent:...", Android Chrome directly dispatches the intent
+      // to com.google.android.apps.maps.
+      // Do NOT preventDefault and do NOT show spurious error modals.
+      if (!e) {
+        const targetUrl = nav.androidIntentUri || nav.googleNavUri;
+        if (targetUrl) window.location.href = targetUrl;
       }
     } else {
       // Desktop / Non-Android testing:
       if (e) e.preventDefault();
-      const webUrl = nav.webFallbackUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(destName)}`;
+      const webUrl = nav.webFallbackUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(nav.destination || '')}`;
       window.open(webUrl, '_blank', 'noopener,noreferrer');
     }
   };
