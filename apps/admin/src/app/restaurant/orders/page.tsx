@@ -411,7 +411,7 @@ export default function RestaurantOrdersPage() {
 
       {/* ─── Orders Grid / List ─── */}
       {filteredOrders.length > 0 ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 320px), 1fr))', gap: 14 }}>
           {filteredOrders.map(order => {
             const isPending = order.status === 'PENDING';
             const isConfirmed = order.status === 'CONFIRMED' || order.status === 'ACCEPTED';

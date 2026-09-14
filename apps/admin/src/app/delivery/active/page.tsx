@@ -489,15 +489,20 @@ export default function ActiveDeliveryPage() {
             return (
               <div key={s.step} className="delivery-step-item">
                 <div className="delivery-step-left">
-                  <div className={`delivery-step-circle ${isDone ? 'completed' : isCurrent ? 'active' : ''}`}>
-                    {isDone ? '✓' : s.step}
-                  </div>
+                  {/* Small, cute 20px circular bubble: solid green for completed, maroon with subtle ring for current, light cream for upcoming */}
+                  <div
+                    className={`delivery-step-bubble ${
+                      isDone ? 'completed' : isCurrent ? 'current' : 'upcoming'
+                    }`}
+                    aria-label={`Step ${s.step}: ${s.label} (${isDone ? 'completed' : isCurrent ? 'current' : 'upcoming'})`}
+                  />
+                  {/* Vertical connecting line: GREEN when completed, light gray when upcoming */}
                   {s.step < 5 && (
                     <div className={`delivery-step-line ${isDone ? 'completed' : ''}`} />
                   )}
                 </div>
                 <div className="delivery-step-right">
-                  <div className={`delivery-step-title ${isCurrent ? 'active' : ''}`}>
+                  <div className={`delivery-step-title ${isCurrent ? 'active' : !isDone ? 'upcoming' : ''}`}>
                     {s.label}
                   </div>
                   <div className="delivery-step-desc">

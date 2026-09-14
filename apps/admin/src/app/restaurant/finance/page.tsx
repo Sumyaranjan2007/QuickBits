@@ -101,12 +101,12 @@ export default function RestaurantFinancePage() {
       )}
 
       {/* ─── Header ─── */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
         <div>
-          <h1 style={{ fontSize: 24, fontWeight: 900, color: '#4A0A10', margin: 0 }}>
+          <h1 style={{ fontSize: 22, fontWeight: 900, color: '#4A0A10', margin: 0 }}>
             💰 Earnings & Financial Hub
           </h1>
-          <p style={{ fontSize: 13, color: '#6F6F6F', margin: '4px 0 0' }}>
+          <p style={{ fontSize: 12, color: '#6F6F6F', margin: '4px 0 0' }}>
             Daily revenue, commission statements, bank settlements, and payouts
           </p>
         </div>
@@ -123,15 +123,16 @@ export default function RestaurantFinancePage() {
             showToast('Statement downloaded!');
           }}
           style={{
-            padding: '10px 18px',
+            padding: '9px 16px',
             borderRadius: 10,
             background: '#FAF6EF',
             border: '1px solid #EAE0D0',
             color: '#4A0A10',
             fontWeight: 800,
-            fontSize: 13,
+            fontSize: 12,
             cursor: 'pointer',
-            minHeight: 44,
+            minHeight: 40,
+            whiteSpace: 'nowrap',
           }}
         >
           📥 Download Statement
@@ -139,7 +140,7 @@ export default function RestaurantFinancePage() {
       </div>
 
       {/* ─── Subtabs ─── */}
-      <div style={{ display: 'flex', gap: 8, borderBottom: '1px solid #EAE0D0', paddingBottom: 10 }}>
+      <div style={{ display: 'flex', gap: 8, borderBottom: '1px solid #EAE0D0', paddingBottom: 10, overflowX: 'auto', scrollbarWidth: 'none' }}>
         {[
           { key: 'OVERVIEW', label: 'Earnings Overview' },
           { key: 'SETTLEMENTS', label: 'Settlements & Payouts' },
@@ -157,6 +158,7 @@ export default function RestaurantFinancePage() {
               fontWeight: 800,
               fontSize: 13,
               cursor: 'pointer',
+              whiteSpace: 'nowrap',
             }}
           >
             {t.label}
@@ -168,7 +170,7 @@ export default function RestaurantFinancePage() {
       {activeTab === 'OVERVIEW' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           {/* Top 3 Summary Cards */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: 12 }}>
             <div style={statCardStyle}>
               <div style={statLabelStyle}>TODAY'S EARNINGS</div>
               <div style={{ fontSize: 28, fontWeight: 900, color: '#4A0A10', marginTop: 6 }}>

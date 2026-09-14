@@ -204,19 +204,16 @@ function DeliveryTimeline({ status }: { status: string }) {
         const isAhead   = idx > currentIdx;
         return (
           <View key={step.key} style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
-            {/* Dot + line */}
-            <View style={{ alignItems: 'center', width: 28 }}>
+            {/* Dot + line: Small cute 20px bubbles, no numbers, no checkmarks */}
+            <View style={{ alignItems: 'center', width: 22 }}>
               <View style={[
                 styles.tDot,
-                isDone    && { backgroundColor: C.success, borderColor: C.success },
-                isCurrent && { backgroundColor: C.primary, borderColor: C.primary, width: 20, height: 20, borderRadius: 10 },
-                isAhead   && { backgroundColor: C.white,   borderColor: C.border },
-              ]}>
-                {isDone    && <Text style={{ fontSize: 7,  color: '#fff', fontWeight: '900' }}>✓</Text>}
-                {isCurrent && <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#fff' }} />}
-              </View>
+                isDone    && { backgroundColor: '#0B8F6A', borderColor: '#0B8F6A', borderWidth: 1 },
+                isCurrent && { backgroundColor: '#4A0A10', borderColor: '#4A0A10', borderWidth: 1 },
+                isAhead   && { backgroundColor: '#F4EEE7', borderColor: '#E5DDD3', borderWidth: 1.5 },
+              ]} />
               {idx < STATUS_STEPS.length - 1 && (
-                <View style={[styles.tLine, { backgroundColor: idx < currentIdx ? C.success : C.border }]} />
+                <View style={[styles.tLine, { backgroundColor: isDone ? '#0B8F6A' : '#EADBCE' }]} />
               )}
             </View>
             {/* Label */}
@@ -2249,12 +2246,12 @@ const styles = StyleSheet.create({
 
   // ── Timeline ──────────────────────────────────────────────────────────────
   tDot: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: C.border,
-    backgroundColor: C.bg,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: '#E5DDD3',
+    backgroundColor: '#F4EEE7',
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 2,

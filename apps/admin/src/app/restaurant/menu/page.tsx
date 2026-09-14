@@ -690,7 +690,7 @@ export default function RestaurantMenuPage() {
             </div>
 
             {/* Search Input */}
-            <div style={{ position: 'relative', width: 240 }}>
+            <div style={{ position: 'relative', width: '100%', maxWidth: 260 }}>
               <input
                 type="text"
                 placeholder="Search dish..."
@@ -703,6 +703,7 @@ export default function RestaurantMenuPage() {
                   border: '1px solid #EAE0D0',
                   fontSize: 13,
                   background: '#FFFFFF',
+                  boxSizing: 'border-box',
                 }}
               />
               <span style={{ position: 'absolute', left: 10, top: 9, fontSize: 13, color: '#999' }}>🔍</span>
@@ -710,7 +711,7 @@ export default function RestaurantMenuPage() {
           </div>
 
           {/* Menu Items Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))', gap: 14 }}>
             {filteredItems.map(item => {
               const pendingReq = getPendingRequestForItem(item.id);
 

@@ -16,6 +16,56 @@ const MAIN_NAV = [
   { icon: '⭐', label: 'Reviews', href: '/restaurant/reviews' },
 ];
 
+// ─── Clean 5-Item Mobile Bottom Navigation (Equal Width, SVG Icons, Short Labels) ───
+const RESTAURANT_BOTTOM_NAV = [
+  {
+    key: 'home',
+    label: 'Home',
+    href: '/restaurant',
+    icon: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+        <polyline points="9 22 9 12 15 12 15 22" />
+      </svg>
+    ),
+  },
+  {
+    key: 'orders',
+    label: 'Orders',
+    href: '/restaurant/orders',
+    icon: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+        <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+        <line x1="12" y1="22.08" x2="12" y2="12" />
+      </svg>
+    ),
+  },
+  {
+    key: 'menu',
+    label: 'Menu',
+    href: '/restaurant/menu',
+    icon: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 11h18M5 11V7a7 7 0 0 1 14 0v4M4 15h16a2 2 0 0 1 2 2v1a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-1a2 2 0 0 1 2-2z" />
+      </svg>
+    ),
+  },
+  {
+    key: 'earnings',
+    label: 'Earnings',
+    href: '/restaurant/finance',
+    icon: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M6 3h12" />
+        <path d="M6 8h12" />
+        <path d="M6 13l8.5 8" />
+        <path d="M6 13h3a4.5 4.5 0 0 0 0-9" />
+      </svg>
+    ),
+  },
+];
+
 const SECONDARY_NAV = [
   { icon: '⚙️', label: 'Settings', href: '/restaurant/settings' },
   { icon: '🎧', label: 'Help & Support', href: '/restaurant/support' },
@@ -616,6 +666,7 @@ export default function RestaurantLayout({ children }: { children: React.ReactNo
       >
         {/* ─── Top Header Bar (Desktop & Mobile) ─── */}
         <header
+          className="restaurant-top-header"
           style={{
             height: 68,
             background: '#FFFFFF',
@@ -631,57 +682,59 @@ export default function RestaurantLayout({ children }: { children: React.ReactNo
           }}
         >
           {/* Left: Brand / Restaurant Name */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div className="show-mobile" style={{ display: 'none' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+            <div className="show-mobile" style={{ display: 'none', flexShrink: 0 }}>
               <div
                 style={{
-                  width: 34,
-                  height: 34,
+                  width: 32,
+                  height: 32,
                   borderRadius: 8,
                   background: '#4A0A10',
                   color: '#FFB21A',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: 18,
+                  fontSize: 16,
                   fontWeight: 900,
                 }}
               >
                 🍽️
               </div>
             </div>
-            <div>
-              <div style={{ fontSize: 16, fontWeight: 800, color: '#4A0A10', display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span>{restaurant?.name || 'QuickBite Partner'}</span>
+            <div style={{ minWidth: 0 }}>
+              <div className="restaurant-header-title" style={{ fontSize: 16, fontWeight: 800, color: '#4A0A10', display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{restaurant?.name || 'QuickBite Partner'}</span>
                 <span className="hide-mobile" style={{ fontSize: 12, fontWeight: 500, color: '#6F6F6F' }}>· Bengaluru Store</span>
               </div>
             </div>
           </div>
 
           {/* Right: Status Dropdown, Notification Bell & Profile */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
             {/* Interactive Status Pill */}
             <div style={{ position: 'relative' }} ref={statusMenuRef}>
               <button
+                className="restaurant-status-btn"
                 onClick={() => setStatusDropdownOpen(o => !o)}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 6,
-                  padding: '7px 14px',
+                  gap: 5,
+                  padding: '6px 12px',
                   borderRadius: 20,
                   border: `1px solid ${badgeStyle.border}`,
                   background: badgeStyle.bg,
                   color: badgeStyle.color,
-                  fontSize: 12,
+                  fontSize: 11,
                   fontWeight: 800,
                   cursor: 'pointer',
                   transition: 'all 0.15s ease',
-                  minHeight: 36,
+                  minHeight: 34,
+                  whiteSpace: 'nowrap',
                 }}
               >
                 <span>{badgeStyle.text}</span>
-                <span style={{ fontSize: 10 }}>▼</span>
+                <span style={{ fontSize: 9 }}>▼</span>
               </button>
 
               {/* Status Dropdown Menu */}
@@ -888,13 +941,13 @@ export default function RestaurantLayout({ children }: { children: React.ReactNo
             <Link
               href="/restaurant/profile"
               style={{
-                width: 40,
-                height: 40,
+                width: 36,
+                height: 36,
                 borderRadius: 10,
                 background: '#4A0A10',
                 color: '#FFB21A',
                 fontWeight: 800,
-                fontSize: 15,
+                fontSize: 14,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -908,34 +961,45 @@ export default function RestaurantLayout({ children }: { children: React.ReactNo
         </header>
 
         {/* ─── Page Content Area ─── */}
-        <main style={{ flex: 1, padding: '24px', maxWidth: 1400, width: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
+        <main
+          className="restaurant-main-content"
+          style={{ flex: 1, padding: '24px', maxWidth: 1400, width: '100%', margin: '0 auto', boxSizing: 'border-box' }}
+        >
           {children}
         </main>
       </div>
 
-      {/* ─── Mobile Bottom Navigation (Visible on < 768px) ─── */}
+      {/* ─── Mobile Bottom Navigation (Visible on < 768px, exactly 5 equal-width items) ─── */}
       <nav
-        className="mobile-bottom-bar show-mobile"
+        className="restaurant-mobile-bottom-bar show-mobile"
         style={{
           display: 'none',
           position: 'fixed',
           bottom: 0,
           left: 0,
           right: 0,
-          height: 64,
+          width: '100%',
+          height: 66,
           background: '#FFFFFF',
           borderTop: '1px solid #EAE0D0',
           zIndex: 50,
-          boxShadow: '0 -2px 10px rgba(0,0,0,0.05)',
+          boxShadow: '0 -2px 10px rgba(0,0,0,0.06)',
+          paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+          boxSizing: 'border-box',
         }}
       >
-        <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'space-around' }}>
-          {[
-            { label: 'Dashboard', icon: '🏠', href: '/restaurant' },
-            { label: 'Orders', icon: '📦', href: '/restaurant/orders' },
-            { label: 'Menu', icon: '🍔', href: '/restaurant/menu' },
-            { label: 'Earnings', icon: '💰', href: '/restaurant/finance' },
-          ].map(item => {
+        <div
+          style={{
+            display: 'flex',
+            width: '100%',
+            height: '100%',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            margin: '0 auto',
+            maxWidth: 480,
+          }}
+        >
+          {RESTAURANT_BOTTOM_NAV.map(item => {
             const isActive = item.href === '/restaurant'
               ? pathname === '/restaurant'
               : pathname.startsWith(item.href);
@@ -944,51 +1008,104 @@ export default function RestaurantLayout({ children }: { children: React.ReactNo
                 key={item.href}
                 href={item.href}
                 style={{
+                  flex: 1,
+                  minWidth: 0,
+                  height: '100%',
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  flex: 1,
-                  height: '100%',
                   textDecoration: 'none',
                   color: isActive ? '#4A0A10' : '#6F6F6F',
-                  fontWeight: isActive ? 800 : 500,
-                  fontSize: 11,
+                  padding: '4px 0',
+                  boxSizing: 'border-box',
                   gap: 3,
                 }}
               >
-                <span style={{ fontSize: 20 }}>{item.icon}</span>
-                <span>{item.label}</span>
+                <span
+                  style={{
+                    width: 24,
+                    height: 24,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: isActive ? '#4A0A10' : '#6F6F6F',
+                  }}
+                >
+                  {item.icon}
+                </span>
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontWeight: isActive ? 800 : 600,
+                    lineHeight: 1,
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    color: isActive ? '#4A0A10' : '#6F6F6F',
+                  }}
+                >
+                  {item.label}
+                </span>
               </Link>
             );
           })}
 
-          {/* More Drawer Button */}
+          {/* More Drawer Button (Exact 5th Navigation Item) */}
           <button
             onClick={() => setMoreDrawerOpen(true)}
+            aria-label="More Menu"
             style={{
+              flex: 1,
+              minWidth: 0,
+              height: '100%',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              flex: 1,
-              height: '100%',
               background: 'none',
               border: 'none',
               color: '#6F6F6F',
-              fontSize: 11,
-              fontWeight: 500,
+              padding: '4px 0',
+              boxSizing: 'border-box',
               gap: 3,
               cursor: 'pointer',
             }}
           >
-            <span style={{ fontSize: 20 }}>☰</span>
-            <span>More</span>
+            <span
+              style={{
+                width: 24,
+                height: 24,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#6F6F6F',
+              }}
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="4" y1="6" x2="20" y2="6" />
+                <line x1="4" y1="12" x2="20" y2="12" />
+                <line x1="4" y1="18" x2="20" y2="18" />
+              </svg>
+            </span>
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                lineHeight: 1,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                color: '#6F6F6F',
+              }}
+            >
+              More
+            </span>
           </button>
         </div>
       </nav>
 
-      {/* ─── Mobile More Drawer Modal ─── */}
+      {/* ─── Mobile More Drawer Modal (Clean List with Chevrons) ─── */}
       {moreDrawerOpen && (
         <div
           style={{
@@ -1007,24 +1124,38 @@ export default function RestaurantLayout({ children }: { children: React.ReactNo
               background: '#FFFFFF',
               borderTopLeftRadius: 24,
               borderTopRightRadius: 24,
-              padding: '24px 20px 40px',
-              maxHeight: '80vh',
+              padding: '20px 16px 36px',
+              maxHeight: '82vh',
               overflowY: 'auto',
+              boxSizing: 'border-box',
             }}
             onClick={e => e.stopPropagation()}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <div style={{ fontSize: 18, fontWeight: 900, color: '#4A0A10' }}>QuickBite Partner Menu</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <div>
+                <div style={{ fontSize: 18, fontWeight: 900, color: '#4A0A10' }}>QuickBite Partner</div>
+                <div style={{ fontSize: 12, color: '#6F6F6F' }}>More Options & Settings</div>
+              </div>
               <button
                 onClick={() => setMoreDrawerOpen(false)}
+                aria-label="Close"
                 style={{ background: '#F0E8DC', border: 'none', width: 32, height: 32, borderRadius: 16, fontSize: 14, cursor: 'pointer', color: '#171717' }}
               >
                 ✕
               </button>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, marginBottom: 20 }}>
-              {MORE_NAV.map(item => (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
+              {[
+                { icon: '🏪', label: 'Restaurant Profile', desc: 'Operating hours, banner, cuisine', href: '/restaurant/profile' },
+                { icon: '⚙️', label: 'Settings', desc: 'Staff roles, notifications, sound', href: '/restaurant/settings' },
+                { icon: '🎧', label: 'Help & Support', desc: '24/7 partner support & guides', href: '/restaurant/support' },
+                { icon: '⭐', label: 'Customer Reviews', desc: 'Ratings & reply to reviews', href: '/restaurant/reviews' },
+                { icon: '📈', label: 'Sales Analytics', desc: 'Revenue breakdown & metrics', href: '/restaurant/analytics' },
+                { icon: '🍳', label: 'Kitchen Display (KDS)', desc: 'Full-screen kitchen order view', href: '/restaurant/kitchen' },
+                { icon: '🎁', label: 'Offers & Coupons', desc: 'Discounts & promotions', href: '/restaurant/offers' },
+                { icon: '👥', label: 'Staff Management', desc: 'Manage branch team access', href: '/restaurant/staff' },
+              ].map(item => (
                 <Link
                   key={item.href}
                   href={item.href}
@@ -1032,19 +1163,24 @@ export default function RestaurantLayout({ children }: { children: React.ReactNo
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 10,
-                    padding: '14px 12px',
+                    justifyContent: 'space-between',
+                    padding: '12px 14px',
                     borderRadius: 12,
                     background: '#FAF6EF',
                     border: '1px solid #EAE0D0',
                     color: '#171717',
                     textDecoration: 'none',
-                    fontWeight: 700,
-                    fontSize: 13,
+                    minHeight: 48,
                   }}
                 >
-                  <span style={{ fontSize: 20 }}>{item.icon}</span>
-                  <span>{item.label}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <span style={{ fontSize: 20 }}>{item.icon}</span>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: '#171717' }}>{item.label}</div>
+                      <div style={{ fontSize: 11, color: '#6F6F6F' }}>{item.desc}</div>
+                    </div>
+                  </div>
+                  <span style={{ fontSize: 16, color: '#9E8E81', fontWeight: 800 }}>›</span>
                 </Link>
               ))}
             </div>
@@ -1053,7 +1189,7 @@ export default function RestaurantLayout({ children }: { children: React.ReactNo
               onClick={() => { setMoreDrawerOpen(false); logout(); }}
               style={{
                 width: '100%',
-                padding: '14px',
+                padding: '13px',
                 borderRadius: 12,
                 background: '#FEECEC',
                 border: '1px solid #F9BABA',
@@ -1061,9 +1197,14 @@ export default function RestaurantLayout({ children }: { children: React.ReactNo
                 fontWeight: 800,
                 fontSize: 14,
                 cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
               }}
             >
-              🚪 Sign Out of Restaurant Partner
+              <span>🚪</span>
+              <span>Sign Out of Restaurant Partner</span>
             </button>
           </div>
         </div>
@@ -1080,7 +1221,22 @@ export default function RestaurantLayout({ children }: { children: React.ReactNo
           }
           .main-layout-wrapper {
             margin-left: 0 !important;
-            padding-bottom: 70px !important;
+          }
+          .restaurant-top-header {
+            height: 60px !important;
+            padding: 0 14px !important;
+          }
+          .restaurant-header-title {
+            max-width: 140px !important;
+            font-size: 14px !important;
+          }
+          .restaurant-main-content {
+            padding: 14px 14px 96px !important;
+          }
+          .restaurant-status-btn {
+            padding: 5px 10px !important;
+            font-size: 11px !important;
+            min-height: 32px !important;
           }
         }
       `}</style>

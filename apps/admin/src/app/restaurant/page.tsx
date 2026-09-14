@@ -226,29 +226,30 @@ export default function RestaurantDashboard() {
         </div>
       )}
 
-      {/* ─── Top Greeting & Pause Button ─── */}
+      {/* ─── 1. Top Greeting & Status Card ─── */}
       <div
+        className="restaurant-status-card"
         style={{
           display: 'flex',
           flexWrap: 'wrap',
           alignItems: 'center',
           justifyContent: 'space-between',
-          gap: 16,
+          gap: 14,
           background: '#FFFFFF',
-          padding: '20px 24px',
+          padding: '16px 18px',
           borderRadius: 16,
           border: '1px solid #EAE0D0',
           boxShadow: '0 2px 8px rgba(74, 10, 16, 0.03)',
         }}
       >
         <div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: '#6F6F6F', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+          <div style={{ fontSize: 11, fontWeight: 800, color: '#6F6F6F', textTransform: 'uppercase', letterSpacing: 0.6 }}>
             Partner Dashboard
           </div>
-          <h1 style={{ fontSize: 24, fontWeight: 900, color: '#4A0A10', margin: '4px 0 2px' }}>
+          <h1 style={{ fontSize: 20, fontWeight: 900, color: '#4A0A10', margin: '4px 0 2px', lineHeight: 1.2 }}>
             {getGreeting()}, {restaurant?.name || 'QuickBite Bistro'}
           </h1>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#6F6F6F' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#6F6F6F' }}>
             <span>Restaurant status:</span>
             <span style={{ fontWeight: 800, color: isPaused ? '#F5A623' : '#20A464' }}>
               {isPaused ? '⏸️ PAUSED' : '🟢 OPEN'}
@@ -262,36 +263,39 @@ export default function RestaurantDashboard() {
             showToast(isPaused ? 'Restaurant is now OPEN!' : 'Restaurant PAUSED temporarily');
           }}
           style={{
-            padding: '11px 20px',
+            padding: '9px 16px',
             borderRadius: 10,
             border: isPaused ? '1px solid #20A464' : '1px solid #F5A623',
             background: isPaused ? '#E8F8F0' : '#FFF7E6',
             color: isPaused ? '#20A464' : '#C77700',
             fontWeight: 800,
-            fontSize: 13,
+            fontSize: 12,
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
-            gap: 8,
+            gap: 6,
+            minHeight: 40,
             transition: 'all 0.15s ease',
+            whiteSpace: 'nowrap',
           }}
         >
           <span>{isPaused ? '▶️ RESUME ORDERS' : '⏸️ PAUSE RESTAURANT'}</span>
         </button>
       </div>
 
-      {/* ─── Compact KPI Cards Row ─── */}
+      {/* ─── 2. Today's Important Statistics (Clean 2-Column Grid on Mobile, 4-Col on Desktop) ─── */}
       <div
+        className="restaurant-kpi-grid"
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-          gap: 14,
+          gridTemplateColumns: 'repeat(2, 1fr)',
+          gap: 12,
         }}
       >
         {/* Today's Orders */}
         <div style={kpiCardStyle}>
           <div style={kpiLabelStyle}>TODAY'S ORDERS</div>
-          <div style={{ fontSize: 26, fontWeight: 900, color: '#171717', marginTop: 4 }}>
+          <div style={{ fontSize: 24, fontWeight: 900, color: '#171717', marginTop: 2, lineHeight: 1.1 }}>
             {totalTodayOrders}
           </div>
           <div style={{ fontSize: 11, color: '#20A464', fontWeight: 700, marginTop: 4 }}>
@@ -302,8 +306,8 @@ export default function RestaurantDashboard() {
         {/* Pending Orders */}
         <div style={{ ...kpiCardStyle, borderLeft: '4px solid #F5A623' }}>
           <div style={kpiLabelStyle}>PENDING</div>
-          <div style={{ fontSize: 26, fontWeight: 900, color: '#C77700', marginTop: 4 }}>
-            {pendingCount || 4}
+          <div style={{ fontSize: 24, fontWeight: 900, color: '#C77700', marginTop: 2, lineHeight: 1.1 }}>
+            {pendingCount || 1}
           </div>
           <div style={{ fontSize: 11, color: '#6F6F6F', marginTop: 4 }}>Needs action</div>
         </div>
@@ -311,8 +315,8 @@ export default function RestaurantDashboard() {
         {/* Preparing Orders */}
         <div style={{ ...kpiCardStyle, borderLeft: '4px solid #4A0A10' }}>
           <div style={kpiLabelStyle}>PREPARING</div>
-          <div style={{ fontSize: 26, fontWeight: 900, color: '#4A0A10', marginTop: 4 }}>
-            {preparingCount || 7}
+          <div style={{ fontSize: 24, fontWeight: 900, color: '#4A0A10', marginTop: 2, lineHeight: 1.1 }}>
+            {preparingCount || 1}
           </div>
           <div style={{ fontSize: 11, color: '#6F6F6F', marginTop: 4 }}>In kitchen</div>
         </div>
@@ -320,26 +324,62 @@ export default function RestaurantDashboard() {
         {/* Ready for Pickup */}
         <div style={{ ...kpiCardStyle, borderLeft: '4px solid #20A464' }}>
           <div style={kpiLabelStyle}>READY</div>
-          <div style={{ fontSize: 26, fontWeight: 900, color: '#20A464', marginTop: 4 }}>
-            {readyCount || 3}
+          <div style={{ fontSize: 24, fontWeight: 900, color: '#20A464', marginTop: 2, lineHeight: 1.1 }}>
+            {readyCount || 1}
           </div>
           <div style={{ fontSize: 11, color: '#6F6F6F', marginTop: 4 }}>Awaiting rider</div>
         </div>
+      </div>
 
-        {/* Today's Sales */}
-        <div style={{ ...kpiCardStyle, background: '#FAF0EB', border: '1px solid #F0D4CB' }}>
-          <div style={{ ...kpiLabelStyle, color: '#4A0A10' }}>TODAY'S SALES</div>
-          <div style={{ fontSize: 26, fontWeight: 900, color: '#4A0A10', marginTop: 4 }}>
+      {/* ─── 3. Dedicated Today's Sales Card (Full Width on Mobile) ─── */}
+      <div
+        className="restaurant-sales-card"
+        style={{
+          background: '#FAF0EB',
+          borderRadius: 14,
+          padding: '14px 18px',
+          border: '1px solid #F0D4CB',
+          boxShadow: '0 2px 6px rgba(74, 10, 16, 0.03)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 8,
+          width: '100%',
+          boxSizing: 'border-box',
+        }}
+      >
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 800, color: '#4A0A10', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+            TODAY'S SALES
+          </div>
+          <div style={{ fontSize: 24, fontWeight: 900, color: '#4A0A10', marginTop: 2, lineHeight: 1.1 }}>
             ₹{todaySales.toLocaleString()}
           </div>
-          <div style={{ fontSize: 11, color: '#4A0A10', fontWeight: 700, marginTop: 4 }}>
-            Net earnings ₹{(todaySales * 0.92).toFixed(0)}
-          </div>
+        </div>
+        <div
+          style={{
+            fontSize: 12,
+            fontWeight: 800,
+            color: '#4A0A10',
+            background: 'rgba(74, 10, 16, 0.08)',
+            padding: '6px 12px',
+            borderRadius: 8,
+          }}
+        >
+          Net earnings ₹{(todaySales * 0.92).toFixed(0)}
         </div>
       </div>
 
-      {/* ─── Main Grid: Live Orders & Quick Actions / Analytics ─── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 20 }}>
+      {/* ─── 4. Main Grid: Live Orders & Quick Actions / Analytics ─── */}
+      <div
+        className="restaurant-dashboard-main-grid"
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))',
+          gap: 16,
+        }}
+      >
         {/* Left Column: Live Orders */}
         <div
           style={{
@@ -737,15 +777,18 @@ export default function RestaurantDashboard() {
 const kpiCardStyle: React.CSSProperties = {
   background: '#FFFFFF',
   borderRadius: 14,
-  padding: '16px 18px',
+  padding: '12px 14px',
   border: '1px solid #EAE0D0',
   boxShadow: '0 2px 6px rgba(74, 10, 16, 0.02)',
   display: 'flex',
   flexDirection: 'column',
+  justifyContent: 'center',
+  minHeight: 82,
+  boxSizing: 'border-box',
 };
 
 const kpiLabelStyle: React.CSSProperties = {
-  fontSize: 11,
+  fontSize: 10.5,
   fontWeight: 800,
   color: '#6F6F6F',
   textTransform: 'uppercase',
