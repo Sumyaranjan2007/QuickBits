@@ -1,15 +1,30 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { adminApi } from '@quickbite/api-client';
+import { fetchAllCustomersAdmin } from '../../../lib/supabase';
 
 export default function AdminCustomers() {
   const [customers, setCustomers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    adminApi.getCustomers()
-      .then(r => { const d = r.data as any; setCustomers(d.items || d || []); })
-      .catch(() => setCustomers([]))
+    fetchAllCustomersAdmin()
+      .then((data) => {
+        const mapped = (data || []).map((p: any) => ({
+          id: p.id,
+          email: p.email || `${p.phone || 'customer'}@quickbite.com`,
+          phone: p.phone || '—',
+          createdAt: p.created_at || new Date().toISOString(),
+          isActive: true,
+          profile: {
+            firstName: p.full_name?.split(' ')[0] || 'Customer',
+            lastName: p.full_name?.split(' ').slice(1).join(' ') || '',
+          },
+        }));
+        setCustomers(mapped);
+      })
+      .catch((err) => {
+        console.warn('Customers fetch notice:', err);
+      })
       .finally(() => setLoading(false));
   }, []);
 

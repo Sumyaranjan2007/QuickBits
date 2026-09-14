@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useEffect, useCallback } from 'react';
-import { restaurantsApi } from '@quickbite/api-client';
+import { supabase, fetchRestaurantProfile, updateRestaurantProfile } from '../../../lib/supabase';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
@@ -65,12 +65,12 @@ export default function RestaurantProfilePage() {
 
   // Form states
   const [profileForm, setProfileForm] = useState({
-    name: 'QuickBite Bistro',
+    name: 'Sharief Bhai Biryani',
     cuisine: 'North Indian, Biryani, Mughlai, Fast Food',
     description: 'Authentic Indian curries, dum biryanis, and delicious fast bites.',
     phone: '+91 98765 43210',
     email: 'partner@quickbite.com',
-    address: '124, 100 Feet Road, Indiranagar, Bengaluru, Karnataka 560038',
+    address: '100 Feet Rd, Indiranagar, Bengaluru, Karnataka 560038',
     logoUrl: '',
     bannerUrl: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800',
     gstNumber: '29ABCDE1234F1Z5',
@@ -98,29 +98,28 @@ export default function RestaurantProfilePage() {
 
   const loadRestaurantData = useCallback(async () => {
     try {
-      const res = await restaurantsApi.list();
-      const d = res.data as any;
-      const list = d.items || d || [];
-      if (list.length > 0) {
-        const full = await restaurantsApi.getById(list[0].id);
-        const r = full.data as any;
+      const r = await fetchRestaurantProfile('sharief-bhai');
+      if (r) {
         setRestaurant(r);
         setProfileForm({
-          name: r.name || profileForm.name,
-          cuisine: (r.cuisines || []).join(', ') || profileForm.cuisine,
-          description: r.description || profileForm.description,
-          phone: r.phone || profileForm.phone,
-          email: r.email || profileForm.email,
-          address: r.address?.formattedAddress || r.address?.street || profileForm.address,
-          logoUrl: r.logoUrl || '',
-          bannerUrl: r.bannerUrl || profileForm.bannerUrl,
-          gstNumber: r.gstNumber || profileForm.gstNumber,
-          fssaiLicense: r.fssaiLicense || profileForm.fssaiLicense,
+          name: r.name || 'Sharief Bhai Biryani',
+          cuisine: r.cuisine_type || 'Biryani, Mughlai',
+          description: r.description || 'Authentic Indian curries, dum biryanis, and delicious fast bites.',
+          phone: r.phone || '+91 98765 43210',
+          email: r.email || 'partner@quickbite.com',
+          address: r.address || '100 Feet Rd, Indiranagar, Bengaluru',
+          logoUrl: r.logo_url || '',
+          bannerUrl: r.cover_image_url || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800',
+          gstNumber: '29ABCDE1234F1Z5',
+          fssaiLicense: '11223344556677',
         });
       }
-    } catch {}
-    setLoading(false);
-  }, [profileForm.address, profileForm.bannerUrl, profileForm.cuisine, profileForm.description, profileForm.email, profileForm.fssaiLicense, profileForm.gstNumber, profileForm.name, profileForm.phone]);
+    } catch (err) {
+      console.warn('Profile fetch notice:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     loadRestaurantData();
@@ -128,20 +127,20 @@ export default function RestaurantProfilePage() {
 
   const handleSaveProfile = async () => {
     setSaving(true);
-    if (restaurant?.id) {
-      try {
-        await restaurantsApi.update(restaurant.id, {
+    try {
+      if (restaurant?.id) {
+        await updateRestaurantProfile(restaurant.id, {
           name: profileForm.name,
-          description: profileForm.description,
-          phone: profileForm.phone,
-          email: profileForm.email,
+          address: profileForm.address,
+          cuisine_type: profileForm.cuisine,
         });
-      } catch {}
-    }
-    setTimeout(() => {
+      }
+      showToast('Restaurant details updated successfully in Supabase!');
+    } catch (e: any) {
+      showToast('Error updating profile: ' + (e?.message || 'Database error'));
+    } finally {
       setSaving(false);
-      showToast('Restaurant details updated successfully!');
-    }, 400);
+    }
   };
 
   const handleToggleOffer = (id: string) => {

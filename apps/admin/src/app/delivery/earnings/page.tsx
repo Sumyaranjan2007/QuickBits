@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { deliveryApi } from '@quickbite/api-client';
+import { fetchDeliveryPartnerEarningsTotal } from '../../../lib/supabase';
 
 interface PayoutRecord {
   id: string;
@@ -32,19 +32,19 @@ export default function DeliveryEarningsPage() {
   const [payouts] = useState<PayoutRecord[]>(DEFAULT_PAYOUTS);
 
   useEffect(() => {
-    deliveryApi.getEarnings()
-      .then(res => {
-        const d = res.data as any;
-        if (d) {
-          setEarnings(prev => ({
+    fetchDeliveryPartnerEarningsTotal('driver-amit-verma')
+      .then((data) => {
+        if (data && data.total > 0) {
+          setEarnings((prev) => ({
             ...prev,
-            todayEarnings: d.todayEarnings || prev.todayEarnings,
-            thisWeek: d.weekEarnings || prev.thisWeek,
-            thisMonth: d.monthEarnings || prev.thisMonth,
+            todayEarnings: data.total,
+            deliveryEarnings: data.total,
           }));
         }
       })
-      .catch(() => {});
+      .catch((err) => {
+        console.warn('Delivery earnings fetch notice:', err);
+      });
   }, []);
 
   return (

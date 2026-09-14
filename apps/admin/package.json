@@ -9,12 +9,13 @@
     "start": "next start -p 3001"
   },
   "dependencies": {
+    "@quickbite/api-client": "workspace:*",
+    "@quickbite/config": "workspace:*",
+    "@quickbite/types": "workspace:*",
+    "@supabase/supabase-js": "^2.116.0",
     "next": "^14.2.0",
     "react": "^18.3.0",
-    "react-dom": "^18.3.0",
-    "@quickbite/types": "workspace:*",
-    "@quickbite/config": "workspace:*",
-    "@quickbite/api-client": "workspace:*"
+    "react-dom": "^18.3.0"
   },
   "devDependencies": {
     "@types/react": "^18.3.0",

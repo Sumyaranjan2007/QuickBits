@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { adminApi, ordersApi } from '@quickbite/api-client';
+import { supabase, updateOrderStatusInSupabase, subscribeToRestaurantOrders } from '../../../lib/supabase';
 
 export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<any[]>([]);
@@ -10,30 +10,88 @@ export default function AdminOrdersPage() {
   const [inspectOrder, setInspectOrder] = useState<any>(null);
 
   useEffect(() => {
-    adminApi.getOrders()
-      .then(r => {
-        const d = r.data as any;
-        const list = d.items || d || [];
-        if (list.length === 0) {
-          // Pre-populate with realistic demo orders
-          setOrders([
-            { id: 'QB-982144', customerName: 'Rahul Sharma', customerEmail: 'customer@quickbite.com', customerPhone: '+91 99999 99992', restaurantName: 'Burger & Co.', driverName: 'Amit Verma (KA-01-EQ-9876)', total: 512, status: 'OUT_FOR_DELIVERY', paymentMethod: 'UPI', deliveryAddress: '402, Skyline Residency, Indiranagar, Bengaluru', items: [{ name: 'Classic Smash Cheeseburger', price: 289, quantity: 1 }, { name: 'Peri Peri Loaded Fries', price: 159, quantity: 1 }], createdAt: new Date(Date.now() - 1000 * 60 * 18).toISOString() },
-            { id: 'QB-741290', customerName: 'Priya Patel', customerEmail: 'priya.p@example.com', customerPhone: '+91 99999 88881', restaurantName: 'Spice Symphony', driverName: 'Suresh Kumar (KA-05-AB-1234)', total: 648, status: 'DELIVERED', paymentMethod: 'CARD', deliveryAddress: 'Prestige Tech Park, Outer Ring Road, Bengaluru', items: [{ name: 'Hyderabadi Chicken Dum Biryani', price: 349, quantity: 1 }, { name: 'Paneer Tikka Biryani', price: 299, quantity: 1 }], createdAt: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString() },
-            { id: 'QB-310842', customerName: 'Vikram Mehta', customerEmail: 'vikram.m@example.com', customerPhone: '+91 99999 77773', restaurantName: 'Pizzeria Bella', driverName: 'Mohammed Ali (KA-04-TR-8821)', total: 449, status: 'DELIVERED', paymentMethod: 'UPI', deliveryAddress: '12th Cross, Lavelle Road, Bengaluru', items: [{ name: 'Margherita Burrata Pizza', price: 449, quantity: 1 }], createdAt: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString() },
-            { id: 'QB-518293', customerName: 'Sneha Reddy', customerEmail: 'sneha.r@example.com', customerPhone: '+91 99999 66664', restaurantName: 'Burger & Co.', driverName: 'Unassigned', total: 498, status: 'PREPARING', paymentMethod: 'WALLET', deliveryAddress: '27th Main Road, HSR Layout, Bengaluru', items: [{ name: 'Crispy Paneer Truffle Burger', price: 249, quantity: 2 }], createdAt: new Date(Date.now() - 1000 * 60 * 8).toISOString() },
-          ]);
-        } else {
-          setOrders(list);
+    const loadOrders = async () => {
+      try {
+        const { data: supaOrders } = await supabase
+          .from('orders')
+          .select('*, order_items(*)')
+          .order('created_at', { ascending: false });
+
+        if (supaOrders && supaOrders.length > 0) {
+          const mapped = supaOrders.map((o: any) => ({
+            id: o.id,
+            customerName: o.customer_name || 'QuickBite Customer',
+            customerEmail: 'customer@quickbite.com',
+            customerPhone: o.customer_phone || '+91 99999 99999',
+            restaurantName: o.restaurant_id === 'sharief-bhai' ? 'Sharief Bhai Biryani' : (o.restaurant_id === 'burger-co' ? 'Burger & Co.' : o.restaurant_id),
+            driverName: o.driver_name || 'Amit Verma (KA-01-EQ-9876)',
+            total: Number(o.total) || 0,
+            status: o.status,
+            paymentMethod: o.payment_method || 'UPI',
+            deliveryAddress: o.delivery_address_text || 'Indiranagar, Bengaluru',
+            items: (o.order_items || []).map((it: any) => ({
+              name: it.name,
+              price: Number(it.price) || 0,
+              quantity: it.quantity || 1,
+            })),
+            createdAt: o.created_at || new Date().toISOString(),
+          }));
+          setOrders(mapped);
+          setLoading(false);
+          return;
         }
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+      } catch (e) {
+        console.warn('Supabase admin orders error:', e);
+      }
+
+      // Pre-populate with realistic demo orders
+      setOrders([
+        { id: 'QB-982144', customerName: 'Rahul Sharma', customerEmail: 'customer@quickbite.com', customerPhone: '+91 99999 99992', restaurantName: 'Burger & Co.', driverName: 'Amit Verma (KA-01-EQ-9876)', total: 512, status: 'OUT_FOR_DELIVERY', paymentMethod: 'UPI', deliveryAddress: '402, Skyline Residency, Indiranagar, Bengaluru', items: [{ name: 'Classic Smash Cheeseburger', price: 289, quantity: 1 }, { name: 'Peri Peri Loaded Fries', price: 159, quantity: 1 }], createdAt: new Date(Date.now() - 1000 * 60 * 18).toISOString() },
+        { id: 'QB-741290', customerName: 'Priya Patel', customerEmail: 'priya.p@example.com', customerPhone: '+91 99999 88881', restaurantName: 'Spice Symphony', driverName: 'Suresh Kumar (KA-05-AB-1234)', total: 648, status: 'DELIVERED', paymentMethod: 'CARD', deliveryAddress: 'Prestige Tech Park, Outer Ring Road, Bengaluru', items: [{ name: 'Hyderabadi Chicken Dum Biryani', price: 349, quantity: 1 }, { name: 'Paneer Tikka Biryani', price: 299, quantity: 1 }], createdAt: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString() },
+        { id: 'QB-310842', customerName: 'Vikram Mehta', customerEmail: 'vikram.m@example.com', customerPhone: '+91 99999 77773', restaurantName: 'Pizzeria Bella', driverName: 'Mohammed Ali (KA-04-TR-8821)', total: 449, status: 'DELIVERED', paymentMethod: 'UPI', deliveryAddress: '12th Cross, Lavelle Road, Bengaluru', items: [{ name: 'Margherita Burrata Pizza', price: 449, quantity: 1 }], createdAt: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString() },
+        { id: 'QB-518293', customerName: 'Sneha Reddy', customerEmail: 'sneha.r@example.com', customerPhone: '+91 99999 66664', restaurantName: 'Burger & Co.', driverName: 'Unassigned', total: 498, status: 'PREPARING', paymentMethod: 'WALLET', deliveryAddress: '27th Main Road, HSR Layout, Bengaluru', items: [{ name: 'Crispy Paneer Truffle Burger', price: 249, quantity: 2 }], createdAt: new Date(Date.now() - 1000 * 60 * 8).toISOString() },
+      ]);
+      setLoading(false);
+    };
+
+    loadOrders();
+
+    // Subscribe to realtime order updates across all restaurants
+    const unsubscribe = subscribeToRestaurantOrders('', (event: any, newOrder: any) => {
+      if (event === 'INSERT' && newOrder) {
+        setOrders(prev => [
+          {
+            id: newOrder.id,
+            customerName: newOrder.customer_name || 'Customer',
+            customerEmail: 'customer@quickbite.com',
+            customerPhone: newOrder.customer_phone || '+91 99999 99999',
+            restaurantName: newOrder.restaurant_id || 'QuickBite Partner',
+            driverName: 'Assigned Soon',
+            total: Number(newOrder.total) || 0,
+            status: newOrder.status || 'PENDING',
+            paymentMethod: newOrder.payment_method || 'UPI',
+            deliveryAddress: newOrder.delivery_address_text || 'Bengaluru',
+            items: [],
+            createdAt: newOrder.created_at || new Date().toISOString(),
+          },
+          ...prev,
+        ]);
+      } else if (event === 'UPDATE' && newOrder) {
+        setOrders(prev => prev.map(o => o.id === newOrder.id ? { ...o, status: newOrder.status } : o));
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   const handleUpdateOrderStatus = async (id: string, newStatus: string) => {
     try {
-      await ordersApi.updateStatus(id, newStatus);
-    } catch {}
+      await updateOrderStatusInSupabase(id, newStatus, `Admin set status to ${newStatus}`);
+    } catch (e) {
+      console.warn('Supabase order status update error:', e);
+    }
     setOrders(prev => prev.map(o => o.id === id ? { ...o, status: newStatus } : o));
     if (inspectOrder && inspectOrder.id === id) {
       setInspectOrder({ ...inspectOrder, status: newStatus });

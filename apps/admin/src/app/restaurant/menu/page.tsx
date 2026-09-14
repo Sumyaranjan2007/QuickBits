@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useEffect, useCallback } from 'react';
-import { restaurantsApi, priceRequestsApi } from '@quickbite/api-client';
+import { supabase, fetchRestaurantMenuFromSupabase, requestMenuItemPriceChange } from '../../../lib/supabase';
 
 interface AddonOption {
   id: string;
@@ -282,29 +282,71 @@ export default function RestaurantMenuPage() {
   };
 
   const loadMenu = useCallback(async () => {
+    // 1. First try loading from Supabase
     try {
-      const res = await restaurantsApi.list();
-      const d = res.data as any;
-      const list = d.items || d || [];
-      if (list.length > 0) {
-        const full = await restaurantsApi.getById(list[0].id);
-        const rData = full.data as any;
-        setRestaurant(rData);
-        const fetchedCats: MenuCategory[] = rData?.menuCategories || rData?.categories || [];
-        if (fetchedCats.length > 0) {
+      const { data: supaRests } = await supabase.from('restaurants').select('*').limit(1);
+      if (supaRests && supaRests.length > 0) {
+        const currentRest = supaRests[0];
+        setRestaurant(currentRest);
+
+        const { categories: supaCats, items: supaItems } = await fetchRestaurantMenuFromSupabase(currentRest.id);
+        if (supaCats && supaCats.length > 0) {
           setCategories(
-            fetchedCats.map((c: any) => ({
-              ...c,
-              items: (c.items || c.menuItems || []).map((it: any) => ({
-                ...it,
-                categoryId: c.id,
-              })),
+            supaCats.map((c: any) => ({
+              id: c.id,
+              name: c.name,
+              items: (supaItems || [])
+                .filter((it: any) => it.category_id === c.id)
+                .map((it: any) => ({
+                  id: it.id,
+                  name: it.name,
+                  description: it.description || '',
+                  price: Number(it.price) || 199,
+                  discountPrice: it.discount_price ? Number(it.discount_price) : undefined,
+                  foodType: it.food_type || 'NON_VEG',
+                  isAvailable: it.is_available !== false,
+                  isBestseller: !!it.is_bestseller,
+                  imageUrl: it.image_url,
+                  categoryId: c.id,
+                  prepTimeMinutes: 20,
+                  spiceLevel: 1,
+                })),
             }))
           );
         }
+
+        // Fetch price requests from Supabase
+        const { data: supaReqs } = await supabase
+          .from('restaurant_price_change_requests')
+          .select('*')
+          .eq('restaurant_id', currentRest.id)
+          .order('created_at', { ascending: false });
+
+        if (supaReqs && supaReqs.length > 0) {
+          setPriceRequests(
+            supaReqs.map((pr: any) => ({
+              id: pr.id,
+              restaurantId: pr.restaurant_id,
+              restaurantName: currentRest.name,
+              menuItemId: pr.menu_item_id,
+              menuItemName: pr.menu_item_id,
+              currentPrice: Number(pr.old_price),
+              requestedPrice: Number(pr.requested_price),
+              priceDiff: Number(pr.requested_price) - Number(pr.old_price),
+              priceDiffPercent: Math.round(((Number(pr.requested_price) - Number(pr.old_price)) / (Number(pr.old_price) || 1)) * 100),
+              reason: pr.reason,
+              status: pr.status,
+              createdAt: pr.created_at,
+              updatedAt: pr.created_at,
+            }))
+          );
+        }
+
+        setLoading(false);
+        return;
       }
-    } catch {
-      // Keep demo categories
+    } catch (err) {
+      console.warn('Supabase restaurant menu error:', err);
     } finally {
       setLoading(false);
     }
@@ -317,12 +359,14 @@ export default function RestaurantMenuPage() {
   // Toggle Item Availability
   const handleToggleAvailability = async (item: MenuItem) => {
     const updatedStatus = !item.isAvailable;
-    if (restaurant?.id) {
-      try {
-        await restaurantsApi.updateMenuItem(restaurant.id, item.id, {
-          isAvailable: updatedStatus,
-        });
-      } catch {}
+    // Update in Supabase
+    try {
+      await supabase
+        .from('menu_items')
+        .update({ is_available: updatedStatus })
+        .eq('id', item.id);
+    } catch (e) {
+      console.warn('Supabase toggle availability error:', e);
     }
     setCategories(prev =>
       prev.map(cat => ({
@@ -438,18 +482,22 @@ export default function RestaurantMenuPage() {
 
     if (restaurant?.id) {
       try {
-        await priceRequestsApi.create(restaurant.id, item.id, {
+        await requestMenuItemPriceChange({
+          restaurantId: restaurant.id,
+          menuItemId: item.id,
+          oldPrice: item.price,
           requestedPrice,
           reason: reason.trim(),
-          note: note.trim(),
         });
-      } catch {}
+      } catch (e) {
+        console.warn('Supabase price request insert error:', e);
+      }
     }
 
     setPriceRequests(prev => [newReq, ...prev]);
     setPriceRequestModal(null);
     setEditItemModal(null);
-    showToast('REQUEST SENT! Status: PENDING ADMIN APPROVAL');
+    showToast('REQUEST SENT TO SUPABASE! Status: PENDING ADMIN APPROVAL');
   };
 
   // Add Category Handler

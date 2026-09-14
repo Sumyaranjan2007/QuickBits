@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ordersApi } from '@quickbite/api-client';
+import { supabase } from '../../../lib/supabase';
 import { useCart } from '../CartContext';
 
 const DEMO_ORDERS = [
@@ -72,9 +72,9 @@ export default function CustomerOrdersPage() {
   const [activeTab, setActiveTab] = useState<'all' | 'active' | 'past'>('all');
   const [invoiceOrder, setInvoiceOrder] = useState<any>(null);
 
-  // Load orders from localStorage and merge with API
+  // Load orders from Supabase and localStorage
   useEffect(() => {
-    const loadAllOrders = () => {
+    const loadAllOrders = async () => {
       let localOrders: any[] = [];
       if (typeof window !== 'undefined') {
         try {
@@ -87,31 +87,58 @@ export default function CustomerOrdersPage() {
         }
       }
 
-      ordersApi.getMyOrders()
-        .then(r => {
-          const d = r.data as any;
-          const apiList = d.items || d || [];
-          // Deduplicate by ID
-          const combined = [...localOrders, ...apiList, ...DEMO_ORDERS];
-          const seen = new Set();
-          const unique = combined.filter(o => {
-            if (!o?.id || seen.has(o.id)) return false;
-            seen.add(o.id);
-            return true;
-          });
-          setOrders(unique);
-        })
-        .catch(() => {
-          const combined = [...localOrders, ...DEMO_ORDERS];
-          const seen = new Set();
-          const unique = combined.filter(o => {
-            if (!o?.id || seen.has(o.id)) return false;
-            seen.add(o.id);
-            return true;
-          });
-          setOrders(unique);
-        })
-        .finally(() => setLoading(false));
+      let supaOrdersList: any[] = [];
+      try {
+        const { data: sOrders } = await supabase
+          .from('orders')
+          .select('*, order_items(*)')
+          .order('created_at', { ascending: false });
+
+        if (sOrders && sOrders.length > 0) {
+          supaOrdersList = sOrders.map((o: any) => ({
+            id: o.id,
+            status: o.status,
+            total: Number(o.total) || 0,
+            subtotal: Number(o.subtotal) || 0,
+            deliveryFee: Number(o.delivery_fee) || 0,
+            platformFee: Number(o.platform_fee) || 5,
+            taxes: Number(o.tax) || 0,
+            paymentMethod: o.payment_method || 'UPI',
+            createdAt: o.created_at || new Date().toISOString(),
+            restaurant: {
+              id: o.restaurant_id,
+              name: o.restaurant_id === 'sharief-bhai' ? 'Sharief Bhai Biryani' : (o.restaurant_id === 'burger-co' ? 'Burger & Co.' : o.restaurant_id),
+              address: 'Indiranagar, Bengaluru',
+            },
+            deliveryAddress: { name: 'Delivery Location', desc: o.delivery_address_text || 'Indiranagar, Bengaluru' },
+            items: (o.order_items || []).map((it: any) => ({
+              id: it.id || it.menu_item_id,
+              name: it.name,
+              price: Number(it.price) || 0,
+              quantity: it.quantity || 1,
+              foodType: it.food_type || 'NON_VEG',
+            })),
+            driver: {
+              name: 'Delivery Partner',
+              phone: '+91 98765 43210',
+              rating: 4.9,
+              vehicle: 'Electric Bike',
+            },
+          }));
+        }
+      } catch (err) {
+        console.warn('Supabase customer orders error:', err);
+      }
+
+      const combined = [...supaOrdersList, ...localOrders, ...DEMO_ORDERS];
+      const seen = new Set();
+      const unique = combined.filter(o => {
+        if (!o?.id || seen.has(o.id)) return false;
+        seen.add(o.id);
+        return true;
+      });
+      setOrders(unique);
+      setLoading(false);
     };
 
     loadAllOrders();

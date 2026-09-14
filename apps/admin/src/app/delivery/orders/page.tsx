@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { deliveryApi } from '@quickbite/api-client';
+import { supabase } from '../../../lib/supabase';
 
 interface DeliveryHistoryItem {
   id: string;
@@ -90,30 +90,42 @@ export default function DeliveryOrdersHistoryPage() {
   const [selectedOrder, setSelectedOrder] = useState<DeliveryHistoryItem | null>(null);
 
   useEffect(() => {
-    deliveryApi.getHistory()
-      .then(res => {
-        const d = res.data as any;
-        const list = Array.isArray(d) ? d : d?.items || [];
-        if (list.length > 0) {
-          const mapped: DeliveryHistoryItem[] = list.map((item: any) => ({
+    const loadDeliveryHistory = async () => {
+      try {
+        const { data: assignments } = await supabase
+          .from('delivery_assignments')
+          .select('*, orders(id, restaurant_id, delivery_address_text, customer_name, total, order_items(name, quantity))')
+          .in('status', ['DELIVERED', 'COMPLETED', 'CANCELLED'])
+          .order('assigned_at', { ascending: false })
+          .limit(20);
+
+        if (assignments && assignments.length > 0) {
+          const mapped: DeliveryHistoryItem[] = assignments.map((item: any) => ({
             id: item.id,
-            orderNumber: `QB-${(item.orderId || item.id).slice(-6).toUpperCase()}`,
-            restaurantName: item.order?.restaurant?.name || 'Partner Restaurant',
-            restaurantArea: item.order?.restaurant?.address?.split(',')[0] || 'Bangalore',
-            customerName: item.order?.customer?.name || 'Customer',
-            customerArea: item.order?.deliveryAddress?.area || 'Delivery Address',
-            date: new Date(item.completedAt || item.createdAt).toLocaleDateString('en-IN', {
-              day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+            orderNumber: item.orders?.id || `QB-${item.id.slice(-6).toUpperCase()}`,
+            restaurantName: item.orders?.restaurant_id || 'Partner Restaurant',
+            restaurantArea: 'Bengaluru',
+            customerName: item.orders?.customer_name || 'Customer',
+            customerArea: item.orders?.delivery_address_text?.split(',')[0] || 'Delivery Address',
+            date: new Date(item.delivered_at || item.assigned_at).toLocaleDateString('en-IN', {
+              day: 'numeric',
+              month: 'short',
+              hour: '2-digit',
+              minute: '2-digit',
             }),
             status: item.status === 'CANCELLED' ? 'CANCELLED' : 'COMPLETED',
-            earnings: Number(item.earnings || item.deliveryFee || 65),
-            distance: `${item.distance || 3.1} km`,
-            itemsSummary: item.order?.items?.map((it: any) => `${it.quantity}× ${it.name}`).join(', ') || 'Delivered order',
+            earnings: 35,
+            distance: '3.1 km',
+            itemsSummary:
+              item.orders?.order_items?.map((it: any) => `${it.quantity}× ${it.name}`).join(', ') || 'Delivered order',
           }));
           setOrders(mapped);
         }
-      })
-      .catch(() => {});
+      } catch (err) {
+        console.warn('Delivery history notice:', err);
+      }
+    };
+    loadDeliveryHistory();
   }, []);
 
   const filteredOrders = orders.filter(o => {

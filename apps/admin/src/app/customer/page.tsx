@@ -2,9 +2,9 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { restaurantsApi } from '@quickbite/api-client';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from './CartContext';
+import { fetchRestaurantsFromSupabase } from '../../lib/supabase';
 
 const FILTER_TABS = [
   { id: 'all', label: 'All', icon: '🔥' },
@@ -252,30 +252,32 @@ export default function CustomerHomePage() {
   };
 
   useEffect(() => {
-    restaurantsApi.list()
-      .then(r => {
-        const d = r.data as any;
-        const list = d.items || d || [];
-        if (Array.isArray(list) && list.length > 0) {
-          const merged = list.map((item, idx) => ({
+    // 1. Fetch real restaurants from Supabase
+    fetchRestaurantsFromSupabase()
+      .then(data => {
+        if (data && data.length > 0) {
+          const mapped = data.map((item: any, idx: number) => ({
             id: item.id,
             name: item.name,
-            tag: idx % 2 === 0 ? 'Best in Biryani' : 'Popular Choice',
-            foodType: idx % 3 === 0 ? 'NON_VEG' : idx % 3 === 1 ? 'VEG' : 'BOTH',
-            rating: typeof item.rating === 'number' ? item.rating : (4.1 + (idx % 4) * 0.1),
-            ratingCount: `${(2 + idx * 0.7).toFixed(1)}K+`,
-            locality: item.address || 'Koramangala, 2.1 km',
-            cuisineType: getCuisineString(item.cuisineType) || getCuisineString(item.cuisines) || getCuisineString(item.cuisine) || (idx % 2 === 0 ? 'Biryani, North Indian' : 'Pizza, Fast Food'),
-            priceForTwo: item.minOrderAmount ? item.minOrderAmount * 2 : 400,
-            avgDeliveryTime: `${item.avgDeliveryTime || 25}-${(item.avgDeliveryTime || 25) + 5}`,
-            discountBadge: idx === 0 ? '50% OFF' : idx === 1 ? 'Items at ₹189' : 'Buy 1 get 1',
-            freeDelivery: true,
-            coverImageUrl: item.coverImageUrl || REFERENCE_RESTAURANTS[idx % REFERENCE_RESTAURANTS.length].coverImageUrl,
+            tag: item.tag || (idx % 2 === 0 ? 'Best in Biryani' : 'Popular Choice'),
+            foodType: item.food_type || 'BOTH',
+            rating: Number(item.rating) || 4.2,
+            ratingCount: item.rating_count || '1.5K+',
+            locality: item.locality || item.address,
+            cuisineType: item.cuisine_type || 'Multi-Cuisine',
+            priceForTwo: Number(item.price_for_two) || 400,
+            avgDeliveryTime: `${item.avg_delivery_time || 25}-${(item.avg_delivery_time || 25) + 5}`,
+            discountBadge: item.discount_badge || '30% OFF',
+            freeDelivery: item.free_delivery ?? true,
+            coverImageUrl: item.cover_image_url || REFERENCE_RESTAURANTS[idx % REFERENCE_RESTAURANTS.length].coverImageUrl,
           }));
-          setRestaurants(merged);
+          setRestaurants(mapped);
+        } else {
+          setRestaurants(REFERENCE_RESTAURANTS);
         }
       })
-      .catch(() => {
+      .catch((err) => {
+        console.warn('Notice loading restaurants from Supabase:', err);
         setRestaurants(REFERENCE_RESTAURANTS);
       })
       .finally(() => setLoading(false));

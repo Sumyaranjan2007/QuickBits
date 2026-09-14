@@ -3,9 +3,9 @@ import React, { useState, useEffect, createContext, useContext } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '../../context/AuthContext';
-import { deliveryApi } from '@quickbite/api-client';
 
 import { DeliveryContext } from './DeliveryContext';
+import { fetchDeliveryPartnerProfile, updateDeliveryPartnerStatus } from '../../lib/supabase';
 
 // ─── Bottom Navigation Items (Exact 5 Sections Requested) ───────────────────
 const DELIVERY_NAV_ITEMS = [
@@ -80,16 +80,16 @@ export default function DeliveryLayout({ children }: { children: React.ReactNode
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', 'delivery');
-    deliveryApi.getProfile()
-      .then(r => {
-        const d = r.data as any;
-        setProfile(d);
-        if (d?.isOnline !== undefined) {
-          setIsOnline(d.isOnline);
+    fetchDeliveryPartnerProfile()
+      .then((d: any) => {
+        if (d) {
+          setProfile(d);
+          if (d?.status) {
+            setIsOnline(d.status === 'ONLINE');
+          }
         }
       })
       .catch(() => {
-        // Fallback default
         setIsOnline(true);
       });
   }, []);
@@ -98,7 +98,9 @@ export default function DeliveryLayout({ children }: { children: React.ReactNode
     setLoadingStatus(true);
     const nextState = !isOnline;
     try {
-      await deliveryApi.toggleOnline(nextState);
+      if (profile?.id) {
+        await updateDeliveryPartnerStatus(profile.id, nextState ? 'ONLINE' : 'OFFLINE');
+      }
       setIsOnline(nextState);
     } catch {
       setIsOnline(nextState);

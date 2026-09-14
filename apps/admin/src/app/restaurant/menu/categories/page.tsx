@@ -1,9 +1,14 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { restaurantsApi } from '@quickbite/api-client';
+import {
+  fetchRestaurantCategories,
+  createCategoryInSupabase,
+  updateCategoryInSupabase,
+  deleteCategoryInSupabase,
+} from '../../../../lib/supabase';
 
 export default function MenuCategoriesPage() {
-  const [restaurant, setRestaurant] = useState<any>(null);
+  const restaurantId = 'sharief-bhai';
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -14,20 +19,25 @@ export default function MenuCategoriesPage() {
 
   const loadCategories = async () => {
     try {
-      const r = await restaurantsApi.list();
-      const d = r.data as any;
-      const list = d.items || d || [];
-      if (list.length > 0) {
-        const full = await restaurantsApi.getById(list[0].id);
-        setRestaurant(full.data);
-        const cats = (full.data as any)?.menuCategories || (full.data as any)?.categories || [];
-        setCategories(cats.map((c: any) => ({ ...c, itemCount: (c.items || c.menuItems || []).length })));
-      }
-    } catch {}
-    setLoading(false);
+      const data = await fetchRestaurantCategories(restaurantId);
+      setCategories(
+        ((data as any[]) || []).map((c: any) => ({
+          id: c.id,
+          name: c.name,
+          sortOrder: c.display_order || 0,
+          isActive: c.is_active ?? true,
+        }))
+      );
+    } catch (err) {
+      console.warn('Load categories error:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  useEffect(() => { loadCategories(); }, []);
+  useEffect(() => {
+    loadCategories();
+  }, []);
 
   const openCreate = () => {
     setEditingCat(null);
@@ -37,31 +47,41 @@ export default function MenuCategoriesPage() {
 
   const openEdit = (cat: any) => {
     setEditingCat(cat);
-    setForm({ name: cat.name, description: cat.description || '', sortOrder: cat.sortOrder || 0 });
+    setForm({ name: cat.name, description: '', sortOrder: cat.sortOrder || 0 });
     setShowModal(true);
   };
 
   const handleSave = async () => {
-    if (!form.name.trim()) { alert('Category name is required'); return; }
+    if (!form.name.trim()) {
+      alert('Category name is required');
+      return;
+    }
     setSaving(true);
     try {
       if (editingCat) {
-        await restaurantsApi.updateCategory(restaurant.id, editingCat.id, form);
+        await updateCategoryInSupabase(editingCat.id, {
+          name: form.name,
+          displayOrder: form.sortOrder,
+        });
       } else {
-        await restaurantsApi.createCategory(restaurant.id, { name: form.name, sortOrder: form.sortOrder });
+        await createCategoryInSupabase(restaurantId, {
+          name: form.name,
+          displayOrder: form.sortOrder,
+        });
       }
       await loadCategories();
       setShowModal(false);
     } catch (err: any) {
       alert(err?.message || 'Failed to save category');
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   };
 
   const handleDelete = async (catId: string) => {
     try {
-      await restaurantsApi.deleteCategory(restaurant.id, catId);
-      setCategories(prev => prev.filter(c => c.id !== catId));
+      await deleteCategoryInSupabase(catId);
+      setCategories((prev) => prev.filter((c) => c.id !== catId));
     } catch (err: any) {
       alert(err?.message || 'Failed to delete category');
     }

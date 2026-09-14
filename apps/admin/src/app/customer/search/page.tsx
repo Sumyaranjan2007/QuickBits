@@ -2,7 +2,7 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { restaurantsApi } from '@quickbite/api-client';
+import { supabase } from '../../../lib/supabase';
 import { useCart } from '../CartContext';
 
 const TRENDING_SEARCHES = [
@@ -233,61 +233,56 @@ function SearchContent() {
   }, [searchParams]);
 
   useEffect(() => {
-    // Load live restaurants and dishes from API, merging with seeds
-    restaurantsApi.list()
-      .then(async r => {
-        const d = r.data as any;
-        const list = d.items || d || [];
-        if (Array.isArray(list) && list.length > 0) {
-          const mergedRests = list.map((item: any, idx: number) => ({
+    // Load live restaurants and dishes from Supabase directly
+    const loadSearchData = async () => {
+      try {
+        const { data: supaRests } = await supabase
+          .from('restaurants')
+          .select('*')
+          .eq('is_active', true);
+
+        if (supaRests && supaRests.length > 0) {
+          const mappedRests = supaRests.map((item: any, idx: number) => ({
             id: item.id,
             name: item.name,
-            foodType: idx % 3 === 1 ? 'VEG' : 'BOTH',
-            rating: typeof item.rating === 'number' ? item.rating : 4.2,
-            ratingCount: `${(2 + idx * 0.5).toFixed(1)}K+`,
-            address: item.address || 'Bangalore',
-            cuisineType: getSafeString(item.cuisineType) || getSafeString(item.cuisines) || 'Indian, Fast Food',
-            priceForTwo: item.minOrderAmount ? item.minOrderAmount * 2 : 400,
-            avgDeliveryTime: `${item.avgDeliveryTime || 25}-${(item.avgDeliveryTime || 25) + 5}`,
-            coverImageUrl: item.coverImageUrl || SEED_RESTAURANTS[idx % SEED_RESTAURANTS.length].coverImageUrl,
+            foodType: item.food_type || 'BOTH',
+            rating: Number(item.rating) || 4.2,
+            ratingCount: item.rating_count || '1.5K+',
+            address: item.locality || item.address || 'Bengaluru',
+            cuisineType: item.cuisine_type || 'Multi-Cuisine',
+            priceForTwo: Number(item.price_for_two) || 400,
+            avgDeliveryTime: `${item.avg_delivery_time || 25}-${(item.avg_delivery_time || 25) + 5}`,
+            coverImageUrl: item.cover_image_url || SEED_RESTAURANTS[idx % SEED_RESTAURANTS.length].coverImageUrl,
           }));
-          setRestaurants(prev => [...mergedRests, ...SEED_RESTAURANTS]);
-
-          const loadedDishes: any[] = [];
-          for (const rest of list.slice(0, 5)) {
-            try {
-              const resDetail = await restaurantsApi.getById(rest.id);
-              const rData = resDetail.data as any;
-              const categories = rData?.menuCategories || rData?.categories || [];
-              for (const cat of categories) {
-                const items = cat?.items || cat?.menuItems || [];
-                for (const it of items) {
-                  loadedDishes.push({
-                    id: it.id,
-                    name: it.name,
-                    description: it.description || '',
-                    price: it.price || 199,
-                    foodType: it.foodType || 'VEG',
-                    imageUrl: it.imageUrl || 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=300&q=80',
-                    categoryName: cat.name || 'Specialties',
-                    restaurantId: rest.id,
-                    restaurantName: rest.name,
-                    restaurantRating: rest.rating || 4.2,
-                  });
-                }
-              }
-            } catch {}
-          }
-          if (loadedDishes.length > 0) {
-            setDishes([...loadedDishes, ...SEED_DISHES]);
-          }
+          setRestaurants([...mappedRests, ...SEED_RESTAURANTS]);
         }
-      })
-      .catch(() => {
-        // Fallback to default seed data
-        setRestaurants(SEED_RESTAURANTS);
-        setDishes(SEED_DISHES);
-      });
+
+        const { data: supaItems } = await supabase
+          .from('menu_items')
+          .select('*, restaurants(name, rating)')
+          .eq('is_available', true)
+          .limit(40);
+
+        if (supaItems && supaItems.length > 0) {
+          const mappedDishes = supaItems.map((it: any) => ({
+            id: it.id,
+            name: it.name,
+            description: it.description || '',
+            price: Number(it.price) || 199,
+            foodType: it.food_type || 'VEG',
+            imageUrl: it.image_url || 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=300&q=80',
+            categoryName: 'Specialties',
+            restaurantId: it.restaurant_id,
+            restaurantName: it.restaurants?.name || 'QuickBite Partner',
+            restaurantRating: Number(it.restaurants?.rating) || 4.2,
+          }));
+          setDishes([...mappedDishes, ...SEED_DISHES]);
+        }
+      } catch (err) {
+        console.warn('Supabase search load notice:', err);
+      }
+    };
+    loadSearchData();
   }, []);
 
   const handleSearchSubmit = (e: React.FormEvent) => {

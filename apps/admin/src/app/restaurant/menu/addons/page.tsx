@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { restaurantsApi } from '@quickbite/api-client';
+import { supabase } from '../../../../lib/supabase';
 
 interface Addon {
   id: string;
@@ -22,39 +22,49 @@ export default function MenuAddonsPage() {
 
   const loadData = async () => {
     try {
-      const r = await restaurantsApi.list();
-      const d = r.data as any;
-      const list = d.items || d || [];
-      if (list.length > 0) {
-        const full = await restaurantsApi.getById(list[0].id);
-        const rest = full.data as any;
+      const { data: rests } = await supabase.from('restaurants').select('*').limit(1);
+      if (rests && rests.length > 0) {
+        const rest = rests[0];
         setRestaurant(rest);
-        const cats = rest?.menuCategories || rest?.categories || [];
-        const items: any[] = [];
+
+        const { data: items } = await supabase
+          .from('menu_items')
+          .select('*, menu_item_addons(*)')
+          .eq('restaurant_id', rest.id);
+
+        const itemsList = items || [];
+        setMenuItems(itemsList);
+
         const addons: Addon[] = [];
-        cats.forEach((c: any) => {
-          (c.items || c.menuItems || []).forEach((it: any) => {
-            items.push(it);
-            (it.addons || []).forEach((a: any) => {
-              addons.push({ ...a, menuItemId: it.id, menuItemName: it.name });
+        itemsList.forEach((it: any) => {
+          (it.menu_item_addons || []).forEach((a: any) => {
+            addons.push({
+              id: a.id,
+              name: a.name,
+              price: Number(a.price) || 0,
+              isAvailable: a.is_available !== false,
+              menuItemId: it.id,
+              menuItemName: it.name,
             });
           });
         });
-        setMenuItems(items);
-        // Seed demo addons if none
-        if (addons.length === 0 && items.length > 0) {
+
+        if (addons.length === 0 && itemsList.length > 0) {
           const demoAddons: Addon[] = [
-            { id: 'demo-1', name: 'Extra Cheese', price: 50, isAvailable: true, menuItemId: items[0].id, menuItemName: items[0].name },
-            { id: 'demo-2', name: 'Jalapeno', price: 30, isAvailable: true, menuItemId: items[0].id, menuItemName: items[0].name },
-            { id: 'demo-3', name: 'Mushroom', price: 40, isAvailable: true, menuItemId: items[0].id, menuItemName: items[0].name },
+            { id: 'demo-1', name: 'Extra Cheese', price: 50, isAvailable: true, menuItemId: itemsList[0].id, menuItemName: itemsList[0].name },
+            { id: 'demo-2', name: 'Jalapeno', price: 30, isAvailable: true, menuItemId: itemsList[0].id, menuItemName: itemsList[0].name },
+            { id: 'demo-3', name: 'Mushroom', price: 40, isAvailable: true, menuItemId: itemsList[0].id, menuItemName: itemsList[0].name },
           ];
           setAllAddons(demoAddons);
         } else {
           setAllAddons(addons);
         }
       }
-    } catch {}
-    setLoading(false);
+    } catch (err) {
+      console.warn('Load addons error:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => { loadData(); }, []);

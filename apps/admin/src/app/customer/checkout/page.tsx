@@ -1,10 +1,10 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ordersApi, couponsApi } from '@quickbite/api-client';
 import { useCart } from '../CartContext';
 import { useLocation } from '../LocationContext';
 import { useAuth } from '../../../context/AuthContext';
+import { placeOrderInSupabase, validateCouponInSupabase } from '../../../lib/supabase';
 
 const DESSERT_ADDONS = [
   { id: 'd-1', name: 'Gulab Jamun (2 pcs)', price: 69, icon: '🍡' },
@@ -68,37 +68,18 @@ export default function CustomerCheckoutPage() {
     setCouponSuccess('');
 
     try {
-      if (code === 'QUICK50' || code === 'WELCOME50') {
-        const discount = Math.min(Math.round((subtotal * 50) / 100), 100);
-        applyCoupon({ code, type: 'PERCENTAGE', value: 50, discountAmount: discount });
-        setCouponSuccess(`Coupon ${code} applied! Saved ₹${discount}`);
+      // 1. Validate against real Supabase coupons table
+      const res = await validateCouponInSupabase(code, subtotal);
+      if (res.valid && res.coupon) {
+        applyCoupon(res.coupon);
+        setCouponSuccess(`Coupon ${res.coupon.code} applied! Saved ₹${res.coupon.discountAmount}`);
         setCouponCode('');
-      } else if (code === 'FREEDL') {
-        applyCoupon({ code: 'FREEDL', type: 'FIXED', value: deliveryFee, discountAmount: deliveryFee });
-        setCouponSuccess('Free delivery applied!');
-        setCouponCode('');
-      } else if (code === 'TRY100') {
-        if (subtotal < 299) {
-          setCouponError('Minimum order of ₹299 required for TRY100');
-          return;
-        }
-        applyCoupon({ code: 'TRY100', type: 'FIXED', value: 100, discountAmount: 100 });
-        setCouponSuccess('₹100 discount applied!');
-        setCouponCode('');
+        return;
       } else {
-        const res = await couponsApi.validate(code, subtotal);
-        const data = res.data as any;
-        applyCoupon({
-          code: data.code,
-          type: data.type,
-          value: data.value,
-          discountAmount: data.discountAmount || 50,
-        });
-        setCouponSuccess(`Coupon ${code} applied!`);
-        setCouponCode('');
+        setCouponError(res.error || 'Invalid or inactive coupon code.');
       }
     } catch (err: any) {
-      setCouponError(err?.message || 'Invalid coupon code or criteria not met');
+      setCouponError(err?.message || 'Failed to validate coupon');
     }
   };
 
@@ -182,13 +163,34 @@ export default function CustomerCheckoutPage() {
         }
       }
 
+      // 1. Persist order directly into Supabase PostgreSQL (broadcasts Realtime to restaurant)
       try {
-        await ordersApi.create({
-          deliveryAddressId: selectedLocation?.id || 'addr-default',
-          paymentMethod: paymentMethod === 'COD' ? 'CASH_ON_DELIVERY' : 'RAZORPAY',
-          couponId: appliedCoupon?.code,
+        await placeOrderInSupabase({
+          id: orderId,
+          customerId: user?.id,
+          customerName: user?.user_metadata?.full_name || user?.name || 'Rahul Sharma',
+          customerPhone: user?.phone || '+91 98765 43210',
+          restaurantId: restaurantId || 'sharief-bhai',
+          deliveryAddressText: selectedLocation?.fullAddress || selectedLocation?.desc || 'Indiranagar, Bengaluru 560038',
+          subtotal,
+          tax: taxes,
+          deliveryFee,
+          platformFee,
+          discount: appliedCoupon?.discountAmount || 0,
+          total,
+          paymentMethod,
+          specialInstructions: '',
+          items: items.map(it => ({
+            menuItemId: it.menuItemId || 'item-1',
+            name: it.name,
+            price: it.price,
+            quantity: it.quantity,
+            foodType: it.foodType || 'NON_VEG',
+          })),
         });
-      } catch {}
+      } catch (sbErr) {
+        console.warn('Supabase place order notice:', sbErr);
+      }
 
       clearCart();
       router.push(`/customer/order/${orderId}?status=placed&total=${total}`);

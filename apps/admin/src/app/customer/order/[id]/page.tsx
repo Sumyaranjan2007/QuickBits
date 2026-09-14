@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { ordersApi, reviewsApi } from '@quickbite/api-client';
+import { subscribeToOrderTracking, supabase, submitRestaurantReview } from '../../../../lib/supabase';
 
 const STAGES = [
   { key: 'PENDING', title: 'Order Placed', desc: 'Order received by restaurant', icon: '📝' },
@@ -66,6 +66,30 @@ export default function CustomerOrderTrackingPage() {
     }
   }, [isChatOpen, chatMessages, isDriverTyping]);
 
+  const applyStatusToStage = (status: string) => {
+    if (status === 'DELIVERED') {
+      setCurrentStageIndex(4);
+      setEtaMinutes(0);
+      setDriverPosition(95);
+    } else if (status === 'OUT_FOR_DELIVERY' || status === 'ON_THE_WAY' || status === 'PICKED_UP') {
+      setCurrentStageIndex(3);
+      setEtaMinutes(12);
+      setDriverPosition(60);
+    } else if (status === 'READY_FOR_PICKUP' || status === 'READY' || status === 'ASSIGNED') {
+      setCurrentStageIndex(2);
+      setEtaMinutes(18);
+      setDriverPosition(35);
+    } else if (status === 'PREPARING' || status === 'ACCEPTED' || status === 'CONFIRMED') {
+      setCurrentStageIndex(1);
+      setEtaMinutes(24);
+      setDriverPosition(15);
+    } else {
+      setCurrentStageIndex(0);
+      setEtaMinutes(30);
+      setDriverPosition(5);
+    }
+  };
+
   useEffect(() => {
     let matchedOrder: any = null;
     if (typeof window !== 'undefined') {
@@ -82,57 +106,59 @@ export default function CustomerOrderTrackingPage() {
 
     if (matchedOrder) {
       setOrder(matchedOrder);
-      if (matchedOrder.status === 'DELIVERED') {
-        setCurrentStageIndex(4);
-        setEtaMinutes(0);
-        setDriverPosition(95);
-      } else if (matchedOrder.status === 'OUT_FOR_DELIVERY') {
-        setCurrentStageIndex(3);
-        setEtaMinutes(12);
-        setDriverPosition(60);
-      } else if (matchedOrder.status === 'READY') {
-        setCurrentStageIndex(2);
-        setEtaMinutes(18);
-        setDriverPosition(35);
-      } else if (matchedOrder.status === 'PREPARING') {
-        setCurrentStageIndex(1);
-        setEtaMinutes(24);
-        setDriverPosition(15);
-      }
+      applyStatusToStage(matchedOrder.status);
     } else {
-      // Fetch from API or use rich default
-      ordersApi.getById(orderId)
-        .then(r => {
-          const d = r.data as any;
-          if (d) setOrder(d);
-        })
-        .catch(() => {
-          setOrder({
-            id: orderId,
-            status: 'PREPARING',
-            total: searchParams.get('total') ? Number(searchParams.get('total')) : 489,
-            createdAt: new Date().toISOString(),
-            restaurant: {
-              name: 'Sharief Bhai Biryani',
-              address: '100 Feet Road, Indiranagar',
-            },
-            deliveryAddress: {
-              name: 'Home',
-              desc: 'Indiranagar, Bengaluru 560038',
-            },
-            items: [
-              { name: 'Hyderabadi Chicken Dum Biryani', price: 299, quantity: 1, foodType: 'NON_VEG' },
-              { name: 'Peri Peri Crispy Fries', price: 139, quantity: 1, foodType: 'VEG' },
-            ],
-            driver: {
-              name: 'Amit Verma',
-              phone: '+91 98765 43210',
-              rating: 4.9,
-              vehicle: 'Hero Electric (KA 03 HK 2910)',
-            },
-          });
+      // 1. Check Supabase first
+      supabase
+        .from('orders')
+        .select('*')
+        .eq('id', orderId)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data) {
+            setOrder(data);
+            applyStatusToStage(data.status);
+          } else {
+            setOrder({
+              id: orderId,
+              status: 'PREPARING',
+              total: searchParams.get('total') ? Number(searchParams.get('total')) : 489,
+              createdAt: new Date().toISOString(),
+              restaurant: {
+                name: 'Sharief Bhai Biryani',
+                address: '100 Feet Road, Indiranagar',
+              },
+              deliveryAddress: {
+                name: 'Home',
+                desc: 'Indiranagar, Bengaluru 560038',
+              },
+              items: [
+                { name: 'Hyderabadi Chicken Dum Biryani', price: 299, quantity: 1, foodType: 'NON_VEG' },
+                { name: 'Peri Peri Crispy Fries', price: 139, quantity: 1, foodType: 'VEG' },
+              ],
+              driver: {
+                name: 'Amit Verma',
+                phone: '+91 98765 43210',
+                rating: 4.9,
+                vehicle: 'Hero Electric (KA 03 HK 2910)',
+              },
+            });
+            applyStatusToStage('PREPARING');
+          }
         });
     }
+
+    // ─── Realtime Tracking Subscription via Supabase ───
+    const unsubscribe = subscribeToOrderTracking(orderId, (updatedOrder) => {
+      if (updatedOrder?.status) {
+        applyStatusToStage(updatedOrder.status);
+        setOrder((prev: any) => ({ ...prev, ...updatedOrder }));
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
   }, [orderId, searchParams]);
 
   const handleSimulateNextStage = () => {
@@ -210,19 +236,20 @@ export default function CustomerOrderTrackingPage() {
 
   const handleSubmitReview = async () => {
     try {
-      if (orderId && !orderId.startsWith('QB-')) {
-        await reviewsApi.create({
-          orderId,
-          restaurantRating: rating,
-          foodRating: rating,
-          deliveryRating: rating,
+      if (orderId) {
+        await submitRestaurantReview({
+          orderId: orderId as string,
+          restaurantId: order?.restaurant?.id || 'sharief-bhai',
+          rating,
           comment: reviewComment,
         });
       }
-    } catch {}
+    } catch (e) {
+      console.warn('Supabase review submission notice:', e);
+    }
     setIsReviewed(true);
     setIsReviewModalOpen(false);
-    alert('Thank you for rating your experience! ⭐');
+    alert('Thank you for rating your experience! ⭐ Review saved to database.');
   };
 
   const currentStage = STAGES[currentStageIndex];

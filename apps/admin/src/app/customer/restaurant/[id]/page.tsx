@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { restaurantsApi } from '@quickbite/api-client';
+import { supabase, fetchRestaurantMenuFromSupabase } from '../../../../lib/supabase';
 import { useCart } from '../../CartContext';
 
 const DEFAULT_MENU_CATEGORIES = [
@@ -123,54 +123,93 @@ export default function RestaurantDetailPage() {
   const [categories, setCategories] = useState<any[]>(DEFAULT_MENU_CATEGORIES);
 
   useEffect(() => {
-    if (params.id) {
-      restaurantsApi.getById(params.id as string)
-        .then(r => {
-          const d = r.data as any;
-          if (d) {
-            setRestaurant({
-              ...d,
-              name: d.name || 'The Biryani House',
-              rating: d.rating || 4.6,
-              cuisineType: d.cuisineType || 'Biryani, North Indian, Mughlai',
-              minOrderAmount: d.minOrderAmount || 200,
-              avgDeliveryTime: d.avgDeliveryTime || 25,
-              coverImageUrl: d.coverImageUrl || 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=800&q=80',
-            });
+    if (!params.id) return;
+    const restId = params.id as string;
 
-            const apiCats = d?.menuCategories || d?.categories || [];
-            if (apiCats.length > 0) {
-              const mapped = apiCats.map((cat: any) => ({
-                id: cat.id || cat.name?.toLowerCase(),
-                name: cat.name,
-                items: (cat.items || cat.menuItems || []).map((it: any) => ({
+    const loadData = async () => {
+      // 1. Try fetching directly from Supabase first
+      try {
+        const { data: supaRest } = await supabase
+          .from('restaurants')
+          .select('*')
+          .eq('id', restId)
+          .maybeSingle();
+
+        if (supaRest) {
+          setRestaurant({
+            id: supaRest.id,
+            name: supaRest.name,
+            rating: supaRest.rating || 4.5,
+            cuisineType: supaRest.cuisine_type || 'Biryani, Fast Food',
+            minOrderAmount: 199,
+            avgDeliveryTime: supaRest.avg_delivery_time || 25,
+            coverImageUrl: supaRest.cover_image_url || 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=800&q=80',
+            discountBadge: supaRest.discount_badge,
+            address: supaRest.address,
+            tag: supaRest.tag,
+          });
+
+          // Fetch Menu Categories & Items from Supabase
+          const { categories: supaCats, items: supaItems } = await fetchRestaurantMenuFromSupabase(restId);
+          if (supaCats && supaCats.length > 0) {
+            const mapped = supaCats.map((cat: any) => ({
+              id: cat.id,
+              name: cat.name,
+              items: (supaItems || [])
+                .filter((it: any) => it.category_id === cat.id)
+                .map((it: any) => ({
                   id: it.id,
                   name: it.name,
                   description: it.description || 'Prepared fresh with authentic chef spices',
-                  price: it.price || 199,
-                  foodType: it.foodType || 'NON_VEG',
-                  imageUrl: it.imageUrl || 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=300&q=80',
+                  price: it.price,
+                  foodType: it.food_type || 'NON_VEG',
+                  imageUrl: it.image_url || 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=300&q=80',
                 })),
-              }));
-              setCategories(mapped);
-              setActiveCategory(mapped[0].id);
+            }));
+
+            // Include any items without explicit category match in recommended
+            const uncategorized = (supaItems || []).filter((it: any) => !supaCats.some((c: any) => c.id === it.category_id));
+            if (uncategorized.length > 0) {
+              mapped.unshift({
+                id: 'recommended',
+                name: 'Recommended',
+                items: uncategorized.map((it: any) => ({
+                  id: it.id,
+                  name: it.name,
+                  description: it.description || 'Prepared fresh with authentic chef spices',
+                  price: it.price,
+                  foodType: it.food_type || 'NON_VEG',
+                  imageUrl: it.image_url || 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=300&q=80',
+                })),
+              });
             }
+
+            setCategories(mapped);
+            if (mapped[0]) setActiveCategory(mapped[0].id);
+            setLoading(false);
+            return;
           }
-        })
-        .catch(() => {
-          // Fallback reference data
-          setRestaurant({
-            id: 'the-biryani-house',
-            name: 'The Biryani House',
-            rating: 4.6,
-            cuisineType: 'Biryani, North Indian, Mughlai',
-            minOrderAmount: 200,
-            avgDeliveryTime: 25,
-            coverImageUrl: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=800&q=80',
-          });
-        })
-        .finally(() => setLoading(false));
-    }
+        }
+      } catch (err) {
+        console.warn('Supabase restaurant fetch error:', err);
+      }
+
+      // Default fallback
+      setRestaurant({
+        id: restId,
+        name: restId === 'burger-co' ? 'Burger & Co.' : (restId === 'pizza-paradiso' ? 'Pizza Paradiso' : 'Sharief Bhai Biryani'),
+        rating: 4.6,
+        cuisineType: 'Biryani, North Indian, Mughlai',
+        minOrderAmount: 200,
+        avgDeliveryTime: 25,
+        coverImageUrl: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=800&q=80',
+      });
+      setCategories(DEFAULT_MENU_CATEGORIES);
+      setActiveCategory(DEFAULT_MENU_CATEGORIES[0].id);
+      setLoading(false);
+    };
+
+    loadData();
   }, [params.id]);
 
   const getItemCartQuantity = (dishId: string) => {

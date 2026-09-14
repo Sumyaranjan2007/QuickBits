@@ -1,6 +1,5 @@
 'use client';
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { cartApi } from '@quickbite/api-client';
 
 export interface CartItemAddon {
   id: string;

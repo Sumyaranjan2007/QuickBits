@@ -3,6 +3,7 @@ import React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
+import { PhoneOtpLoginModal } from '../components/PhoneOtpLoginModal';
 
 interface RoleCard {
   role: string;
@@ -70,7 +71,7 @@ const ROLES: RoleCard[] = [
 
 export default function HomePage() {
   const router = useRouter();
-  const { login, logout, user, token } = useAuth();
+  const { login, logout, user, token, isOtpModalOpen, setIsOtpModalOpen } = useAuth();
   const [loggingIn, setLoggingIn] = React.useState<string | null>(null);
 
   const handleQuickLogin = async (role: RoleCard) => {
@@ -89,6 +90,9 @@ export default function HomePage() {
 
   return (
     <div className="portal-home-container">
+      {/* Phone OTP Login Modal */}
+      <PhoneOtpLoginModal isOpen={isOtpModalOpen} onClose={() => setIsOtpModalOpen(false)} />
+
       {/* ─── Top Session & Logout Navigation Bar ─── */}
       <div className="portal-top-bar">
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -96,12 +100,32 @@ export default function HomePage() {
           <span style={{ fontWeight: 900, fontSize: 18, letterSpacing: -0.5 }}>QuickBite Central</span>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <button
+            onClick={() => setIsOtpModalOpen(true)}
+            style={{
+              background: 'linear-gradient(135deg, #4A0A10 0%, #6E121B 100%)',
+              color: '#FFFFFF',
+              border: '1px solid rgba(255,255,255,0.2)',
+              borderRadius: 12,
+              padding: '8px 16px',
+              fontWeight: 800,
+              fontSize: 13,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              boxShadow: '0 4px 14px rgba(74, 10, 16, 0.4)',
+            }}
+          >
+            📱 Phone OTP Login
+          </button>
+
           {user ? (
             <>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, background: 'rgba(255,255,255,0.08)', padding: '6px 14px', borderRadius: 20, maxWidth: '100%' }}>
                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#55EFC4', flexShrink: 0 }} />
-                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Logged in as: <strong>{user.email || user.name || 'User'}</strong></span>
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Logged in as: <strong>{user.email || user.name || user.phone || 'User'}</strong></span>
                 <span style={{ fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 10, background: '#6C5CE7', color: '#fff', flexShrink: 0 }}>
                   {user.role || 'ACTIVE'}
                 </span>

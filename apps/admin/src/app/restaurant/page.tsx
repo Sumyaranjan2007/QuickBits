@@ -1,70 +1,12 @@
 'use client';
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { restaurantsApi, ordersApi } from '@quickbite/api-client';
-
-const DEMO_ORDERS = [
-  {
-    id: 'QB1024',
-    customer: 'Rahul Sharma',
-    total: 549,
-    status: 'PENDING',
-    paymentMethod: 'UPI',
-    createdAt: new Date(Date.now() - 1000 * 60 * 3).toISOString(),
-    items: [
-      { name: 'Chicken Biryani', qty: 2 },
-      { name: 'Coke', qty: 1 },
-    ],
-  },
-  {
-    id: 'QB1023',
-    customer: 'Priya Patel',
-    total: 799,
-    status: 'PREPARING',
-    paymentMethod: 'CARD',
-    createdAt: new Date(Date.now() - 1000 * 60 * 12).toISOString(),
-    items: [
-      { name: 'Paneer Butter Masala', qty: 1 },
-      { name: 'Butter Naan', qty: 3 },
-      { name: 'Mango Lassi', qty: 2 },
-    ],
-  },
-  {
-    id: 'QB1021',
-    customer: 'Vikram Mehta',
-    total: 449,
-    status: 'READY',
-    paymentMethod: 'UPI',
-    createdAt: new Date(Date.now() - 1000 * 60 * 25).toISOString(),
-    items: [
-      { name: 'Classic Smash Burger', qty: 1 },
-      { name: 'Peri Peri Fries', qty: 1 },
-    ],
-  },
-  {
-    id: 'QB1019',
-    customer: 'Sneha Reddy',
-    total: 620,
-    status: 'DELIVERED',
-    paymentMethod: 'WALLET',
-    createdAt: new Date(Date.now() - 1000 * 60 * 60).toISOString(),
-    items: [
-      { name: 'Veg Supreme Pizza', qty: 1 },
-      { name: 'Garlic Bread', qty: 1 },
-    ],
-  },
-];
-
-const INITIAL_OUT_OF_STOCK = [
-  { id: 'oos-1', name: 'Chicken Dum Biryani', category: 'Main Course', price: 249 },
-  { id: 'oos-2', name: 'Paneer Tikka Roll', category: 'Starters', price: 189 },
-  { id: 'oos-3', name: 'Diet Coke (330ml)', category: 'Beverages', price: 60 },
-];
+import { supabase, updateOrderStatusInSupabase } from '../../lib/supabase';
 
 export default function RestaurantDashboard() {
   const [restaurant, setRestaurant] = useState<any>(null);
-  const [orders, setOrders] = useState<any[]>(DEMO_ORDERS);
-  const [outOfStockItems, setOutOfStockItems] = useState<any[]>(INITIAL_OUT_OF_STOCK);
+  const [orders, setOrders] = useState<any[]>([]);
+  const [outOfStockItems, setOutOfStockItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isPaused, setIsPaused] = useState(false);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
@@ -76,53 +18,49 @@ export default function RestaurantDashboard() {
 
   const loadData = useCallback(async () => {
     try {
-      const res = await restaurantsApi.list();
-      const d = res.data as any;
-      const list = d.items || d || [];
-      const rest = list.length > 0 ? list[0] : null;
-      if (rest) {
-        setRestaurant(rest);
-        setIsPaused(rest.isOpen === false);
+      // 1. Fetch live orders directly from Supabase PostgreSQL
+      const { data: supaOrders } = await supabase
+        .from('orders')
+        .select('*, order_items(*)')
+        .order('created_at', { ascending: false });
+
+      if (supaOrders) {
+        const mapped = supaOrders.map((o: any) => ({
+          id: o.id,
+          customer: o.customer_name || 'Customer',
+          customerPhone: o.customer_phone,
+          total: Number(o.total) || 0,
+          subtotal: Number(o.subtotal) || 0,
+          status: o.status,
+          paymentMethod: o.payment_method || 'UPI',
+          createdAt: o.created_at || new Date().toISOString(),
+          items: (o.order_items || []).map((it: any) => ({
+            name: it.name,
+            qty: it.quantity || 1,
+            price: Number(it.price) || 0,
+          })),
+        }));
+        setOrders(mapped);
       }
 
-      // Fetch live API orders
-      let ordList: any[] = [];
-      if (rest?.id) {
-        try {
-          const ordRes = await ordersApi.getRestaurantOrders(rest.id);
-          const ordData = ordRes.data as any;
-          ordList = ordData.items || ordData || [];
-        } catch {}
+      // 2. Fetch out-of-stock items from Supabase
+      const { data: oosData } = await supabase
+        .from('menu_items')
+        .select('id, name, price, category_id')
+        .eq('is_available', false);
+
+      if (oosData) {
+        setOutOfStockItems(
+          oosData.map((it: any) => ({
+            id: it.id,
+            name: it.name,
+            category: 'Menu Item',
+            price: Number(it.price),
+          }))
+        );
       }
-
-      // Merge local customer orders
-      let localOrders: any[] = [];
-      try {
-        const stored = localStorage.getItem('qb_customer_orders');
-        if (stored) localOrders = JSON.parse(stored);
-      } catch {}
-
-      const combinedMap = new Map();
-      [...DEMO_ORDERS, ...ordList, ...localOrders].forEach(o => {
-        if (o.id) combinedMap.set(o.id, o);
-      });
-      const combined = Array.from(combinedMap.values());
-      if (combined.length > 0) setOrders(combined);
-
-      // Fetch menu to see out of stock items
-      if (rest?.menuCategories) {
-        const oos: any[] = [];
-        rest.menuCategories.forEach((cat: any) => {
-          (cat.items || cat.menuItems || []).forEach((item: any) => {
-            if (item.isAvailable === false) {
-              oos.push({ id: item.id, name: item.name, category: cat.name, price: item.price });
-            }
-          });
-        });
-        if (oos.length > 0) setOutOfStockItems(oos);
-      }
-    } catch {
-      // Keep demo fallback
+    } catch (err) {
+      console.warn('Supabase restaurant dashboard load notice:', err);
     } finally {
       setLoading(false);
     }
@@ -130,43 +68,49 @@ export default function RestaurantDashboard() {
 
   useEffect(() => {
     loadData();
-    const interval = setInterval(loadData, 5000);
 
-    const handleUpdate = () => loadData();
-    window.addEventListener('qb:order_status_updated', handleUpdate);
-    window.addEventListener('storage', handleUpdate);
+    // Subscribe to realtime orders for restaurant dashboard
+    const channel = supabase
+      .channel('restaurant-dashboard-live')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
+        loadData();
+      })
+      .subscribe();
 
     return () => {
-      clearInterval(interval);
-      window.removeEventListener('qb:order_status_updated', handleUpdate);
-      window.removeEventListener('storage', handleUpdate);
+      supabase.removeChannel(channel);
     };
   }, [loadData]);
 
-  // Order Accept / Reject Handlers
+  // Order Accept / Reject Handlers (100% Supabase driven)
   const handleAcceptOrder = async (orderId: string) => {
     try {
-      await ordersApi.updateStatus(orderId, 'CONFIRMED');
+      await updateOrderStatusInSupabase(orderId, 'CONFIRMED');
       setOrders(prev => prev.map(o => (o.id === orderId ? { ...o, status: 'CONFIRMED' } : o)));
       showToast(`Order #${orderId.slice(-6)} Accepted!`);
-    } catch {
-      setOrders(prev => prev.map(o => (o.id === orderId ? { ...o, status: 'CONFIRMED' } : o)));
-      showToast(`Order #${orderId.slice(-6)} Accepted!`);
+    } catch (e) {
+      console.error('Supabase accept order error:', e);
+      showToast('Error accepting order');
     }
   };
 
   const handleRejectOrder = async (orderId: string) => {
     try {
-      await ordersApi.updateStatus(orderId, 'CANCELLED');
+      await updateOrderStatusInSupabase(orderId, 'CANCELLED', 'Rejected by restaurant');
       setOrders(prev => prev.map(o => (o.id === orderId ? { ...o, status: 'CANCELLED' } : o)));
       showToast(`Order #${orderId.slice(-6)} Rejected`);
-    } catch {
-      setOrders(prev => prev.map(o => (o.id === orderId ? { ...o, status: 'CANCELLED' } : o)));
-      showToast(`Order #${orderId.slice(-6)} Rejected`);
+    } catch (e) {
+      console.error('Supabase reject order error:', e);
+      showToast('Error rejecting order');
     }
   };
 
-  const handleMarkAvailable = (id: string, name: string) => {
+  const handleMarkAvailable = async (id: string, name: string) => {
+    try {
+      await supabase.from('menu_items').update({ is_available: true }).eq('id', id);
+    } catch (e) {
+      console.warn('Supabase mark available error:', e);
+    }
     setOutOfStockItems(prev => prev.filter(item => item.id !== id));
     showToast(`"${name}" is now marked Available!`);
   };
@@ -182,10 +126,10 @@ export default function RestaurantDashboard() {
   const pendingCount = orders.filter(o => o.status === 'PENDING').length;
   const preparingCount = orders.filter(o => o.status === 'PREPARING' || o.status === 'CONFIRMED' || o.status === 'ACCEPTED').length;
   const readyCount = orders.filter(o => o.status === 'READY' || o.status === 'READY_FOR_PICKUP').length;
-  const totalTodayOrders = orders.filter(o => o.status !== 'CANCELLED').length || 24;
+  const totalTodayOrders = orders.filter(o => o.status !== 'CANCELLED').length;
   const todaySales = orders
     .filter(o => o.status !== 'CANCELLED')
-    .reduce((sum, o) => sum + (o.total || 0), 0) || 12450;
+    .reduce((sum, o) => sum + (o.total || 0), 0);
 
   // Active live orders for the dashboard view
   const liveOrders = orders.filter(o => ['PENDING', 'CONFIRMED', 'PREPARING', 'READY'].includes(o.status));

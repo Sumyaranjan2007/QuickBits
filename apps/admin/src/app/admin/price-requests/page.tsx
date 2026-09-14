@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useEffect, useCallback } from 'react';
-import { priceRequestsApi } from '@quickbite/api-client';
+import { supabase, approvePriceChangeRequest, rejectPriceChangeRequest } from '../../../lib/supabase';
 
 interface PriceRequest {
   id: string;
@@ -146,29 +146,67 @@ export default function AdminPriceRequestsPage() {
   };
 
   const loadData = useCallback(async () => {
+    // 1. Try Supabase first
     try {
-      const res = await priceRequestsApi.listAllAdmin();
-      const d = res.data as any;
-      if (Array.isArray(d) && d.length > 0) {
-        setRequests(d);
+      const { data: supaReqs } = await supabase
+        .from('restaurant_price_change_requests')
+        .select('*, restaurants(name), menu_items(name)')
+        .order('created_at', { ascending: false });
+
+      if (supaReqs && supaReqs.length > 0) {
+        const mapped: PriceRequest[] = supaReqs.map((r: any) => ({
+          id: r.id,
+          restaurantId: r.restaurant_id,
+          restaurantName: r.restaurants?.name || r.restaurant_id || 'QuickBite Partner',
+          menuItemId: r.menu_item_id,
+          menuItemName: r.menu_items?.name || r.menu_item_id,
+          currentPrice: Number(r.old_price),
+          requestedPrice: Number(r.requested_price),
+          priceDiff: Number(r.requested_price) - Number(r.old_price),
+          priceDiffPercent: Math.round(((Number(r.requested_price) - Number(r.old_price)) / (Number(r.old_price) || 1)) * 100),
+          reason: r.reason,
+          status: r.status,
+          requestedBy: 'Store Partner',
+          createdAt: r.created_at,
+          updatedAt: r.created_at,
+          approvedAt: r.reviewed_at ? new Date(r.reviewed_at).toLocaleString() : undefined,
+          approvedBy: r.reviewed_by || undefined,
+        }));
+        setRequests(mapped);
+        return;
       }
-      const aRes = await priceRequestsApi.getAuditLogs();
-      const aData = aRes.data as any;
-      if (Array.isArray(aData) && aData.length > 0) {
-        setAuditLogs(aData);
-      }
-    } catch {}
+    } catch (e) {
+      console.warn('Supabase admin price requests error:', e);
+    }
   }, []);
 
   useEffect(() => {
     loadData();
+
+    // Subscribe to realtime changes on price change requests
+    const channel = supabase
+      .channel('admin-price-change-requests')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'restaurant_price_change_requests' },
+        () => {
+          loadData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [loadData]);
 
   // Approve Handler
   const handleApprove = async (req: PriceRequest) => {
     try {
-      await priceRequestsApi.approve(req.id);
-    } catch {}
+      await approvePriceChangeRequest(req.id);
+    } catch (e) {
+      console.warn('Supabase approve price request error:', e);
+    }
 
     const approvedAt = new Date().toLocaleString();
     setRequests(prev =>
@@ -214,8 +252,10 @@ export default function AdminPriceRequestsPage() {
     }
 
     try {
-      await priceRequestsApi.reject(rejectDialogReq.id, { reason: rejectionReason.trim() });
-    } catch {}
+      await rejectPriceChangeRequest(rejectDialogReq.id);
+    } catch (e) {
+      console.warn('Supabase reject price request error:', e);
+    }
 
     setRequests(prev =>
       prev.map(r =>

@@ -1,16 +1,25 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { deliveryApi } from '@quickbite/api-client';
 import { useDeliveryContext } from './DeliveryContext';
+import {
+  supabase,
+  fetchAvailableDeliveryRequests,
+  acceptDeliveryAssignment,
+} from '../../lib/supabase';
 
 interface IncomingOrder {
   id: string;
   orderNumber: string;
   restaurantName: string;
   restaurantAddress: string;
+  restaurantLatitude?: number;
+  restaurantLongitude?: number;
   customerName: string;
   customerArea: string;
+  customerAddress?: string;
+  customerLatitude?: number;
+  customerLongitude?: number;
   distance: string;
   estimatedEarnings: number;
 }
@@ -26,48 +35,40 @@ export default function DeliveryHomePage() {
     rating: 4.89,
   });
 
-  // Load active delivery and profile stats
+  // Load active delivery, pending assignments and earnings from Supabase
   useEffect(() => {
     let mounted = true;
 
     const loadData = async () => {
       try {
-        const [activeRes, pendingRes, earningsRes] = await Promise.all([
-          deliveryApi.getActiveAssignment().catch(() => ({ data: null })),
-          deliveryApi.getPendingAssignments().catch(() => ({ data: [] })),
-          deliveryApi.getEarnings().catch(() => ({ data: null })),
-        ]);
+        // 1. Check Supabase for active assigned delivery
+        const { data: activeAssignments } = await supabase
+          .from('delivery_assignments')
+          .select('*, orders(*, restaurants(*))')
+          .in('status', ['ACCEPTED', 'PICKED_UP'])
+          .order('assigned_at', { ascending: false })
+          .limit(1);
 
-        if (!mounted) return;
-
-        // Active Order
-        const ad = activeRes?.data as any;
-        if (ad) {
-          const customerAddr = [
-            ad.order?.deliveryAddress?.addressLine1,
-            ad.order?.deliveryAddress?.addressLine2,
-            ad.order?.deliveryAddress?.city,
-            ad.order?.deliveryAddress?.state,
-            ad.order?.deliveryAddress?.postalCode,
-          ].filter(Boolean).join(', ') || ad.order?.deliveryAddress?.area || 'Indiranagar, Bengaluru';
-
+        if (activeAssignments && activeAssignments.length > 0) {
+          const ad = activeAssignments[0];
+          const ord = ad.orders;
+          const rest = ord?.restaurants;
           const activeData = {
-            id: ad.id || 'ord-qb1024',
-            orderNumber: ad.order?.orderNumber || (ad.orderId ? `QB-${ad.orderId.slice(-4)}` : 'QB1024'),
-            restaurantName: ad.order?.restaurant?.name || 'Burger & Co.',
-            restaurantAddress: ad.order?.restaurant?.address || '100 Feet Road, Indiranagar, Bengaluru',
-            restaurantLatitude: ad.order?.restaurant?.latitude ?? 12.9784,
-            restaurantLongitude: ad.order?.restaurant?.longitude ?? 77.6408,
-            customerName: ad.order?.customer?.name || 'Rahul Sharma',
-            customerArea: ad.order?.deliveryAddress?.area || ad.order?.deliveryAddress?.city || 'Indiranagar',
-            customerAddress: customerAddr,
-            customerLatitude: ad.order?.deliveryAddress?.latitude ?? 12.9716,
-            customerLongitude: ad.order?.deliveryAddress?.longitude ?? 77.5946,
-            distance: `${ad.distance || 2.4} km`,
-            estimatedEarnings: ad.earnings || ad.deliveryFee || 85,
-            status: ad.status || 'OUT_FOR_DELIVERY',
+            id: ad.id,
+            orderNumber: ord?.id || 'QB-389460',
+            restaurantName: rest?.name || 'Sharief Bhai Biryani',
+            restaurantAddress: rest?.address || '100 Feet Rd, Indiranagar',
+            restaurantLatitude: rest?.latitude || 12.9784,
+            restaurantLongitude: rest?.longitude || 77.6408,
+            customerName: ord?.customer_name || 'Rahul Sharma',
+            customerArea: 'Indiranagar, Bengaluru',
+            customerAddress: ord?.delivery_address_text || '100 Feet Rd, Indiranagar, Bengaluru',
+            customerLatitude: ord?.delivery_latitude || 12.9716,
+            customerLongitude: ord?.delivery_longitude || 77.5946,
+            distance: '2.4 km',
+            estimatedEarnings: Number(ord?.delivery_fee) || 85,
+            status: ad.status || ord?.status || 'OUT_FOR_DELIVERY',
           };
-
           setActiveOrder(activeData);
           try {
             localStorage.setItem('quickbite_active_delivery', JSON.stringify({
@@ -91,98 +92,104 @@ export default function DeliveryHomePage() {
             }));
           } catch {}
         } else {
-          // Check if there is a pending assignment
-          const pd = pendingRes?.data as any;
-          const pendingList = Array.isArray(pd) ? pd : pd?.items || [];
-          if (pendingList.length > 0) {
-            const first = pendingList[0];
+          // Check localStorage fallback if active
+          try {
+            const savedActive = localStorage.getItem('quickbite_active_delivery');
+            if (savedActive) {
+              setActiveOrder(JSON.parse(savedActive));
+            } else {
+              setActiveOrder(null);
+            }
+          } catch {}
+
+          // 2. Fetch available pending delivery assignments from Supabase
+          const pendingRequests = await fetchAvailableDeliveryRequests();
+          if (pendingRequests && pendingRequests.length > 0) {
+            const first = pendingRequests[0];
+            const ord = first.orders;
+            const rest = ord?.restaurants;
             setIncomingRequest({
               id: first.id,
-              orderNumber: `QB${(first.orderId || first.id).slice(-4).toUpperCase()}`,
-              restaurantName: first.order?.restaurant?.name || 'Burger & Co.',
-              restaurantAddress: first.order?.restaurant?.address || '100 Feet Road, Indiranagar, Bengaluru',
-              customerName: first.order?.customer?.name || 'Rahul Sharma',
-              customerArea: first.order?.deliveryAddress?.area || 'Indiranagar, Bengaluru',
-              distance: `${first.distance || 2.4} km`,
-              estimatedEarnings: first.earnings || 85,
+              orderNumber: ord?.id || `QB${first.id.slice(-4).toUpperCase()}`,
+              restaurantName: rest?.name || 'Sharief Bhai Biryani',
+              restaurantAddress: rest?.address || '100 Feet Road, Indiranagar, Bengaluru',
+              restaurantLatitude: rest?.latitude || 12.9784,
+              restaurantLongitude: rest?.longitude || 77.6408,
+              customerName: ord?.customer_name || 'Rahul Sharma',
+              customerArea: 'Indiranagar, Bengaluru',
+              customerAddress: ord?.delivery_address_text || 'Indiranagar, Bengaluru',
+              customerLatitude: ord?.delivery_latitude || 12.9716,
+              customerLongitude: ord?.delivery_longitude || 77.5946,
+              distance: '2.4 km',
+              estimatedEarnings: Number(ord?.delivery_fee) || 85,
             });
+          } else {
+            setIncomingRequest(null);
           }
         }
 
-        // Earnings stats
-        const ed = earningsRes?.data as any;
-        if (ed) {
+        // 3. Real Earnings from Supabase
+        const { data: supaEarnings } = await supabase
+          .from('earnings')
+          .select('net_amount')
+          .eq('entity_type', 'DELIVERY_PARTNER');
+
+        if (supaEarnings && supaEarnings.length > 0) {
+          const totalEarned = supaEarnings.reduce((acc, row) => acc + (Number(row.net_amount) || 0), 0);
           setTodayStats({
-            earnings: ed.todayEarnings || 942,
-            deliveries: ed.todayDeliveries || 8,
-            rating: ed.rating || profile?.rating || 4.89,
+            earnings: totalEarned,
+            deliveries: supaEarnings.length,
+            rating: 4.89,
           });
         }
-      } catch {
-        // Fallback default with real seeded restaurant and customer coordinates
-        const defaultData = {
-          id: 'ord-qb1024',
-          orderNumber: 'QB1024',
-          restaurantName: 'Burger & Co.',
-          restaurantAddress: '100 Feet Road, Indiranagar, Bengaluru',
-          restaurantLatitude: 12.9784,
-          restaurantLongitude: 77.6408,
-          customerName: 'Rahul Sharma',
-          customerArea: 'Indiranagar, Bengaluru',
-          customerAddress: '402, Skyline Residency, Indiranagar, Bengaluru, 560038',
-          customerLatitude: 12.9716,
-          customerLongitude: 77.5946,
-          distance: '2.4 km',
-          estimatedEarnings: 85,
-          status: 'ACCEPTED',
-        };
-        setActiveOrder(defaultData);
+      } catch (err) {
+        console.warn('Supabase delivery load notice:', err);
       } finally {
         if (mounted) setLoading(false);
       }
     };
 
     loadData();
-    const timer = setInterval(loadData, 12000);
+
+    // Subscribe to realtime delivery assignments
+    const channel = supabase
+      .channel('delivery-incoming-requests')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'delivery_assignments' }, () => {
+        loadData();
+      })
+      .subscribe();
+
     return () => {
       mounted = false;
-      clearInterval(timer);
+      supabase.removeChannel(channel);
     };
   }, [profile]);
-
-  // Test simulation helper for incoming request
-  const triggerDemoOrderAlert = () => {
-    setIncomingRequest({
-      id: `ord-qb${Math.floor(1000 + Math.random() * 9000)}`,
-      orderNumber: `QB${Math.floor(1000 + Math.random() * 9000)}`,
-      restaurantName: 'Burger & Co.',
-      restaurantAddress: '100 Feet Road, Indiranagar, Bengaluru',
-      customerName: 'Rahul Sharma',
-      customerArea: 'Indiranagar, Bengaluru',
-      distance: '2.4 km',
-      estimatedEarnings: 85,
-    });
-  };
 
   const handleAcceptRequest = async () => {
     if (!incomingRequest) return;
     try {
-      await deliveryApi.updateAssignmentStatus(incomingRequest.id, 'ACCEPTED');
-    } catch {
-      // simulate acceptance
+      await acceptDeliveryAssignment({
+        assignmentId: incomingRequest.id,
+        driverId: profile?.id || '00000000-0000-0000-0000-000000000001',
+        driverName: profile?.full_name || 'Delivery Partner',
+        orderId: incomingRequest.orderNumber,
+      });
+    } catch (e) {
+      console.warn('Supabase accept assignment notice:', e);
     }
+
     const acceptedData = {
       id: incomingRequest.id,
       orderNumber: incomingRequest.orderNumber,
       restaurantName: incomingRequest.restaurantName,
       restaurantAddress: incomingRequest.restaurantAddress,
-      restaurantLatitude: 12.9784,
-      restaurantLongitude: 77.6408,
+      restaurantLatitude: incomingRequest.restaurantLatitude || 12.9784,
+      restaurantLongitude: incomingRequest.restaurantLongitude || 77.6408,
       customerName: incomingRequest.customerName,
       customerArea: incomingRequest.customerArea,
-      customerAddress: '402, Skyline Residency, Indiranagar, Bengaluru, 560038',
-      customerLatitude: 12.9716,
-      customerLongitude: 77.5946,
+      customerAddress: incomingRequest.customerAddress || 'Indiranagar, Bengaluru, 560038',
+      customerLatitude: incomingRequest.customerLatitude || 12.9716,
+      customerLongitude: incomingRequest.customerLongitude || 77.5946,
       distance: incomingRequest.distance,
       estimatedEarnings: incomingRequest.estimatedEarnings,
       status: 'ACCEPTED',
@@ -246,12 +253,36 @@ export default function DeliveryHomePage() {
         </button>
       </div>
 
-      {/* ─── Test Order Button (Developer / Testing Shortcut) ─── */}
+      {/* ─── Real Dispatch Refresh Button ─── */}
       {!incomingRequest && (
         <div style={{ display: 'flex', justifyContent: 'flex-end', margin: '-6px 0 0' }}>
           <button
             type="button"
-            onClick={triggerDemoOrderAlert}
+            onClick={async () => {
+              const reqs = await fetchAvailableDeliveryRequests();
+              if (reqs && reqs.length > 0) {
+                const first = reqs[0];
+                const ord = first.orders;
+                const rest = ord?.restaurants;
+                setIncomingRequest({
+                  id: first.id,
+                  orderNumber: ord?.id || `QB${first.id.slice(-4).toUpperCase()}`,
+                  restaurantName: rest?.name || 'Sharief Bhai Biryani',
+                  restaurantAddress: rest?.address || '100 Feet Road, Indiranagar',
+                  restaurantLatitude: rest?.latitude || 12.9784,
+                  restaurantLongitude: rest?.longitude || 77.6408,
+                  customerName: ord?.customer_name || 'Rahul Sharma',
+                  customerArea: 'Indiranagar, Bengaluru',
+                  customerAddress: ord?.delivery_address_text || 'Indiranagar, Bengaluru',
+                  customerLatitude: ord?.delivery_latitude || 12.9716,
+                  customerLongitude: ord?.delivery_longitude || 77.5946,
+                  distance: '2.4 km',
+                  estimatedEarnings: Number(ord?.delivery_fee) || 85,
+                });
+              } else {
+                alert('No pending delivery requests available right now. Waiting for restaurants to mark orders ready.');
+              }
+            }}
             style={{
               background: '#FFFBEB',
               color: '#B45309',
@@ -265,10 +296,8 @@ export default function DeliveryHomePage() {
               alignItems: 'center',
               gap: 4,
             }}
-            id="btn-test-incoming-request"
           >
-            <span>🔔</span>
-            <span>Simulate New Request</span>
+            <span>↻</span> Check Available Deliveries
           </button>
         </div>
       )}

@@ -1,48 +1,7 @@
 'use client';
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { restaurantsApi, ordersApi } from '@quickbite/api-client';
-
-const DEMO_KITCHEN_ORDERS = [
-  {
-    id: 'QB1024',
-    customer: 'Rahul S.',
-    status: 'CONFIRMED',
-    createdAt: new Date(Date.now() - 1000 * 60 * 6).toISOString(),
-    prepTimeMins: 15,
-    specialInstructions: 'Less spicy, extra mint chutney',
-    items: [
-      { name: 'Chicken Dum Biryani', qty: 2 },
-      { name: 'Raita', qty: 1 },
-      { name: 'Coke (330ml)', qty: 1 },
-    ],
-  },
-  {
-    id: 'QB1023',
-    customer: 'Priya P.',
-    status: 'PREPARING',
-    createdAt: new Date(Date.now() - 1000 * 60 * 14).toISOString(),
-    prepTimeMins: 20,
-    specialInstructions: 'No garlic',
-    items: [
-      { name: 'Paneer Butter Masala', qty: 1 },
-      { name: 'Butter Naan', qty: 3 },
-      { name: 'Sweet Mango Lassi', qty: 2 },
-    ],
-  },
-  {
-    id: 'QB1020',
-    customer: 'Amit K.',
-    status: 'CONFIRMED',
-    createdAt: new Date(Date.now() - 1000 * 60 * 22).toISOString(),
-    prepTimeMins: 15,
-    specialInstructions: 'Pack gravy separately',
-    items: [
-      { name: 'Mutton Rogan Josh', qty: 1 },
-      { name: 'Jeera Rice', qty: 2 },
-    ],
-  },
-];
+import { supabase, updateOrderStatusInSupabase } from '../../../lib/supabase';
 
 function KitchenOrderTimer({ createdAt, prepMins }: { createdAt: string; prepMins: number }) {
   const [elapsed, setElapsed] = useState(0);
@@ -97,53 +56,66 @@ function KitchenOrderTimer({ createdAt, prepMins }: { createdAt: string; prepMin
 }
 
 export default function KitchenViewPage() {
-  const [orders, setOrders] = useState<any[]>(DEMO_KITCHEN_ORDERS);
-  const [restaurantId, setRestaurantId] = useState<string | null>(null);
+  const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const loadKitchenOrders = useCallback(async (restId: string) => {
+  const loadKitchenOrders = useCallback(async () => {
     try {
-      const res = await ordersApi.getRestaurantOrders(restId);
-      const d = res.data as any;
-      const list = d.items || d || [];
-      const kitchenList = list.filter((o: any) => ['CONFIRMED', 'PREPARING', 'ACCEPTED'].includes(o.status));
-      if (kitchenList.length > 0) {
-        setOrders(kitchenList);
+      const { data, error } = await supabase
+        .from('orders')
+        .select('*, order_items(*)')
+        .in('status', ['CONFIRMED', 'PREPARING', 'ACCEPTED'])
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+      if (data) {
+        const mapped = data.map((o: any) => ({
+          id: o.id,
+          customer: o.customer_name || 'Customer',
+          status: o.status,
+          createdAt: o.created_at,
+          prepTimeMins: 20,
+          specialInstructions: o.special_instructions || '',
+          items: (o.order_items || []).map((it: any) => ({
+            name: it.name,
+            qty: it.quantity || 1,
+          })),
+        }));
+        setOrders(mapped);
       }
-    } catch {
-      // Fallback to demo
+    } catch (err) {
+      console.warn('Kitchen orders load notice:', err);
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    const init = async () => {
-      try {
-        const res = await restaurantsApi.list();
-        const d = res.data as any;
-        const list = d.items || d || [];
-        if (list.length > 0) {
-          setRestaurantId(list[0].id);
-          await loadKitchenOrders(list[0].id);
-        }
-      } catch {
-        setOrders(DEMO_KITCHEN_ORDERS);
-      } finally {
-        setLoading(false);
-      }
+    loadKitchenOrders();
+
+    const channel = supabase
+      .channel('kitchen-view-live')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
+        loadKitchenOrders();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
     };
-    init();
   }, [loadKitchenOrders]);
 
   const updateOrderStatus = async (id: string, newStatus: string) => {
     try {
-      await ordersApi.updateStatus(id, newStatus);
-    } catch {}
-    if (newStatus === 'READY') {
-      setOrders(prev => prev.filter(o => o.id !== id));
-    } else {
-      setOrders(prev => prev.map(o => (o.id === id ? { ...o, status: newStatus } : o)));
+      const statusValue = newStatus === 'READY' ? 'READY_FOR_PICKUP' : newStatus;
+      await updateOrderStatusInSupabase(id, statusValue);
+      if (newStatus === 'READY' || statusValue === 'READY_FOR_PICKUP') {
+        setOrders(prev => prev.filter(o => o.id !== id));
+      } else {
+        setOrders(prev => prev.map(o => (o.id === id ? { ...o, status: newStatus } : o)));
+      }
+    } catch (err) {
+      console.error('Kitchen update error:', err);
     }
   };
 

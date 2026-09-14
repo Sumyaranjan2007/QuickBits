@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { deliveryApi } from '@quickbite/api-client';
+import { supabase, updateOrderStatusInSupabase } from '../../../lib/supabase';
 
 import { buildGoogleMapsUrl, LocationTarget, NavigationResult, NavigationModalState } from './navigation';
 
@@ -60,7 +60,6 @@ export default function ActiveDeliveryPage() {
             longitude: pos.coords.longitude,
           };
           setPartnerCoords(coords);
-          deliveryApi.updateLocation(coords.latitude, coords.longitude).catch(() => {});
         },
         () => {
           // If permission denied or unavailable, Google Maps will automatically use device's current location
@@ -103,11 +102,21 @@ export default function ActiveDeliveryPage() {
       } catch {}
     }
 
-    // 2. Sync from backend API
-    deliveryApi.getActiveAssignment()
-      .then(res => {
-        const ad = res.data as any;
-        if (ad && ad.order) {
+    // 2. Sync from Supabase
+    const syncFromSupabase = async () => {
+      try {
+        const { data: assignments } = await supabase
+          .from('delivery_assignments')
+          .select('*, orders(*, restaurants(*))')
+          .in('status', ['ACCEPTED', 'PICKED_UP', 'ARRIVED_AT_RESTAURANT', 'ON_THE_WAY', 'OUT_FOR_DELIVERY'])
+          .order('assigned_at', { ascending: false })
+          .limit(1);
+
+        if (assignments && assignments.length > 0) {
+          const ad = assignments[0];
+          const ord = ad.orders;
+          const rest = ord?.restaurants;
+
           const stepMap: Record<string, DeliveryStep> = {
             ASSIGNED: 1,
             ACCEPTED: 1,
@@ -122,52 +131,28 @@ export default function ActiveDeliveryPage() {
             setCurrentStep(stepMap[ad.status]);
           }
 
-          const o = ad.order;
-          const r = o.restaurant || {};
-          const dAddr = o.deliveryAddress || {};
-          const c = o.customer || {};
-
-          // Assemble real address string
-          const customerAddressStr = [
-            dAddr.addressLine1,
-            dAddr.addressLine2,
-            dAddr.city,
-            dAddr.state,
-            dAddr.postalCode,
-          ].filter(Boolean).join(', ');
-
-          const customerNameStr = c.firstName && c.lastName
-            ? `${c.firstName} ${c.lastName}`
-            : c.name || (c.profile ? `${c.profile.firstName} ${c.profile.lastName}` : order.customer.name);
-
           const syncedOrder = {
             id: ad.id,
-            orderNumber: o.orderNumber || (ad.orderId ? `QB-${ad.orderId.slice(-4)}` : order.orderNumber),
+            orderNumber: ord?.id || order.orderNumber,
             restaurant: {
-              name: r.name || order.restaurant.name,
-              address: r.address || order.restaurant.address,
-              latitude: typeof r.latitude === 'number' ? r.latitude : order.restaurant.latitude,
-              longitude: typeof r.longitude === 'number' ? r.longitude : order.restaurant.longitude,
-              phone: r.phone || order.restaurant.phone,
+              name: rest?.name || order.restaurant.name,
+              address: rest?.address || order.restaurant.address,
+              latitude: typeof rest?.latitude === 'number' ? rest.latitude : order.restaurant.latitude,
+              longitude: typeof rest?.longitude === 'number' ? rest.longitude : order.restaurant.longitude,
+              phone: rest?.phone || order.restaurant.phone,
             },
             customer: {
-              name: customerNameStr,
-              address: customerAddressStr || order.customer.address,
-              latitude: typeof dAddr.latitude === 'number' ? dAddr.latitude : order.customer.latitude,
-              longitude: typeof dAddr.longitude === 'number' ? dAddr.longitude : order.customer.longitude,
-              phone: c.phone || order.customer.phone,
+              name: ord?.customer_name || order.customer.name,
+              address: ord?.delivery_address_text || order.customer.address,
+              latitude: typeof ord?.delivery_latitude === 'number' ? ord.delivery_latitude : order.customer.latitude,
+              longitude: typeof ord?.delivery_longitude === 'number' ? ord.delivery_longitude : order.customer.longitude,
+              phone: ord?.customer_phone || order.customer.phone,
             },
-            items: o.items?.length
-              ? o.items.map((item: any) => ({
-                  name: item.menuItem?.name || item.name || 'Food Item',
-                  qty: item.quantity || 1,
-                  price: Number(item.price) || 0,
-                }))
-              : order.items,
-            paymentMethod: o.paymentMethod || order.paymentMethod,
-            totalAmount: Number(o.total) || order.totalAmount,
-            estimatedEarnings: Number(ad.earnings) || Number(ad.deliveryFee) || order.estimatedEarnings,
-            distance: ad.distance ? `${ad.distance} km` : order.distance,
+            items: order.items,
+            paymentMethod: ord?.payment_method || order.paymentMethod,
+            totalAmount: Number(ord?.total) || order.totalAmount,
+            estimatedEarnings: Number(ord?.delivery_fee) || order.estimatedEarnings,
+            distance: order.distance,
           };
 
           setOrder(syncedOrder);
@@ -175,8 +160,12 @@ export default function ActiveDeliveryPage() {
             localStorage.setItem('quickbite_active_delivery', JSON.stringify({ ...syncedOrder, status: ad.status }));
           } catch {}
         }
-      })
-      .catch(() => {});
+      } catch (err) {
+        console.warn('Sync active delivery notice:', err);
+      }
+    };
+
+    syncFromSupabase();
   }, []);
 
   // Pre-calculate real navigation targets
@@ -220,12 +209,12 @@ export default function ActiveDeliveryPage() {
 
     if (isAndroid) {
       // On Android:
-      // When tapping an <a> with href="intent:...", Android Chrome directly dispatches the intent
-      // to com.google.android.apps.maps.
-      // Do NOT preventDefault and do NOT show spurious error modals.
-      if (!e) {
-        const targetUrl = nav.androidIntentUri || nav.googleNavUri;
-        if (targetUrl) window.location.href = targetUrl;
+      // Direct intent dispatch to com.google.android.apps.maps
+      const targetUrl = nav.androidIntentUri || nav.googleNavUri;
+      if (targetUrl) {
+        window.location.href = targetUrl;
+      } else if (nav.webFallbackUrl) {
+        window.location.href = nav.webFallbackUrl;
       }
     } else {
       // Desktop / Non-Android testing:
@@ -238,24 +227,30 @@ export default function ActiveDeliveryPage() {
   // Step Action Handlers
   const handleNextStep = async () => {
     setUpdating(true);
+    const targetOrderId = order.orderNumber || order.id;
     try {
       if (currentStep === 1) {
-        await deliveryApi.updateAssignmentStatus(order.id, 'ARRIVED_AT_RESTAURANT').catch(() => {});
+        await supabase.from('delivery_assignments').update({ status: 'ARRIVED_AT_RESTAURANT' }).eq('id', order.id);
         setCurrentStep(2);
       } else if (currentStep === 2) {
-        await deliveryApi.updateAssignmentStatus(order.id, 'PICKED_UP').catch(() => {});
+        await supabase.from('delivery_assignments').update({ status: 'PICKED_UP' }).eq('id', order.id);
+        await updateOrderStatusInSupabase(targetOrderId, 'PICKED_UP').catch(() => {});
         setCurrentStep(3);
       } else if (currentStep === 3) {
-        await deliveryApi.updateAssignmentStatus(order.id, 'ON_THE_WAY').catch(() => {});
+        await supabase.from('delivery_assignments').update({ status: 'ON_THE_WAY' }).eq('id', order.id);
+        await updateOrderStatusInSupabase(targetOrderId, 'OUT_FOR_DELIVERY').catch(() => {});
         setCurrentStep(4);
       } else if (currentStep === 4) {
-        await deliveryApi.updateAssignmentStatus(order.id, 'DELIVERED').catch(() => {});
+        await supabase.from('delivery_assignments').update({ status: 'DELIVERED', delivered_at: new Date().toISOString() }).eq('id', order.id);
+        await updateOrderStatusInSupabase(targetOrderId, 'DELIVERED').catch(() => {});
         setCurrentStep(5);
         setCompletedModal(true);
         try {
           localStorage.removeItem('quickbite_active_delivery');
         } catch {}
       }
+    } catch (e) {
+      console.warn('Step update notice:', e);
     } finally {
       setUpdating(false);
     }

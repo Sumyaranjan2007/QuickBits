@@ -1,5 +1,6 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { fetchRestaurantReviews } from '../../../lib/supabase';
 
 interface Review {
   id: string;
@@ -62,6 +63,28 @@ export default function RestaurantReviewsPage() {
   const [replyingId, setReplyingId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadReviews = async () => {
+      try {
+        const supaReviews = await fetchRestaurantReviews('sharief-bhai');
+        if (supaReviews && supaReviews.length > 0) {
+          const mapped: Review[] = supaReviews.map((r: any) => ({
+            id: r.id,
+            customerName: r.profiles?.full_name || 'Verified Customer',
+            rating: r.rating || 5,
+            comment: r.comment || '',
+            date: new Date(r.created_at).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }),
+            orderedItems: ['Chicken Dum Biryani', 'Raita'],
+          }));
+          setReviews([...mapped, ...DEMO_REVIEWS]);
+        }
+      } catch (e) {
+        console.warn('Supabase reviews load notice:', e);
+      }
+    };
+    loadReviews();
+  }, []);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);

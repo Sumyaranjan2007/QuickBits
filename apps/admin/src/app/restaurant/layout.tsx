@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '../../context/AuthContext';
-import { restaurantsApi } from '@quickbite/api-client';
+import { fetchRestaurantProfile } from '../../lib/supabase';
 import { OrderSoundAlertProvider } from '../../context/OrderSoundAlertContext';
 import { NewOrderAlertModal, AudioUnlockBanner, PendingOrderWaitingBanner } from '../../components/NewOrderAlertModal';
 
@@ -229,18 +229,18 @@ export default function RestaurantLayout({ children }: { children: React.ReactNo
     });
   };
 
-  // Fetch restaurant details
+  // Fetch restaurant details from Supabase
   useEffect(() => {
     const loadRestaurant = async () => {
       try {
-        const res = await restaurantsApi.list();
-        const d = res.data as any;
-        const list = d.items || d || [];
-        if (list.length > 0) {
-          setRestaurant(list[0]);
-          if (list[0].isOpen === false) setRestaurantStatus('CLOSED');
+        const data = await fetchRestaurantProfile('sharief-bhai');
+        if (data) {
+          setRestaurant(data);
+          if (data.is_active === false) setRestaurantStatus('CLOSED');
         }
-      } catch {}
+      } catch (err) {
+        console.warn('Restaurant layout profile notice:', err);
+      }
     };
     loadRestaurant();
   }, []);

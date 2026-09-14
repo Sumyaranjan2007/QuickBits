@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
-import { restaurantsApi, ordersApi } from '@quickbite/api-client';
+import { subscribeToRestaurantOrders, updateOrderStatusInSupabase, fetchRestaurantOrdersFromSupabase, fetchRestaurantsFromSupabase } from '../../../lib/supabase';
 
 const DEMO_ORDERS = [
   {
@@ -153,12 +153,12 @@ export default function RestaurantOrdersPage() {
 
   const fetchOrders = useCallback(async (restId: string) => {
     try {
-      let apiOrders: any[] = [];
+      let supaOrders: any[] = [];
       try {
-        const res = await ordersApi.getRestaurantOrders(restId);
-        const d = res.data as any;
-        apiOrders = d.items || d || [];
-      } catch {}
+        supaOrders = await fetchRestaurantOrdersFromSupabase(restId);
+      } catch (err) {
+        console.warn('fetchRestaurantOrdersFromSupabase error:', err);
+      }
 
       let localOrders: any[] = [];
       try {
@@ -167,7 +167,7 @@ export default function RestaurantOrdersPage() {
       } catch {}
 
       const combinedMap = new Map();
-      [...DEMO_ORDERS, ...apiOrders, ...localOrders].forEach(o => {
+      [...supaOrders, ...localOrders, ...DEMO_ORDERS].forEach(o => {
         if (o.id) combinedMap.set(o.id, o);
       });
       const combined = Array.from(combinedMap.values());
@@ -190,17 +190,15 @@ export default function RestaurantOrdersPage() {
   useEffect(() => {
     const init = async () => {
       try {
-        const res = await restaurantsApi.list();
-        const d = res.data as any;
-        const list = d.items || d || [];
+        const list = await fetchRestaurantsFromSupabase();
         if (list.length > 0) {
           setRestaurantId(list[0].id);
           await fetchOrders(list[0].id);
         } else {
-          await fetchOrders('rest-1');
+          await fetchOrders('sharief-bhai');
         }
       } catch {
-        await fetchOrders('rest-1');
+        await fetchOrders('sharief-bhai');
       } finally {
         setLoading(false);
       }
@@ -208,28 +206,55 @@ export default function RestaurantOrdersPage() {
     init();
 
     const handleUpdate = () => {
-      fetchOrders(restaurantId || 'rest-1');
+      fetchOrders(restaurantId || 'sharief-bhai');
     };
 
     window.addEventListener('qb:order_status_updated', handleUpdate);
     window.addEventListener('storage', handleUpdate);
+
+    // ─── Realtime Orders Subscription (Supabase Realtime) ───
+    const unsubscribe = subscribeToRestaurantOrders(restaurantId || '', (eventType, newOrder) => {
+      if (eventType === 'INSERT') {
+        // Play distinct audio notification chime
+        try {
+          const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+          if (AudioContextClass) {
+            const ctx = new AudioContextClass();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
+            osc.frequency.setValueAtTime(880, ctx.currentTime + 0.15); // A5
+            gain.gain.setValueAtTime(0.3, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start();
+            osc.stop(ctx.currentTime + 0.6);
+          }
+        } catch {}
+
+        showToast(`🔔 New Order #${newOrder.id?.slice(-6) || 'New'} Received!`);
+        fetchOrders(restaurantId || 'sharief-bhai');
+      } else if (eventType === 'UPDATE') {
+        fetchOrders(restaurantId || 'sharief-bhai');
+      }
+    });
+
     return () => {
+      unsubscribe();
       window.removeEventListener('qb:order_status_updated', handleUpdate);
       window.removeEventListener('storage', handleUpdate);
     };
   }, [fetchOrders, restaurantId]);
 
-  // Periodic polling every 5s
-  useEffect(() => {
-    const t = setInterval(() => fetchOrders(restaurantId || 'rest-1'), 5000);
-    return () => clearInterval(t);
-  }, [restaurantId, fetchOrders]);
-
-  // Status Updater
+  // Status Updater (Syncs with Supabase PostgreSQL)
   const updateStatus = async (orderId: string, newStatus: string) => {
     try {
-      await ordersApi.updateStatus(orderId, newStatus);
-    } catch {}
+      await updateOrderStatusInSupabase(orderId, newStatus);
+    } catch (err) {
+      console.warn('Supabase status update error:', err);
+    }
     setOrders(prev =>
       prev.map(o => (o.id === orderId ? { ...o, status: newStatus } : o))
     );
@@ -243,8 +268,10 @@ export default function RestaurantOrdersPage() {
     if (!rejectModalOrder) return;
     const orderId = rejectModalOrder.id;
     try {
-      await ordersApi.updateStatus(orderId, 'CANCELLED');
-    } catch {}
+      await updateOrderStatusInSupabase(orderId, 'CANCELLED', selectedRejectReason);
+    } catch (err) {
+      console.warn('Supabase reject status update error:', err);
+    }
     setOrders(prev =>
       prev.map(o => (o.id === orderId ? { ...o, status: 'CANCELLED', rejectionReason: selectedRejectReason } : o))
     );

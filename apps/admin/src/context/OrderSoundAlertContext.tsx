@@ -1,7 +1,7 @@
 'use client';
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { ordersApi, restaurantsApi } from '@quickbite/api-client';
+import { supabase, updateOrderStatusInSupabase } from '../lib/supabase';
 
 export interface PendingAlertOrder {
   id: string;
@@ -363,99 +363,69 @@ export function OrderSoundAlertProvider({ children }: { children: React.ReactNod
     }
   }, [soundEnabled, volume, alertDuration, router]);
 
-  // Fetch restaurant ID
+  // Initialize Seen Orders from Supabase so no audio triggers on page refresh/reconnect
   useEffect(() => {
-    const fetchRest = async () => {
+    const initSeenOrders = async () => {
       try {
-        const res = await restaurantsApi.list();
-        const d = res.data as any;
-        const list = d.items || d || [];
-        if (list.length > 0) {
-          setRestaurantId(list[0].id);
-        }
-      } catch {}
-    };
-    fetchRest();
-  }, []);
+        const { data: existingOrders } = await supabase
+          .from('orders')
+          .select('id');
 
-  // Check for new orders (Real-time polling & local synchronization)
-  const checkIncomingOrders = useCallback(async () => {
-    if (!restaurantId) return;
-
-    try {
-      // 1. Check API orders
-      const res = await ordersApi.getRestaurantOrders(restaurantId);
-      const d = res.data as any;
-      const apiOrders: any[] = d.items || d || [];
-
-      // 2. Check localStorage cross-app orders
-      let localOrders: any[] = [];
-      try {
-        const stored = localStorage.getItem('qb_customer_orders');
-        if (stored) localOrders = JSON.parse(stored);
-      } catch {}
-
-      const allOrders = [...apiOrders, ...localOrders];
-
-      // On Initial load, mark all existing orders as SEEN without playing alert
-      if (!initialLoadCompletedRef.current) {
-        allOrders.forEach(o => {
-          if (o.id) seenOrderIdsRef.current.add(String(o.id));
-        });
-        initialLoadCompletedRef.current = true;
-        return;
-      }
-
-      // Filter for genuinely new PENDING orders for this restaurant
-      const freshPending: PendingAlertOrder[] = [];
-
-      allOrders.forEach(o => {
-        const id = String(o.id || '');
-        const isThisRest = !o.restaurantId || o.restaurantId === restaurantId || o.restaurant?.id === restaurantId;
-        const isPending = o.status === 'PENDING' || o.status === 'NEW';
-
-        if (id && isThisRest && isPending && !seenOrderIdsRef.current.has(id)) {
-          seenOrderIdsRef.current.add(id);
-          freshPending.push({
-            id,
-            customer: o.customer?.name || o.customer || 'Customer',
-            itemsCount: Array.isArray(o.items) ? o.items.length : (o.itemsCount || 1),
-            items: o.items || [],
-            total: o.total || 0,
-            paymentMethod: o.paymentMethod || 'UPI',
-            createdAt: o.createdAt || new Date().toISOString(),
-            restaurantId: o.restaurantId || restaurantId,
-            restaurantName: o.restaurantName || o.restaurant?.name || 'QuickBite Bistro',
+        if (existingOrders) {
+          existingOrders.forEach((o) => {
+            if (o.id) seenOrderIdsRef.current.add(String(o.id));
           });
         }
-      });
-
-      if (freshPending.length > 0) {
-        triggerNewOrderAlert(freshPending);
-      }
-    } catch {
-      // Non-blocking fallback
-    }
-  }, [restaurantId, triggerNewOrderAlert]);
-
-  // Set up periodic check (every 5 seconds)
-  useEffect(() => {
-    if (!restaurantId) return;
-    checkIncomingOrders();
-    const interval = setInterval(checkIncomingOrders, 5000);
-    return () => clearInterval(interval);
-  }, [restaurantId, checkIncomingOrders]);
-
-  // Listen for storage events across tabs
-  useEffect(() => {
-    const handleStorage = (e: StorageEvent) => {
-      if (e.key === 'qb_customer_orders' || e.key === 'qb_trigger_new_order') {
-        checkIncomingOrders();
+      } catch (err) {
+        console.warn('Initial order alert sync notice:', err);
+      } finally {
+        initialLoadCompletedRef.current = true;
       }
     };
-    window.addEventListener('storage', handleStorage);
-    return () => window.removeEventListener('storage', handleStorage);
-  }, [checkIncomingOrders]);
+    initSeenOrders();
+
+    // Subscribe to Supabase Realtime for genuinely new PENDING orders
+    const channel = supabase
+      .channel('sound-alert-new-orders')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'orders',
+        },
+        (payload) => {
+          const newOrder = payload.new as any;
+          if (!newOrder || !newOrder.id) return;
+
+          const orderId = String(newOrder.id);
+          const isPending = newOrder.status === 'PENDING' || newOrder.status === 'NEW';
+
+          if (isPending && !seenOrderIdsRef.current.has(orderId)) {
+            seenOrderIdsRef.current.add(orderId);
+
+            const alertItem: PendingAlertOrder = {
+              id: orderId,
+              customer: newOrder.customer_name || 'Customer',
+              itemsCount: 1,
+              items: [],
+              total: Number(newOrder.total) || 0,
+              paymentMethod: newOrder.payment_method || 'UPI',
+              createdAt: newOrder.created_at || new Date().toISOString(),
+              restaurantId: newOrder.restaurant_id || 'sharief-bhai',
+              restaurantName: 'Restaurant Kitchen',
+            };
+
+            triggerNewOrderAlert([alertItem]);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [triggerNewOrderAlert]);
 
   // Repeating Reminder Chime Loop (every 30s while PENDING orders remain after initial alert)
   useEffect(() => {
@@ -488,9 +458,9 @@ export function OrderSoundAlertProvider({ children }: { children: React.ReactNod
     try {
       stopSound(); // STOP SOUND IMMEDIATELY ON ACCEPT
 
-      // Update backend
+      // Update Supabase backend
       try {
-        await ordersApi.updateStatus(orderId, 'CONFIRMED');
+        await updateOrderStatusInSupabase(orderId, 'CONFIRMED');
       } catch {}
 
       // Update localStorage
@@ -529,7 +499,7 @@ export function OrderSoundAlertProvider({ children }: { children: React.ReactNod
       stopSound(); // STOP SOUND IMMEDIATELY ON REJECT
 
       try {
-        await ordersApi.updateStatus(orderId, 'CANCELLED');
+        await updateOrderStatusInSupabase(orderId, 'CANCELLED', reason);
       } catch {}
 
       try {
