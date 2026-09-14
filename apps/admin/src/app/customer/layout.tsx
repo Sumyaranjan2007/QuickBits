@@ -11,9 +11,10 @@ const MOBILE_NAV_ITEMS = [
     key: 'home',
     href: '/customer',
     label: 'Home',
+    badge: null,
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+        <path d="M3 9.5L12 3l9 6.5V20a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
         <polyline points="9 22 9 12 15 12 15 22" />
       </svg>
     ),
@@ -22,10 +23,11 @@ const MOBILE_NAV_ITEMS = [
     key: 'search',
     href: '/customer/search',
     label: 'Search',
+    badge: null,
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="11" cy="11" r="8" />
-        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+        <circle cx="11" cy="11" r="7.5" />
+        <line x1="21" y1="21" x2="16.5" y2="16.5" />
       </svg>
     ),
   },
@@ -33,6 +35,7 @@ const MOBILE_NAV_ITEMS = [
     key: 'orders',
     href: '/customer/orders',
     label: 'Orders',
+    badge: '1',
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
@@ -45,14 +48,14 @@ const MOBILE_NAV_ITEMS = [
     key: 'offers',
     href: '/customer/offers',
     label: 'Offers',
+    badge: '2',
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="10" />
-        <line x1="12" y1="8" x2="12" y2="12" />
-        <line x1="12" y1="16" x2="12.01" y2="16" />
-        <path d="M9 9l6 6" />
-        <circle cx="9.5" cy="9.5" r=".5" fill="currentColor" />
-        <circle cx="14.5" cy="14.5" r=".5" fill="currentColor" />
+        <polyline points="20 12 20 22 4 22 4 12" />
+        <rect x="2" y="7" width="20" height="5" rx="1" />
+        <line x1="12" y1="22" x2="12" y2="7" />
+        <path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z" />
+        <path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z" />
       </svg>
     ),
   },
@@ -60,6 +63,7 @@ const MOBILE_NAV_ITEMS = [
     key: 'profile',
     href: '/customer/profile',
     label: 'Profile',
+    badge: null,
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
@@ -308,8 +312,8 @@ function CustomerLayoutContent({ children }: { children: React.ReactNode }) {
           </div>
         )}
 
-        {/* Fixed Mobile Bottom Navigation */}
-        <nav className="customer-bottom-nav">
+        {/* Floating Mobile Bottom Navigation */}
+        <nav className="customer-bottom-nav" aria-label="Customer Navigation">
           <div className="customer-bottom-nav-inner">
             {MOBILE_NAV_ITEMS.map(item => {
               const active = isNavActive(item.href);
@@ -318,10 +322,19 @@ function CustomerLayoutContent({ children }: { children: React.ReactNode }) {
                   key={item.key}
                   href={item.href}
                   className={`nav-tab ${active ? 'active' : ''}`}
+                  aria-label={item.label}
+                  aria-current={active ? 'page' : undefined}
                 >
-                  <div className="nav-tab-icon">{item.icon}</div>
+                  <div className="nav-tab-icon-wrap">
+                    <div className="nav-tab-icon">{item.icon}</div>
+                    {item.badge && (
+                      <span className="nav-tab-badge" aria-label={`${item.badge} notifications`}>
+                        {item.badge}
+                      </span>
+                    )}
+                  </div>
                   <span className="nav-tab-label">{item.label}</span>
-                  {active && <span className="nav-active-dot" />}
+                  {active && <span className="nav-active-pill" />}
                 </Link>
               );
             })}
