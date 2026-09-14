@@ -179,65 +179,90 @@ export default function ActiveDeliveryPage() {
       .catch(() => {});
   }, []);
 
-  // Pre-calculate real navigation URLs
-  const restaurantNav = buildGoogleMapsUrl(
-    {
-      name: order.restaurant.name,
-      address: order.restaurant.address,
-      latitude: order.restaurant.latitude,
-      longitude: order.restaurant.longitude,
-    },
-    partnerCoords
-  );
+  // Pre-calculate real navigation targets
+  const restaurantNav = buildGoogleMapsUrl({
+    name: order.restaurant.name,
+    address: order.restaurant.address,
+    latitude: order.restaurant.latitude,
+    longitude: order.restaurant.longitude,
+  });
 
-  const customerNav = buildGoogleMapsUrl(
-    {
-      name: order.customer.name,
-      address: order.customer.address,
-      latitude: order.customer.latitude,
-      longitude: order.customer.longitude,
-    },
-    partnerCoords
-  );
+  const customerNav = buildGoogleMapsUrl({
+    name: order.customer.name,
+    address: order.customer.address,
+    latitude: order.customer.latitude,
+    longitude: order.customer.longitude,
+  });
 
   /**
    * Action handler for NAVIGATE buttons.
-   * Directly opens Google Maps on Android / Mobile browser.
-   * If location is missing, shows informative error without opening broken map.
+   * Directly launches the Google Maps Android Application in turn-by-turn mode:
+   * google.navigation:q=LATITUDE,LONGITUDE&mode=l (two-wheeler)
+   * Explicitly targets com.google.android.apps.maps
+   * Device GPS automatically serves as the starting point.
+   * If Google Maps is not installed, displays informative error with browser fallback.
    */
   const handleNavigate = (targetType: 'RESTAURANT' | 'CUSTOMER', e?: React.MouseEvent) => {
-    if (e) e.preventDefault();
-
     const nav = targetType === 'RESTAURANT' ? restaurantNav : customerNav;
     const destName = targetType === 'RESTAURANT' ? order.restaurant.name : order.customer.name;
 
-    if (!nav.success || !nav.url) {
+    if (!nav.success || (!nav.googleNavUri && !nav.androidIntentUri)) {
+      if (e) e.preventDefault();
       setNavModal({
         isOpen: true,
         type: 'UNAVAILABLE',
         title: nav.errorTitle || 'Location unavailable',
-        message: nav.errorMessage || 'This delivery does not have a valid destination.',
+        message: nav.errorMessage || 'Destination location is unavailable for this order.',
       });
       return;
     }
 
-    const mapsUrl = nav.url;
+    const isAndroid = typeof navigator !== 'undefined' && /android/i.test(navigator.userAgent);
 
-    // Launch Google Maps. On Android, this intent directly opens the Google Maps app if installed.
-    try {
-      const opened = window.open(mapsUrl, '_blank', 'noopener,noreferrer');
-      if (!opened || opened.closed || typeof opened.closed === 'undefined') {
-        // Direct navigation fallback in case popups are blocked in standalone PWA/webview
-        window.location.href = mapsUrl;
+    if (isAndroid) {
+      // Primary Android Action:
+      // Launch Google Maps app directly targeting com.google.android.apps.maps with google.navigation
+      const intentUrl = nav.androidIntentUri || nav.googleNavUri;
+
+      // Track if app launch succeeded
+      let appLaunched = false;
+      const onBlur = () => {
+        appLaunched = true;
+      };
+      window.addEventListener('blur', onBlur, { once: true });
+
+      // If the app fails to open after 1500ms and window is still visible:
+      setTimeout(() => {
+        window.removeEventListener('blur', onBlur);
+        if (!appLaunched && !document.hidden) {
+          setNavModal({
+            isOpen: true,
+            type: 'FALLBACK',
+            title: 'Google Maps is not installed.',
+            message: `Could not launch Google Maps app for ${destName}. Tap below to view destination in your browser.`,
+            fallbackUrl: nav.webFallbackUrl,
+          });
+        }
+      }, 1500);
+
+      // Trigger the intent
+      const targetUrl = intentUrl || nav.googleNavUri;
+      if (targetUrl) {
+        try {
+          window.location.href = targetUrl;
+        } catch {
+          if (nav.googleNavUri) {
+            window.location.href = nav.googleNavUri;
+          }
+        }
+      } else if (nav.webFallbackUrl) {
+        window.location.href = nav.webFallbackUrl;
       }
-    } catch {
-      setNavModal({
-        isOpen: true,
-        type: 'FALLBACK',
-        title: 'Unable to open Google Maps',
-        message: `Could not launch Google Maps directly for ${destName}. Tap below to view directions in your browser.`,
-        fallbackUrl: mapsUrl,
-      });
+    } else {
+      // Desktop / Non-Android testing:
+      if (e) e.preventDefault();
+      const webUrl = nav.webFallbackUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(destName)}`;
+      window.open(webUrl, '_blank', 'noopener,noreferrer');
     }
   };
 
@@ -346,10 +371,8 @@ export default function ActiveDeliveryPage() {
             <span>CALL RESTAURANT</span>
           </a>
           <a
-            href={restaurantNav.url || '#'}
+            href={restaurantNav.androidIntentUri || restaurantNav.googleNavUri || '#'}
             onClick={(e) => handleNavigate('RESTAURANT', e)}
-            target="_blank"
-            rel="noopener noreferrer"
             className="delivery-secondary-btn"
             style={{
               flex: 1,
@@ -357,6 +380,7 @@ export default function ActiveDeliveryPage() {
               color: isPickupActive ? '#FFFFFF' : '#4A0A10',
               borderColor: '#4A0A10',
               fontWeight: 800,
+              textDecoration: 'none',
             }}
             id="btn-navigate-restaurant"
             title="Navigate to Restaurant on Google Maps"
@@ -457,10 +481,8 @@ export default function ActiveDeliveryPage() {
             <span>CALL CUSTOMER</span>
           </a>
           <a
-            href={customerNav.url || '#'}
+            href={customerNav.androidIntentUri || customerNav.googleNavUri || '#'}
             onClick={(e) => handleNavigate('CUSTOMER', e)}
-            target="_blank"
-            rel="noopener noreferrer"
             className="delivery-secondary-btn"
             style={{
               flex: 1,
@@ -468,6 +490,7 @@ export default function ActiveDeliveryPage() {
               color: isDropoffActive ? '#FFFFFF' : '#4A0A10',
               borderColor: '#4A0A10',
               fontWeight: 800,
+              textDecoration: 'none',
             }}
             id="btn-navigate-customer"
             title="Navigate to Customer on Google Maps"
@@ -523,8 +546,8 @@ export default function ActiveDeliveryPage() {
         {/* Step 1: Nav to Restaurant + Mark Arrived */}
         {currentStep === 1 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <button
-              type="button"
+            <a
+              href={restaurantNav.androidIntentUri || restaurantNav.googleNavUri || '#'}
               className="delivery-primary-btn"
               onClick={(e) => handleNavigate('RESTAURANT', e)}
               style={{
@@ -532,12 +555,13 @@ export default function ActiveDeliveryPage() {
                 padding: '16px 20px',
                 fontSize: 15,
                 letterSpacing: 0.3,
+                textDecoration: 'none',
               }}
               id="btn-primary-navigate-restaurant"
             >
               <span>🧭</span>
               <span>NAVIGATE TO RESTAURANT</span>
-            </button>
+            </a>
 
             <button
               type="button"
@@ -578,8 +602,8 @@ export default function ActiveDeliveryPage() {
         {/* Step 3: Picked up -> Navigate to customer */}
         {currentStep === 3 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <button
-              type="button"
+            <a
+              href={customerNav.androidIntentUri || customerNav.googleNavUri || '#'}
               className="delivery-primary-btn"
               onClick={(e) => {
                 handleNavigate('CUSTOMER', e);
@@ -591,12 +615,13 @@ export default function ActiveDeliveryPage() {
                 padding: '16px 20px',
                 fontSize: 15,
                 letterSpacing: 0.3,
+                textDecoration: 'none',
               }}
               id="btn-primary-navigate-customer"
             >
               <span>🧭</span>
               <span>NAVIGATE TO CUSTOMER</span>
-            </button>
+            </a>
 
             <button
               type="button"
@@ -619,8 +644,8 @@ export default function ActiveDeliveryPage() {
         {/* Step 4: En route to customer -> Complete delivery */}
         {currentStep === 4 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <button
-              type="button"
+            <a
+              href={customerNav.androidIntentUri || customerNav.googleNavUri || '#'}
               className="delivery-secondary-btn"
               onClick={(e) => handleNavigate('CUSTOMER', e)}
               style={{
@@ -630,12 +655,13 @@ export default function ActiveDeliveryPage() {
                 width: '100%',
                 borderColor: '#4A0A10',
                 color: '#4A0A10',
+                textDecoration: 'none',
               }}
               id="btn-reopen-customer-nav"
             >
               <span>🧭</span>
               <span>RE-OPEN GOOGLE MAPS NAVIGATION</span>
-            </button>
+            </a>
 
             <button
               type="button"

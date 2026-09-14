@@ -17,6 +17,8 @@ import {
   Switch,
   ScrollView,
   TextInput,
+  Linking,
+  Platform,
 } from 'react-native';
 import { authApi, deliveryApi, configureApiClient } from '@quickbite/api-client';
 import { registerRootComponent } from 'expo';
@@ -629,6 +631,63 @@ function DeliveriesScreen({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// NATIVE GOOGLE MAPS TURN-BY-TURN NAVIGATION (mode=l: Two-Wheeler)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const launchGoogleMapsNavigation = async (target: {
+  name?: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  address?: string | null;
+}) => {
+  const hasCoords =
+    typeof target.latitude === 'number' &&
+    !isNaN(target.latitude) &&
+    target.latitude !== 0;
+  const address = (target.address || '').trim();
+
+  if (!hasCoords && !address) {
+    Alert.alert('Location unavailable', 'Destination location is unavailable for this order.');
+    return;
+  }
+
+  const query = hasCoords
+    ? `${target.latitude},${target.longitude}`
+    : encodeURIComponent(address);
+
+  // Direct turn-by-turn navigation in Google Maps app with two-wheeler mode (mode=l)
+  const navUrl = `google.navigation:q=${query}&mode=l`;
+  const webFallback = `https://www.google.com/maps/search/?api=1&query=${query}`;
+
+  try {
+    const supported = await Linking.canOpenURL(navUrl);
+    if (supported) {
+      await Linking.openURL(navUrl);
+      return;
+    }
+  } catch {}
+
+  // Fallback if google.navigation intent cannot be opened
+  try {
+    const webSupported = await Linking.canOpenURL(webFallback);
+    if (webSupported) {
+      Alert.alert(
+        'Google Maps is not installed.',
+        'Would you like to open the destination in your browser?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Open in Browser', onPress: () => Linking.openURL(webFallback) },
+        ]
+      );
+    } else {
+      Alert.alert('Google Maps is not installed.', 'Please install Google Maps on your device.');
+    }
+  } catch {
+    Alert.alert('Google Maps is not installed.', 'Please install Google Maps on your device.');
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // SCREEN: DELIVERY DETAIL
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -664,9 +723,30 @@ function DeliveryDetailScreen({
           {NEXT_STATUS[delivery.status] && (
             <View style={{ marginTop: 12, gap: 10 }}>
               {NEXT_STATUS[delivery.status].navLabel && (
-                <TouchableOpacity style={styles.outlineBtn} activeOpacity={0.85}>
+                <TouchableOpacity
+                  style={styles.outlineBtn}
+                  activeOpacity={0.85}
+                  onPress={() => {
+                    if (delivery.status === 'ACCEPTED') {
+                      launchGoogleMapsNavigation({
+                        name: restaurant.name,
+                        latitude: restaurant.latitude,
+                        longitude: restaurant.longitude,
+                        address: restaurant.address,
+                      });
+                    } else {
+                      const customerAddr = [address.addressLine1, address.area, address.city].filter(Boolean).join(', ');
+                      launchGoogleMapsNavigation({
+                        name: `${customer.firstName || ''} ${customer.lastName || ''}`.trim() || customer.name,
+                        latitude: address.latitude,
+                        longitude: address.longitude,
+                        address: customerAddr,
+                      });
+                    }
+                  }}
+                >
                   <Text style={styles.outlineBtnText}>
-                    🗺️ {NEXT_STATUS[delivery.status].navLabel}
+                    🧭 {NEXT_STATUS[delivery.status].navLabel}
                   </Text>
                 </TouchableOpacity>
               )}
@@ -701,11 +781,24 @@ function DeliveryDetailScreen({
             )}
           </View>
           <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
-            <TouchableOpacity style={[styles.outlineBtn, { flex: 1 }]} activeOpacity={0.85}>
+            <TouchableOpacity
+              style={[styles.outlineBtn, { flex: 1 }]}
+              activeOpacity={0.85}
+              onPress={() => restaurant.phone && Linking.openURL(`tel:${restaurant.phone}`)}
+            >
               <Text style={styles.outlineBtnText}>📞 Call</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.outlineBtn, { flex: 1 }]} activeOpacity={0.85}>
-              <Text style={styles.outlineBtnText}>🗺️ Navigate</Text>
+            <TouchableOpacity
+              style={[styles.outlineBtn, { flex: 1 }]}
+              activeOpacity={0.85}
+              onPress={() => launchGoogleMapsNavigation({
+                name: restaurant.name,
+                latitude: restaurant.latitude,
+                longitude: restaurant.longitude,
+                address: restaurant.address,
+              })}
+            >
+              <Text style={styles.outlineBtnText}>🧭 Navigate</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -731,11 +824,27 @@ function DeliveryDetailScreen({
             )}
           </View>
           <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
-            <TouchableOpacity style={[styles.outlineBtn, { flex: 1 }]} activeOpacity={0.85}>
+            <TouchableOpacity
+              style={[styles.outlineBtn, { flex: 1 }]}
+              activeOpacity={0.85}
+              onPress={() => customer.phone && Linking.openURL(`tel:${customer.phone}`)}
+            >
               <Text style={styles.outlineBtnText}>📞 Call</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.outlineBtn, { flex: 1 }]} activeOpacity={0.85}>
-              <Text style={styles.outlineBtnText}>🗺️ Navigate</Text>
+            <TouchableOpacity
+              style={[styles.outlineBtn, { flex: 1 }]}
+              activeOpacity={0.85}
+              onPress={() => {
+                const customerAddr = [address.addressLine1, address.area, address.city].filter(Boolean).join(', ');
+                launchGoogleMapsNavigation({
+                  name: `${customer.firstName || ''} ${customer.lastName || ''}`.trim() || customer.name,
+                  latitude: address.latitude,
+                  longitude: address.longitude,
+                  address: customerAddr,
+                });
+              }}
+            >
+              <Text style={styles.outlineBtnText}>🧭 Navigate</Text>
             </TouchableOpacity>
           </View>
         </View>
